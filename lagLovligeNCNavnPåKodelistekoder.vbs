@@ -200,14 +200,19 @@ sub oppdaterKoderForEnValgtKodeliste()
 	Set theElement = Repository.GetTreeSelectedObject()
 
 	if not theElement is nothing  then
-		if theElement.Type="Class" and theElement.Stereotype = "codeList" Or theElement.Stereotype = "CodeList" Or theElement.Stereotype = "enumeration" then
-			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
-		  fixOldCodelists(theElement)
-    Else
+		if (theElement.ObjectType = otElement) then
+			if ((theElement.Type = "Class") and (theElement.Stereotype = "codeList" Or theElement.Stereotype = "CodeList" Or theElement.Stereotype = "enumeration")) then
+				'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
+				fixOldCodelists(theElement)
+			else
+				MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
+				"Please select a  CodeList class in the Project Browser and try once more." )
+			end if
+		Else
 		  'Other than CodeList selected in the tree
 		  MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
 			"Please select a  CodeList class in the Project Browser and try once more." )
-    end If
+		end If
 		Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
 		Repository.EnsureOutputVisible "Script"
 	else
