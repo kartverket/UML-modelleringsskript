@@ -84,17 +84,18 @@ sub FindElementsWithTopoAssociationInPackage(package)
 			for elementsCounter = 0 to elements.Count - 1
 				dim currentElement as EA.Element
 				set currentElement = elements.GetAt( elementsCounter )
-				
-				'Session.Output("The current element is: " & currentElement.Name & " [Stereotype: " & currentElement.Stereotype & "]")
-				
+								
 				'check if the currentElement has stereotype FeatureType. 
 				if UCase(currentElement.Stereotype) = UCase("FeatureType") then
+					Session.Output("-----------------------------")
+					Session.Output("Current feature type is: "& currentElement.Name &". Start searching for topo association.")
+					
 					'check if the feature type has associations with stereotype topo
 					dim connectors as EA.Collection
 					set connectors = currentElement.Connectors
-					'navigate the connectors
-					Session.Output("Found " & connectors.Count & " connectors for featureType " & currentElement.Name)
 					
+					'navigate the connectors
+					'Session.Output("Found " & connectors.Count & " connectors for featureType " & currentElement.Name)
 					dim connectorsCounter
 					for connectorsCounter = 0 to connectors.Count - 1
 						dim currentConnector as EA.Connector
@@ -102,7 +103,6 @@ sub FindElementsWithTopoAssociationInPackage(package)
 						
 						'check if the connector has stereotype topo if not ignore this one
 						if UCase(currentConnector.Stereotype) = UCase("topo") then
-							'Session.Output("Found topo association: " & currentConnector.ConnectorGUID)
 							'Session.Output("...with clientID: " & currentConnector.ClientID)
 							dim sourceElementID
 							sourceElementID = currentConnector.ClientID 
@@ -114,23 +114,74 @@ sub FindElementsWithTopoAssociationInPackage(package)
 							targetEndNavigable = currentConnector.SupplierEnd.Navigable
 							dim oppositeSideNavigable 
 							dim currentElementSideNavigable 
+							dim oppositeSideSharedAggregation
+							dim currentElementSharedAggregation
 							
 							'find out which side is the opposite one
 							dim elementOnOppositeSide as EA.Element
 							if currentElement.ElementID = sourceElementID then
+								'current element is on the connectors client side
+								'get the needed information
 								currentElementSideNavigable = sourceEndNavigable
 								oppositeSideNavigable = targetEndNavigable
+								
+								if currentConnector.ClientEnd.Aggregation = 1 then
+									currentElementSharedAggregation = true
+								else
+									currentElementSharedAggregation = false
+								end if
+								
+								if currentConnector.SupplierEnd.Aggregation = 1 then
+									oppositeSideSharedAggregation = true
+								else
+									oppositeSideSharedAggregation = false
+								end if
+								
 								set elementOnOppositeSide = Repository.GetElementByID(targetElementID)
+								
 							else
+								'current element is on the connectors supplier side
+								'get the needed information
 								currentElementSideNavigable = targetEndNavigable
 								oppositeSideNavigable = sourceEndNavigable
+								
+								if currentConnector.ClientEnd.Aggregation = 1 then
+									oppositeSideSharedAggregation = true
+								else
+									oppositeSideSharedAggregation = false
+								end if
+								
+								if currentConnector.SupplierEnd.Aggregation = 1 then
+									currentElementSharedAggregation = true
+								else
+									currentElementSharedAggregation = false
+								end if
+								
 								set elementOnOppositeSide = Repository.GetElementByID(sourceElementID)
 							end if
+							Session.Output("Found topo association from " & currentElement.Name & " to " & elementOnOppositeSide.Name)
 							
-							'is the topo association directed towards the opposite side of the current element and not bi-directional?
-							'if so, do something
-							if (oppositeSideNavigable = "Navigable") and not (currentElementSideNavigable = "Navigable") then
-								Session.Output("Found topo association with navigable connector end on the opposite end for class: " & currentElement.Name)
+							'check if the current element owns at least one (inherited) attribute of type 'Flate'
+							dim hasFlateAttributeType
+							hasFlateAttributeType = false
+							dim currentElementAttributeCollection as EA.Collection
+							set currentElementAttributeCollection = currentElement.AttributesEx
+							dim currentElementAttributeCollectionCounter
+							for currentElementAttributeCollectionCounter = 0 to currentElementAttributeCollection.Count - 1
+								dim currentAttribute as EA.Attribute
+								set currentAttribute = currentElementAttributeCollection.GetAt(currentElementAttributeCollectionCounter)
+								'Session.Output("Attribute name:"& currentAttribute.Name & "-- Attribute type: "&  currentAttribute.Type)
+								if UCase(currentAttribute.Type) = "FLATE" then
+									hasFlateAttributeType = true
+									'exit for
+								end if
+							next
+
+
+							'if the current element has an attribute of type Flate and the topo association is directed towards the opposite side of the current element but not bi-directional
+							'or has a shared aggregation on the current element's side and not on the opposite side, start processing
+							if hasFlateAttributeType and (((oppositeSideNavigable = "Navigable") and not (currentElementSideNavigable = "Navigable")) or ((currentElementSharedAggregation = true) and (oppositeSideSharedAggregation = false))) then
+								Session.Output("Processing topo association from " & currentElement.Name & " to " & elementOnOppositeSide.Name)
 								'find out if there already is a constraint 'KanAvgrensesAv..'
 								dim currentElementConstraints as EA.Collection
 								set currentElementConstraints = currentElement.Constraints
@@ -139,6 +190,7 @@ sub FindElementsWithTopoAssociationInPackage(package)
 								constraintExists = false
 								dim currentConstraint as EA.Constraint
 								for constraintsCounter = 0 to currentElementConstraints.Count - 1
+									
 									set currentConstraint = currentElementConstraints.GetAt(constraintsCounter)
 									dim currentConstraintName
 									currentConstraintName = currentConstraint.Name
@@ -147,7 +199,7 @@ sub FindElementsWithTopoAssociationInPackage(package)
 									firstPartOfCurrentConstraintName = Left(currentConstraintName,14)
 									'Session.Output("First part of constraint name "& firstPartOfCurrentConstraintName)
 									if (firstPartOfCurrentConstraintName = "KanAvgrensesAv") then
-										Session.Output("Found constraint 'KanAvgrensesAv..'")
+										Session.Output("Constraint 'KanAvgrensesAv..' already exists for feature type "& currentElement.Name)
 										constraintExists = true
 										exit for
 									end if	
@@ -155,9 +207,9 @@ sub FindElementsWithTopoAssociationInPackage(package)
 								
 								dim elementNameOnOppositeSide
 								elementNameOnOppositeSide = elementOnOppositeSide.Name
-								Session.Output("Name for the element on opposite side: "& elementNameOnOppositeSide)
+								'Session.Output("Name for the element on opposite side: "& elementNameOnOppositeSide)
 								if constraintExists then
-									Session.Output("constraint 'KanAvgrensesAv..' already exists")
+									'Session.Output("constraint 'KanAvgrensesAv..' already exists")
 									'check if it contains the name of the element on the opposite side of the topo association
 									If InStr(currentConstraintName, elementNameOnOppositeSide) = 0 Then
 										'if not add the element name to the constraint and remove the topo association
@@ -192,7 +244,7 @@ sub FindElementsWithTopoAssociationInPackage(package)
 																					
 															
 							else
-								Session.Output("Found topo association, but this one will be ignored because the 'wrong' end is navigable.")
+								Session.Output("Topo association from "& currentElement.Name &" to "& elementOnOppositeSide.Name &" will be ignored because either has "& currentElement.Name &" no (inherited) attribute type 'Flate' or association's navigability or aggregation does not match search criteria.")
 							end if
 
 						end if
@@ -202,7 +254,7 @@ sub FindElementsWithTopoAssociationInPackage(package)
 				end if
 				
 				'Session.Output("Done with element ["& currentElement.Name &"]")
-				Session.Output(" ")
+				
 			next
 	'Session.Output( "Done with package ["& package.Name &"]")
 			
