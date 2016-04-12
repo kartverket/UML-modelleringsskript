@@ -14,12 +14,15 @@ option explicit
 '	- krav/3: 
 '			Find elements (classes, attributes, navigable association roles, operations, datatypes) 
 '	        without definition (notes/rolenotes) in the selected package and subpackages
-'   - krav/definisjoner:
+'   - krav/definisjoner (partially implemented except for constraints):
 '			Same as krav/3 but checks also for definitions of packages
 '	- krav/10:
 '			Check if all navigable association ends have cardinality
 '	- krav/11:
 '			Check if all navigable association ends have role names
+'	- /krav/flerspråklighet/pakke (partially):
+'			Check if there is a tagged value "language" with any content
+
 ' Date: 2016-04-09
 '
 
@@ -49,9 +52,9 @@ sub OnProjectBrowserScript()
 			'check if the selected package has stereotype applicationSchema
 			if UCase(thePackage.element.stereotype) = UCase("applicationSchema") then
 				Msgbox "Starte modellvalidering for pakke [" & thePackage.Name &"]."
-				dim numberOfElementsWithoutDefinition
-				numberOfElementsWithoutDefinition = FindElementsWithoutDefinitionInPackage(thePackage)
-				Session.Output( "Modellen inneholder " & numberOfElementsWithoutDefinition & " elementer med manglende definisjon.")
+				dim numberOfErrors
+				numberOfErrors = FindNonvalidElementsInPackage(thePackage)
+				Session.Output( "Antall feil funnet i modellen: " & numberOfErrors)
 			else
 				Msgbox "Pakke [" & thePackage.Name &"] har ikke stereotype applicationSchema. Velg en pakke med stereotype applicationSchema for å starte modellvalidering."
 			end if
@@ -81,7 +84,7 @@ sub OnProjectBrowserScript()
 	
 end sub
 
-function FindElementsWithoutDefinitionInPackage(package)
+function FindNonvalidElementsInPackage(package)
 
 			
 			'Session.Output("The current package is: " & package.Name)
@@ -92,19 +95,50 @@ function FindElementsWithoutDefinitionInPackage(package)
 			
 			'check package definition
 			if package.Notes = "" then
-						Session.Output("Pakke [" & package.Name & "] mangler definisjon. [/krav/definisjoner]")
+						Session.Output("FEIL: Pakke [" & package.Name & "] mangler definisjon. [/krav/definisjoner]")
 						localCounter = localCounter + 1
+			end if
+			
+			dim packageTaggedValues as EA.Collection
+			set packageTaggedValues = package.Element.TaggedValues
+			
+			'only for applicationSchema packages:
+			'iterate the tagged values collection and check if the applicationSchema package has a tagged value "language" with any content
+			if UCase(package.element.stereotype) = UCase("applicationSchema") then
+				dim taggedValueLanguageMissing
+				taggedValueLanguageMissing = true
+				dim packageTaggedValuesCounter
+				for packageTaggedValuesCounter = 0 to packageTaggedValues.Count - 1
+					dim currentTaggedValue as EA.TaggedValue
+					set currentTaggedValue = packageTaggedValues.GetAt(packageTaggedValuesCounter)
+					if (currentTaggedValue.Name = "language") and not (currentTaggedValue.Value= "") then
+						Session.Output("funnet tagged value"& currentTaggedValue.Name &" = "& currentTaggedValue.Value)
+						taggedValueLanguageMissing = false
+						exit for
+					else 
+						if currentTaggedValue.Name = "language" and currentTaggedValue.Value= "" then
+							Session.Output("FEIL: Tagged value ["& currentTaggedValue.Name &"] til pakke ["& package.Name & "] mangler verdi. [/krav/flerspråklighet/pakke]")
+							localCounter = localCounter + 1
+							taggedValueLanguageMissing = false
+							exit for
+						end if
+					end if
+				next
+				if taggedValueLanguageMissing then
+					Session.Output("FEIL: Tagged value [language] mangler på pakke ["& package.Name & "]. [/krav/flerspråklighet/pakke]")
+					localCounter = localCounter + 1
+				end if
 			end if
 			
 			dim packages as EA.Collection
 			set packages = package.Packages 'collection of packages that belong to this package
 
-			' Navigate the package collection and call the findElementsWithoutDefinitionInPackage function for each of them
+			' Navigate the package collection and call the FindNonvalidElementsInPackage function for each of them
 			dim p
 			for p = 0 to packages.Count - 1
 				dim currentPackage as EA.Package
 				set currentPackage = packages.GetAt( p )
-				localCounter = localCounter + FindElementsWithoutDefinitionInPackage(currentPackage)
+				localCounter = localCounter + FindNonvalidElementsInPackage(currentPackage)
 			next
 
 			' Navigate the elements collection, pick the classes, find the definitions/notes and do sth. with it
@@ -120,7 +154,7 @@ function FindElementsWithoutDefinitionInPackage(package)
 					'Session.Output( "Found class " & currentElement.Name )
 					if currentElement.Notes = "" then
 						'Msgbox currentElement.Name & "mangler definisjon"
-						Session.Output("Klasse [" & currentElement.Name & "] mangler definisjon. [krav/3]")
+						Session.Output("FEIL: Klasse [" & currentElement.Name & "] mangler definisjon. [/krav/3]")
 						localCounter = localCounter + 1
 					else
 						'definition to system output
@@ -144,7 +178,7 @@ function FindElementsWithoutDefinitionInPackage(package)
 								
 								if currentAttribute.Notes = "" then
 									'Msgbox currentAttribute.Name & " mangler definisjon"
-									Session.Output( "Klasse ["& currentElement.Name &"] \ Egenskap [" & currentAttribute.Name & "] mangler definisjon. [krav/3]")
+									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Egenskap [" & currentAttribute.Name & "] mangler definisjon. [/krav/3]")
 									'Session.Output("    " & currentAttribute.Name & " has no definition")
 									localCounter = localCounter + 1
 								else
@@ -188,7 +222,7 @@ function FindElementsWithoutDefinitionInPackage(package)
 							targetEndCardinality = currentConnector.SupplierEnd.Cardinality
 							
 							'if the current element is on the connectors client side conduct some tests
-							'(this condition is nedded to make sure only associations with 
+							'(this condition is needed to make sure only associations with 
 							'source end connected to elements within this applicationSchema package are 
 							'checked. Associations with source end connected to elements outside of this
 							'package are possibly locked and not editable)
@@ -199,36 +233,36 @@ function FindElementsWithoutDefinitionInPackage(package)
 								'check if there is a definition on navigable ends of the connector
 								'Session.Output( "Tester Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] -- definisjon: "& sourceEndDefinition)
 								if sourceEndNavigable = "Navigable" and sourceEndDefinition = "" then
-									Session.Output( "Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler definisjon. [krav/3]")
+									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler definisjon. [/krav/3]")
 									localCounter = localCounter + 1
 								end if
 								
 								'Session.Output( "Tester Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] -- definisjon: "& targetEndDefinition)
 								if targetEndNavigable = "Navigable" and targetEndDefinition = "" then
-									Session.Output( "Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler definisjon. [krav/3]")
+									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler definisjon. [/krav/3]")
 									localCounter = localCounter + 1
 								end if
 								
 								'check if there is multiplicity on navigable ends
 								if sourceEndNavigable = "Navigable" and sourceEndCardinality = "" then
-									Session.Output( "Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler multiplisitet. [krav/10]")
-									'localCounter = localCounter + 1
+									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler multiplisitet. [/krav/10]")
+									localCounter = localCounter + 1
 								end if
 								
 								if targetEndNavigable = "Navigable" and targetEndCardinality = "" then
-									Session.Output( "Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler multiplisitet. [krav/10]")
-									'localCounter = localCounter + 1
+									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler multiplisitet. [/krav/10]")
+									localCounter = localCounter + 1
 								end if
 
 								'check if there are role names on navigable ends
 								if sourceEndNavigable = "Navigable" and sourceEndName = "" then
-									Session.Output( "Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& currentElement.Name &"-siden [krav/11]")
-									'localCounter = localCounter + 1
+									Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& currentElement.Name &"-siden [/krav/11]")
+									localCounter = localCounter + 1
 								end if
 								
 								if targetEndNavigable = "Navigable" and targetEndName = "" then
-									Session.Output( "Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& elementOnOppositeSide.Name &"-siden [krav/11]")
-									'localCounter = localCounter + 1
+									Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& elementOnOppositeSide.Name &"-siden [/krav/11]")
+									localCounter = localCounter + 1
 								end if
 								
 							end if
@@ -247,7 +281,7 @@ function FindElementsWithoutDefinitionInPackage(package)
 								
 								if currentOperation.Notes = "" then
 									'Msgbox currentAttribute.Name & " mangler definisjon"
-									Session.Output( "Klasse ["& currentElement.Name &"] \ Operasjon [" & currentOperation.Name & "] mangler definisjon. [krav/3]")
+									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Operasjon [" & currentOperation.Name & "] mangler definisjon. [/krav/3]")
 									'Session.Output("    " & currentAttribute.Name & " has no definition")
 									localCounter = localCounter + 1
 								else
@@ -261,7 +295,7 @@ function FindElementsWithoutDefinitionInPackage(package)
 			next
 			'summerization
 			'Session.Output( "Found " & localCounter & " elements without definition.")
-			FindElementsWithoutDefinitionInPackage = localCounter
+			FindNonvalidElementsInPackage = localCounter
 		'Session.Output( "Done with package ["& package.Name &"]")
 		'TODO: check counter for local elements
 		'Session.Output( "There are "& localCounter & " elements without definition in this package.")
