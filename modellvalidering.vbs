@@ -11,18 +11,20 @@ option explicit
 ' Author: Magnus Karge
 ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0
 ' 	Implemented rules:
-'	- krav/3: 
+'	- /krav/3: 
 '			Find elements (classes, attributes, navigable association roles, operations, datatypes) 
 '	        without definition (notes/rolenotes) in the selected package and subpackages
-'   - krav/definisjoner (partially implemented except for constraints):
+'   - /krav/definisjoner (partially implemented except for constraints):
 '			Same as krav/3 but checks also for definitions of packages
-'	- krav/10:
+'	- /krav/10:
 '			Check if all navigable association ends have cardinality
-'	- krav/11:
+'	- /krav/11:
 '			Check if all navigable association ends have role names
 '	- /krav/flerspråklighet/pakke (partially):
 '			Check if there is a tagged value "language" with any content
-
+'	- /krav/12:
+'			If datatypes have associations then the datatype shall only be target in a composition
+'
 ' Date: 2016-04-09
 '
 
@@ -148,23 +150,19 @@ function FindNonvalidElementsInPackage(package)
 				dim currentElement as EA.Element
 				set currentElement = elements.GetAt( i )
 				
-				'Is the currentElement of type Class? If so, continue checking definition and it's attributes' definitions. If not continue with the next element.
+				'Is the currentElement of type Class? If so, continue conducting some tests. If not continue with the next element.
 				if currentElement.Type = "Class" then
 									
-					'Session.Output( "Found class " & currentElement.Name )
+					'check if there is a definition for the class element
 					if currentElement.Notes = "" then
-						'Msgbox currentElement.Name & "mangler definisjon"
 						Session.Output("FEIL: Klasse [" & currentElement.Name & "] mangler definisjon. [/krav/3]")
 						localCounter = localCounter + 1
-					else
-						'definition to system output
-						'Session.Output( "  Definition: " & currentElement.Notes)
 					end if
 					
 					
 					dim stereotype
 					stereotype = currentElement.Stereotype
-					
+							
 										
 						' Retrieve all attributes for this element
 						dim attributesCollection as EA.Collection
@@ -229,6 +227,17 @@ function FindNonvalidElementsInPackage(package)
 							dim elementOnOppositeSide as EA.Element
 							if currentElement.ElementID = sourceElementID then
 								set elementOnOppositeSide = Repository.GetElementByID(targetElementID)
+								
+								'check if the elementOnOppositeSide has stereotype "dataType" and this side's end is no composition
+								if (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType")) and not (currentConnector.ClientEnd.Aggregation = 2) then
+									Session.Output( "FEIL: Klasse [<<"&elementOnOppositeSide.Stereotype&">>"& elementOnOppositeSide.Name &"] har assosiasjon til klasse [" & currentElement.Name & "] som ikke er komposisjon på "& currentElement.Name &"-siden. [/krav/12]")									
+									localCounter = localCounter + 1
+								end if
+								'check if this side's element has stereotype "dataType" and the opposite side's end is no composition
+								if (Ucase(currentElement.Stereotype) = Ucase("dataType")) and not (currentConnector.SupplierEnd.Aggregation = 2) then
+									Session.Output( "FEIL: Klasse [<<"&currentElement.Stereotype&">>"& currentElement.Name &"] har assosiasjon til klasse [" & elementOnOppositeSide.Name & "] som ikke er komposisjon på "& elementOnOppositeSide.Name &"-siden. [/krav/12]")									
+									localCounter = localCounter + 1
+								end if
 								
 								'check if there is a definition on navigable ends of the connector
 								'Session.Output( "Tester Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] -- definisjon: "& sourceEndDefinition)
