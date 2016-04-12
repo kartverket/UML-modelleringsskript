@@ -16,6 +16,11 @@ option explicit
 '	        without definition (notes/rolenotes) in the selected package and subpackages
 '   - krav/definisjoner:
 '			Same as krav/3 but checks also for definitions of packages
+'	- krav/10:
+'			Check if all navigable association ends have cardinality
+'	- krav/11:
+'			Check if all navigable association ends have role names
+' Date: 2016-04-09
 '
 
 '
@@ -162,21 +167,26 @@ function FindElementsWithoutDefinitionInPackage(package)
 							
 							dim sourceElementID
 							sourceElementID = currentConnector.ClientID
-							
 							dim sourceEndNavigable 
 							sourceEndNavigable = currentConnector.ClientEnd.Navigable
 							dim sourceEndName
 							sourceEndName = currentConnector.ClientEnd.Role
 							dim sourceEndDefinition
 							sourceEndDefinition = currentConnector.ClientEnd.RoleNote
-														
+							dim sourceEndCardinality		
+							sourceEndCardinality = currentConnector.ClientEnd.Cardinality
+							
+							dim targetElementID
+							targetElementID = currentConnector.SupplierID
 							dim targetEndNavigable 
 							targetEndNavigable = currentConnector.SupplierEnd.Navigable
 							dim targetEndName
 							targetEndName = currentConnector.SupplierEnd.Role
 							dim targetEndDefinition
 							targetEndDefinition = currentConnector.SupplierEnd.RoleNote
-														
+							dim targetEndCardinality
+							targetEndCardinality = currentConnector.SupplierEnd.Cardinality
+							
 							'if the current element is on the connectors client side conduct some tests
 							'(this condition is nedded to make sure only associations with 
 							'source end connected to elements within this applicationSchema package are 
@@ -184,6 +194,8 @@ function FindElementsWithoutDefinitionInPackage(package)
 							'package are possibly locked and not editable)
 							dim elementOnOppositeSide as EA.Element
 							if currentElement.ElementID = sourceElementID then
+								set elementOnOppositeSide = Repository.GetElementByID(targetElementID)
+								
 								'check if there is a definition on navigable ends of the connector
 								'Session.Output( "Tester Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] -- definisjon: "& sourceEndDefinition)
 								if sourceEndNavigable = "Navigable" and sourceEndDefinition = "" then
@@ -195,6 +207,28 @@ function FindElementsWithoutDefinitionInPackage(package)
 								if targetEndNavigable = "Navigable" and targetEndDefinition = "" then
 									Session.Output( "Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler definisjon. [krav/3]")
 									localCounter = localCounter + 1
+								end if
+								
+								'check if there is multiplicity on navigable ends
+								if sourceEndNavigable = "Navigable" and sourceEndCardinality = "" then
+									Session.Output( "Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler multiplisitet. [krav/10]")
+									'localCounter = localCounter + 1
+								end if
+								
+								if targetEndNavigable = "Navigable" and targetEndCardinality = "" then
+									Session.Output( "Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler multiplisitet. [krav/10]")
+									'localCounter = localCounter + 1
+								end if
+
+								'check if there are role names on navigable ends
+								if sourceEndNavigable = "Navigable" and sourceEndName = "" then
+									Session.Output( "Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& currentElement.Name &"-siden [krav/11]")
+									'localCounter = localCounter + 1
+								end if
+								
+								if targetEndNavigable = "Navigable" and targetEndName = "" then
+									Session.Output( "Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& elementOnOppositeSide.Name &"-siden [krav/11]")
+									'localCounter = localCounter + 1
 								end if
 								
 							end if
