@@ -114,7 +114,7 @@ function FindNonvalidElementsInPackage(package)
 					dim currentTaggedValue as EA.TaggedValue
 					set currentTaggedValue = packageTaggedValues.GetAt(packageTaggedValuesCounter)
 					if (currentTaggedValue.Name = "language") and not (currentTaggedValue.Value= "") then
-						Session.Output("funnet tagged value"& currentTaggedValue.Name &" = "& currentTaggedValue.Value)
+						'Session.Output("funnet tagged value"& currentTaggedValue.Name &" = "& currentTaggedValue.Value)
 						taggedValueLanguageMissing = false
 						exit for
 					else 
@@ -224,8 +224,10 @@ function FindNonvalidElementsInPackage(package)
 							'source end connected to elements within this applicationSchema package are 
 							'checked. Associations with source end connected to elements outside of this
 							'package are possibly locked and not editable)
+							'Session.Output("connectorType: "&currentConnector.Type)
+							
 							dim elementOnOppositeSide as EA.Element
-							if currentElement.ElementID = sourceElementID then
+							if currentElement.ElementID = sourceElementID and not currentConnector.Type = "Realisation" then
 								set elementOnOppositeSide = Repository.GetElementByID(targetElementID)
 								
 								'check if the elementOnOppositeSide has stereotype "dataType" and this side's end is no composition
