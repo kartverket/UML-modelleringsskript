@@ -24,8 +24,11 @@ option explicit
 '			Check if there is a tagged value "language" with any content
 '	- /krav/12:
 '			If datatypes have associations then the datatype shall only be target in a composition
+'	- /krav/navning (partially):
+'			Check if names of attributes, operations, roles start with lower case and names of packages, 
+'			classes and associations start with upper case
 '
-' Date: 2016-04-09
+' Date: 2016-04-13
 '
 
 '
@@ -80,7 +83,7 @@ sub OnProjectBrowserScript()
 		
 		case else
 			' Error message
-			Session.Prompt "This script does not support items of this type.", promptOK
+			Session.Prompt "[ADVARSEL] Velg en pakke med stereotype applicationSchema for å starte modellvalidering.", promptOK
 			
 	end select
 	
@@ -98,6 +101,13 @@ function FindNonvalidElementsInPackage(package)
 			'check package definition
 			if package.Notes = "" then
 						Session.Output("FEIL: Pakke [" & package.Name & "] mangler definisjon. [/krav/definisjoner]")
+						localCounter = localCounter + 1
+			end if
+			
+			'check if first letter of package name is capital letter
+			
+			if not Left(package.Name,1) = UCase(Left(package.Name,1)) then
+						Session.Output("FEIL: Navnet til pakka [" & package.Name & "] skal starte med stor bokstav. [/krav/navning]")
 						localCounter = localCounter + 1
 			end if
 			
@@ -159,6 +169,11 @@ function FindNonvalidElementsInPackage(package)
 						localCounter = localCounter + 1
 					end if
 					
+					'check if first letter of class name is capital letter
+					if not Left(currentElement.Name,1) = UCase(Left(currentElement.Name,1)) then
+						Session.Output("FEIL: Navnet til klassen [" & currentElement.Name & "] skal starte med stor bokstav. [/krav/navning]")
+						localCounter = localCounter + 1
+					end if
 					
 					dim stereotype
 					stereotype = currentElement.Stereotype
@@ -173,15 +188,17 @@ function FindNonvalidElementsInPackage(package)
 							for n = 0 to attributesCollection.Count - 1 					
 								dim currentAttribute as EA.Attribute		
 								set currentAttribute = attributesCollection.GetAt(n)
-								
+								'check if the attribute has a definition
 								if currentAttribute.Notes = "" then
 									'Msgbox currentAttribute.Name & " mangler definisjon"
 									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Egenskap [" & currentAttribute.Name & "] mangler definisjon. [/krav/3]")
 									'Session.Output("    " & currentAttribute.Name & " has no definition")
 									localCounter = localCounter + 1
-								else
-									'definition to system output
-									'Session.Output( "    Definition: " & currentAttribute.Notes  & ".")
+								end if
+								'check if the attribute's name starts with lower case
+								if not Left(currentAttribute.Name,1) = LCase(Left(currentAttribute.Name,1)) then
+									Session.Output("FEIL: Navnet til egenskapen [" & currentAttribute.Name & "] til klassen ["&currentElement.Name&"] skal starte med liten bokstav. [/krav/navning]")
+									localCounter = localCounter + 1
 								end if
 							next
 						end if	
@@ -230,6 +247,12 @@ function FindNonvalidElementsInPackage(package)
 							if currentElement.ElementID = sourceElementID and not currentConnector.Type = "Realisation" then
 								set elementOnOppositeSide = Repository.GetElementByID(targetElementID)
 								
+								'if the connector has a name (optional according to the rules), check if it starts with capital letter
+								if not currentConnector.Name = "" and not Left(currentConnector.Name,1) = UCase(Left(currentConnector.Name,1)) then
+									Session.Output("FEIL: Navnet til assosiasjonen [" & currentConnector.Name & "] mellom klasse ["& elementOnOppositeSide.Name &"] og klasse [" & currentElement.Name & "] skal starte med stor bokstav. [/krav/navning]")
+									localCounter = localCounter + 1
+								end if
+								
 								'check if the elementOnOppositeSide has stereotype "dataType" and this side's end is no composition
 								if (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType")) and not (currentConnector.ClientEnd.Aggregation = 2) then
 									Session.Output( "FEIL: Klasse [<<"&elementOnOppositeSide.Stereotype&">>"& elementOnOppositeSide.Name &"] har assosiasjon til klasse [" & currentElement.Name & "] som ikke er komposisjon på "& currentElement.Name &"-siden. [/krav/12]")									
@@ -276,6 +299,15 @@ function FindNonvalidElementsInPackage(package)
 									localCounter = localCounter + 1
 								end if
 								
+								'if there are role names on connector ends (regardless of navigability), check if they start with lower case
+								if not sourceEndName = "" and not Left(sourceEndName,1) = LCase(Left(sourceEndName,1)) then
+									Session.Output("FEIL: Navnet til rollen [" & sourceEndName & "] på assosiasjonsende i tilknytning til klassen ["& currentElement.Name &"] skal starte med liten bokstav. [/krav/navning]")
+									localCounter = localCounter + 1
+								end if
+								if not (targetEndName = "") and not (Left(targetEndName,1) = LCase(Left(targetEndName,1))) then
+									Session.Output("FEIL: Navnet til rollen [" & targetEndName & "] på assosiasjonsende i tilknytning til klassen ["& elementOnOppositeSide.Name &"] skal starte med liten bokstav. [/krav/navning]")
+									localCounter = localCounter + 1
+								end if
 							end if
 																				
 						next
@@ -290,15 +322,20 @@ function FindNonvalidElementsInPackage(package)
 								dim currentOperation as EA.Method		
 								set currentOperation = operationsCollection.GetAt(operationCounter)
 								
+								'check if the operations's name starts with lower case
+								'TODO: this rule does not apply for constructor operation
+								if not Left(currentOperation.Name,1) = LCase(Left(currentOperation.Name,1)) then
+									Session.Output("FEIL: Navnet til operasjonen [" & currentOperation.Name & "] til klassen ["&currentElement.Name&"] skal starte med liten bokstav. [/krav/navning]")
+									localCounter = localCounter + 1
+								end if
+								
 								if currentOperation.Notes = "" then
 									'Msgbox currentAttribute.Name & " mangler definisjon"
 									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Operasjon [" & currentOperation.Name & "] mangler definisjon. [/krav/3]")
 									'Session.Output("    " & currentAttribute.Name & " has no definition")
 									localCounter = localCounter + 1
-								else
-									'definition to system output
-									'Session.Output( "    Definition: " & currentAttribute.Notes  & ".")
 								end if
+															
 							next
 						end if					
 				end if
