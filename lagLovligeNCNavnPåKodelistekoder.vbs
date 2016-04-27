@@ -2,7 +2,7 @@ option explicit
 
 !INC Local Scripts.EAConstants-VBScript
 
-' skriptnavn: lagLovligeNCNavnPåKodelistekoder
+' skriptnavn: lagLovligeNCNavnPï¿½Kodelistekoder
 
 sub fixOldCodelists(el)
 	'Repository.WriteOutput "Script", Now & " CodeList: " & el.Name, 0
@@ -12,33 +12,28 @@ sub fixOldCodelists(el)
 	for each attr in el.Attributes
 		Repository.WriteOutput "Script", Now & " " & el.Name & "." & attr.Name, 0
 
-    kopierKodensNavnTilTomDefinisjon(attr)
-
+		kopierKodensNavnTilTomDefinisjon(attr)
 		kopierKodensNavnTilTagSOSI_presentasjonsnavn(attr)
 
-    'flyttInitialverdiTilTagSOSI_verdi(attr)
+		'flyttInitialverdiTilTagSOSI_verdi(attr)
 
-    settKodensNavnTilNCName(attr)
-    'eller
-    'settKodensNavnTilEgen_Navn(attr)
-
-
+		settKodensNavnTilNCName(attr)
+		'eller
+		'settKodensNavnTilEgen_Navn(attr)
 	next
-
 end sub
 
 Sub kopierKodensNavnTilTomDefinisjon(attr)
-		if attr.Notes = "" then
-			dim notestring
-		  ' Move ALL (old) names to START of definition by commenting out the if/endif around
-		  ' and use this "notestring =" instead
-			' notestring = attr.Name & " " & attr.Notes
-			notestring = attr.Name
-			Repository.WriteOutput "Script", "New notestring: " & notestring,0
-			attr.Notes = notestring
-			attr.Update()
-		end if
-
+	if attr.Notes = "" then
+		dim notestring
+	  ' Move ALL (old) names to START of definition by commenting out the if/endif around
+	  ' and use this "notestring =" instead
+		' notestring = attr.Name & " " & attr.Notes
+		notestring = attr.Name
+		Repository.WriteOutput "Script", "New notestring: " & notestring,0
+		attr.Notes = notestring
+		attr.Update()
+	end if
 End Sub
 
 Sub kopierKodensNavnTilTagSOSI_presentasjonsnavn(attr)
@@ -49,15 +44,15 @@ End Sub
 
 
 Sub flyttInitialverdiTilTagSOSI_verdi(attr)
-		If attr.Default <> "" then
-  		Repository.WriteOutput "Script", "Initial value moved: " & attr.Default,0
+	If attr.Default <> "" then
+		Repository.WriteOutput "Script", "Initial value moved: " & attr.Default,0
 
-      Call TVSetElementTaggedValue(attr, "SOSI_verdi", attr.Default)
+		Call TVSetElementTaggedValue(attr, "SOSI_verdi", attr.Default)
 
-      attr.Default = ""
-      attr.Update()
+		attr.Default = ""
+		attr.Update()
 
-		End if
+	End if
 End Sub
 
 sub TVSetElementTaggedValue( theElement, taggedValueName, taggedValue)
@@ -97,94 +92,84 @@ sub TVSetElementTaggedValue( theElement, taggedValueName, taggedValue)
 end Sub
 
 Sub settKodensNavnTilNCName(attr)
-		' make name legal NCName
-		' (alternatively replace each bad character with a "_", typically used for codelist with proper names.)
-		' (Sub settBlankeIKodensNavnTil_(attr))
+	' make name legal NCName
+	' (alternatively replace each bad character with a "_", typically used for codelist with proper names.)
+	' (Sub settBlankeIKodensNavnTil_(attr))
     Dim txt, res, tegn, i, u
-    u=0
-		txt = Trim(attr.Name)
-		res = LCase( Mid(txt,1,1) )
-			'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
+	u=0
+	txt = Trim(attr.Name)
 
-		' loop gjennom alle tegn
-		For i = 2 To Len(txt)
-		  ' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
-		  ' (tatt med flere fnuttetyper, men hva med "."?)
-		  tegn = Mid(txt,i,1)
-		  if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
-			  'Repository.WriteOutput "Script", "Bad1: " & tegn,0
-			  u=1
-		  Else
-		    if tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
-			    'Repository.WriteOutput "Script", "Bad2: " & tegn,0
-			    u=1
-		    Else
-		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
-			      'Repository.WriteOutput "Script", "Bad3: " & tegn,0
-			      u=1
-		      else
-			      'Repository.WriteOutput "Script", "Good: " & tegn,0
-			      If u = 1 Then
-		          res = res + UCase(tegn)
-		          u=0
-			      else
-		          res = res + tegn
-		        End If
-		      End If
-		    End If
-		  End If
-		Next
-		Repository.WriteOutput "Script", "New NCName: " & res,0
-		' return res
-		attr.Name = res
-		attr.Update()
+	' loop gjennom alle tegn
+	For i = 1 To Len(txt)
+		' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
+		' (tatt med flere fnuttetyper, men hva med "."?)
+		tegn = Mid(txt,i,1)
+		if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
+			'Repository.WriteOutput "Script", "Bad1: " & tegn,0
+			u=1
+		ElseIf tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
+			'Repository.WriteOutput "Script", "Bad2: " & tegn,0
+			u=1
+		ElseIf tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "ï¿½" or tegn = "ï¿½" Then
+			'Repository.WriteOutput "Script", "Bad3: " & tegn,0
+			u=1
+		end if
+		'Repository.WriteOutput "Script", "Good: " & tegn,0
+		if i = 1 and u = 0 then
+			res = LCase( Mid(txt,1,1) )
+		else
+			If u = 1 Then
+				res = res + "" 'UCase(tegn)
+				u=0
+			else
+				res = res + tegn
+			end if
+		end if
+	Next
+	Repository.WriteOutput "Script", "New NCName: " & res,0
+	' return res
+	attr.Name = res
+	attr.Update()
 
 End Sub
 
 Sub settKodensNavnTilEgen_Navn(attr)
-		' make name legal NCName by replacing each bad character with a "_", typically used for codelist with proper names.)
+	' make name legal NCName by replacing each bad character with a "_", typically used for codelist with proper names.)
 
     Dim txt, res, tegn, i, u
     u=0
-		txt = Trim(attr.Name)
-		'res = LCase( Mid(txt,1,1) )
-		res = Mid(txt,1,1)
-			'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
+	txt = Trim(attr.Name)
+	'res = LCase( Mid(txt,1,1) )
+	res = Mid(txt,1,1)
+	'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
 
-		' loop gjennom alle tegn
-		For i = 2 To Len(txt)
-		  ' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
-		  ' (tatt med flere fnuttetyper, men hva med "."?)
-		  tegn = Mid(txt,i,1)
-		  if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
-			  'Repository.WriteOutput "Script", "Bad1: " & tegn,0
-			  u=1
-		  Else
-		    if tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
-			    'Repository.WriteOutput "Script", "Bad2: " & tegn,0
-			    u=1
-		    Else
-		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
-			      'Repository.WriteOutput "Script", "Bad3: " & tegn,0
-			      u=1
-		      else
-			      'Repository.WriteOutput "Script", "Good: " & tegn,0
-			      If u = 1 Then
-			        res = res + "_"
-		          'res = res + UCase(tegn)
-		          u=0
-			      'else
-		        End If
-		        res = res + tegn
-		      End If
-		    End If
-		  End If
-		Next
-		Repository.WriteOutput "Script", "New NCName: " & res,0
-		' return res
-		attr.Name = res
-		attr.Update()
-
+	' loop gjennom alle tegn
+	For i = 1 To Len(txt)
+		' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
+		' (tatt med flere fnuttetyper, men hva med "."?)
+		tegn = Mid(txt,i,1)
+		if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
+			'Repository.WriteOutput "Script", "Bad1: " & tegn,0
+			u=1
+		ElseIf tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
+			'Repository.WriteOutput "Script", "Bad2: " & tegn,0
+			u=1
+		ElseIf tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "ï¿½" or tegn = "ï¿½" Then
+			'Repository.WriteOutput "Script", "Bad3: " & tegn,0
+			u=1
+		end if
+		'Repository.WriteOutput "Script", "Good: " & tegn,0
+		If u = 1 Then
+			res = res + "_"
+			u=0
+		'else
+		End If
+		res = res + tegn
+	Next
+	Repository.WriteOutput "Script", "New NCName: " & res,0
+	' return res
+	attr.Name = res
+	attr.Update()
 End Sub
 
 sub oppdaterKoderForEnValgtKodeliste()
