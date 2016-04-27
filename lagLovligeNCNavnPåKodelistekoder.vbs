@@ -2,7 +2,7 @@ option explicit
 
 !INC Local Scripts.EAConstants-VBScript
 
-' skriptnavn: lagLovligeNCNavnPï¿½Kodelistekoder
+' skriptnavn: lagLovligeNCNavnPåKodelistekoder
 
 sub fixOldCodelists(el)
 	'Repository.WriteOutput "Script", Now & " CodeList: " & el.Name, 0
@@ -98,7 +98,7 @@ Sub settKodensNavnTilNCName(attr)
     Dim txt, res, tegn, i, u
 	u=0
 	txt = Trim(attr.Name)
-
+	
 	' loop gjennom alle tegn
 	For i = 1 To Len(txt)
 		' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
@@ -110,7 +110,7 @@ Sub settKodensNavnTilNCName(attr)
 		ElseIf tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
 			'Repository.WriteOutput "Script", "Bad2: " & tegn,0
 			u=1
-		ElseIf tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "ï¿½" or tegn = "ï¿½" Then
+		ElseIf tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
 			'Repository.WriteOutput "Script", "Bad3: " & tegn,0
 			u=1
 		end if
@@ -154,7 +154,7 @@ Sub settKodensNavnTilEgen_Navn(attr)
 		ElseIf tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
 			'Repository.WriteOutput "Script", "Bad2: " & tegn,0
 			u=1
-		ElseIf tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "ï¿½" or tegn = "ï¿½" Then
+		ElseIf tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
 			'Repository.WriteOutput "Script", "Bad3: " & tegn,0
 			u=1
 		end if
