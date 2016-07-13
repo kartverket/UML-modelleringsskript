@@ -274,11 +274,6 @@ function FindNonvalidElementsInPackage(package)
 					errorsInFunctionTests = Krav3(currentElement)
 					localCounter = localCounter + errorsInFunctionTests
 					
-					'if currentElement.Notes = "" then
-					'	Session.Output("FEIL: Klasse [" & currentElement.Name & "] mangler definisjon. [/krav/3]")
-					'	localCounter = localCounter + 1
-					'end if
-					
 					'check if first letter of class name is capital letter
 					if not Left(currentElement.Name,1) = UCase(Left(currentElement.Name,1)) then
 						Session.Output("FEIL: Navnet til klassen [" & currentElement.Name & "] skal starte med stor bokstav. [/krav/navning]")
@@ -305,14 +300,6 @@ function FindNonvalidElementsInPackage(package)
 								'Call the subfunction with currentAttribute as parameter
 								errorsInFunctionTests = Krav3(currentAttribute)
 								localCounter = localCounter + errorsInFunctionTests
-									
-								'if currentAttribute.Notes = "" then
-									'Msgbox currentAttribute.Name & " mangler definisjon"
-								'	Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Egenskap [" & currentAttribute.Name & "] mangler definisjon. [/krav/3]")
-									'Session.Output("    " & currentAttribute.Name & " has no definition")
-								'	localCounter = localCounter + 1
-								'end if
-								
 								
 								'check if the attribute's name starts with lower case
 								if not Left(currentAttribute.Name,1) = LCase(Left(currentAttribute.Name,1)) then
@@ -391,19 +378,7 @@ function FindNonvalidElementsInPackage(package)
 								'Call the subfunction with currentConnector as parameter
 								errorsInFunctionTests = Krav3(currentConnector)
 								localCounter = localCounter + errorsInFunctionTests
-								
-								'Session.Output( "Tester Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] -- definisjon: "& sourceEndDefinition)
-								'if sourceEndNavigable = "Navigable" and sourceEndDefinition = "" then
-								'	Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler definisjon. [/krav/3]")
-								'	localCounter = localCounter + 1
-								'end if
-								
-								'Session.Output( "Tester Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] -- definisjon: "& targetEndDefinition)
-								'if targetEndNavigable = "Navigable" and targetEndDefinition = "" then
-								'	Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler definisjon. [/krav/3]")
-								'	localCounter = localCounter + 1
-								'end if
-								
+																
 								'check if there is multiplicity on navigable ends
 								if sourceEndNavigable = "Navigable" and sourceEndCardinality = "" then
 									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler multiplisitet. [/krav/10]")
