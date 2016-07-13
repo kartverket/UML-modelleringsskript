@@ -461,17 +461,10 @@ function FindNonvalidElementsInPackage(package)
 								end if
 								
 								'check if there is a definition for the operation (call Krav3 function)
-								'Call the subroutine with currentOperation as parameter
+								'call the subroutine with currentOperation as parameter
 								errorsInFunctionTests = Krav3(currentOperation)
 								localCounter = localCounter + errorsInFunctionTests
 								
-								'if currentOperation.Notes = "" then
-									'Msgbox currentAttribute.Name & " mangler definisjon"
-								'	Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Operasjon [" & currentOperation.Name & "] mangler definisjon. [/krav/3]")
-									'Session.Output("    " & currentAttribute.Name & " has no definition")
-								'	localCounter = localCounter + 1
-								'end if
-															
 							next
 						end if					
 				end if
