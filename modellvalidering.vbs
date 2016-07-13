@@ -288,7 +288,10 @@ function FindNonvalidElementsInPackage(package)
 					dim stereotype
 					stereotype = currentElement.Stereotype
 							
-										
+						'------------------------------------------------------------------
+						'---ATTRIBUTES---
+						'------------------------------------------------------------------					
+					
 						' Retrieve all attributes for this element
 						dim attributesCollection as EA.Collection
 						set attributesCollection = currentElement.Attributes
@@ -318,6 +321,10 @@ function FindNonvalidElementsInPackage(package)
 								end if
 							next
 						end if	
+					
+						'------------------------------------------------------------------
+						'---ASSOCIATIONS---
+						'------------------------------------------------------------------
 						
 						'retrieve all associations for this element
 						dim connectors as EA.Collection
@@ -432,6 +439,10 @@ function FindNonvalidElementsInPackage(package)
 																				
 						next
 						
+						'------------------------------------------------------------------
+						'---OPERATIONS---
+						'------------------------------------------------------------------
+						
 						' Retrieve all operations for this element
 						dim operationsCollection as EA.Collection
 						set operationsCollection = currentElement.Methods
@@ -449,12 +460,17 @@ function FindNonvalidElementsInPackage(package)
 									localCounter = localCounter + 1
 								end if
 								
-								if currentOperation.Notes = "" then
+								'check if there is a definition for the operation (call Krav3 function)
+								'Call the subroutine with currentOperation as parameter
+								errorsInFunctionTests = Krav3(currentOperation)
+								localCounter = localCounter + errorsInFunctionTests
+								
+								'if currentOperation.Notes = "" then
 									'Msgbox currentAttribute.Name & " mangler definisjon"
-									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Operasjon [" & currentOperation.Name & "] mangler definisjon. [/krav/3]")
+								'	Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Operasjon [" & currentOperation.Name & "] mangler definisjon. [/krav/3]")
 									'Session.Output("    " & currentAttribute.Name & " has no definition")
-									localCounter = localCounter + 1
-								end if
+								'	localCounter = localCounter + 1
+								'end if
 															
 							next
 						end if					
