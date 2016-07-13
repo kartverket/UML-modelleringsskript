@@ -1,0 +1,235 @@
+option explicit
+
+!INC Local Scripts.EAConstants-VBScript
+
+'
+' This code has been included from the default Project Browser template.
+' If you wish to modify this template, it is located in the Config\Script Templates
+' directory of your EA install path.   
+'
+' Script Name: removeBlanksInTags
+' Author: Sara Henriksen
+' Purpose: Finds the designation-tags in packages/elements/attributes, and if the value contains two or several words with blanks between, it makes every first character
+' in each word after a blank with Uppercase before removing the blanks. 
+' Date: 07.07.16
+'
+
+'
+' Project Browser Script main function
+'
+sub OnProjectBrowserScript()
+	
+	' Get the type of element selected in the Project Browser
+	dim treeSelectedType
+	treeSelectedType = Repository.GetTreeSelectedItemType()
+	
+	' Handling Code: Uncomment any types you wish this script to support
+	' NOTE: You can toggle comments on multiple lines that are currently
+	' selected with [CTRL]+[SHIFT]+[C].
+	select case treeSelectedType
+	
+'		case otElement
+'			' Code for when an element is selected
+'			dim theElement as EA.Element
+'			set theElement = Repository.GetTreeSelectedObject()
+'					
+		case otPackage
+'			' Code for when a package is selected
+			dim thePackage as EA.Package
+			set thePackage = Repository.GetTreeSelectedObject()
+			
+			'make a msgbox where you can choose OK or Cancel 
+			dim message 
+			dim box
+			box = Msgbox ("The selected package is: [" & thePackage.Name &"]. Starting search for designation-tags.",1)
+			select case box
+			case vbOK
+				FindTagValuesDesignationWithBlank(thePackage)
+			case VBcancel
+				
+			end select 
+			
+			
+'		case otDiagram
+'			' Code for when a diagram is selected
+'			dim theDiagram as EA.Diagram
+'			set theDiagram = Repository.GetTreeSelectedObject()
+'			
+'		case otAttribute
+'			' Code for when an attribute is selected
+'			dim theAttribute as EA.Attribute
+'			set theAttribute = Repository.GetTreeSelectedObject()
+'			
+'		case otMethod
+'			' Code for when a method is selected
+'			dim theMethod as EA.Method
+'			set theMethod = Repository.GetTreeSelectedObject()
+		
+		case else
+			' Error message
+			Session.Prompt "This script does not support items of this type.", promptOK
+			
+	end select
+	
+end sub
+
+
+
+' Finds all elements/classes with the tagged value "designation" and finds blanks. If so, removes blanks and update the new value
+' for the designation tag 
+'
+' @param[in] theElement (EA.Element) The element to set the TaggedValue value on
+' @param[in] taggedValueName (String) The name of the TaggedValue to set
+    
+sub TVRemoveBlank( theElement, taggedValueName)
+
+	if not theElement is nothing and Len(taggedValueName) > 0 then
+		dim newTaggedValue as EA.TaggedValue
+		set newTaggedValue = nothing
+		dim taggedValueExists
+		taggedValueExists = False
+		
+		'check if the element has a tagged value with the provided name
+		dim currentExistingTaggedValue AS EA.TaggedValue
+		dim taggedValuesCounter
+		for taggedValuesCounter = 0 to theElement.TaggedValues.Count - 1
+			set currentExistingTaggedValue = theElement.TaggedValues.GetAt(taggedValuesCounter)
+			dim currentValue 
+			currentValue = currentExistingTaggedValue.Value
+			if currentExistingTaggedValue.Name = taggedValueName then
+				taggedValueExists = True
+				Session.Output( "  Funnet tag med navn [" & taggedValueName & "] og verdi: " & currentValue & "")
+					
+				' finds the blank in designation tag
+				dim i, tegn, designationContent, startContent, endContent 
+				
+				'if the designation tag has blanks before /and after the string, it will be removed, and updated.
+				currentValue = Trim(currentValue)
+				currentExistingTaggedValue.Value = currentValue
+				currentExistingTaggedValue.Update()  
+				
+				'finds the string in the designationtag and removes "" and @en (designationContent)
+				startContent = InStr( currentValue, """" ) 
+				
+				endContent = len(currentValue)- InStr( StrReverse(currentValue), """" ) -1
+				
+				
+				
+				designationContent = Mid(currentValue,startContent+1,endContent)
+				'Session.Output ("DesignationContent   " &designationContent ) 
+				
+				designationContent = Trim(designationContent)
+				For i = 2 To Len(designationContent)
+				' finds the blank(s) in the designation tag 
+					tegn = Mid(designationContent,i,1)
+					if tegn = " " then
+						'Session.Output( "Funnet mellomrom  ")
+						'first character in each word in Upercase
+						dim del1 
+						del1 = mid(designationContent,1,i)
+						'Session.Output( "del1 " &del1)
+						
+						dim del2
+						del2 = Mid(designationContent,i+1,1)
+						'Session.Output( "del2 " &del2)
+						
+						dim UCasedel2 
+						UCasedel2 = UCase(del2)
+						'Session.Output( "UCasedel2 " &UCasedel2)
+						
+						dim del3 
+						del3 = ""
+						if i+1 < len(designationContent) then
+							del3 = Mid(designationContent,i+2,len(designationContent))
+							
+						end if 
+						'Session.Output( "del3 " &del3)
+						
+						dim newValue 
+						newValue = del1 & UCasedel2 &del3
+						'Session.Output( "newValue " &newValue & "")
+						
+						designationContent = newValue
+						
+					end if
+					
+				next
+				designationContent = Replace(designationContent, " ", "")  'Remove the blanks
+				 
+				'Session.Output( "New designationTag: " &designationContent )
+				
+				currentExistingTaggedValue.Value = """" & designationContent & Mid(currentValue, endContent+2, len(currentValue))
+				currentExistingTaggedValue.Update()
+				Session.Output("Oppdatert designationTag: " &currentExistingTaggedValue.Value)
+				
+			end if
+
+		next
+		
+		
+		
+	end if
+	
+end sub
+
+'sub procedure to navigate trough all the packages, attributes and classes, and calls the TVRemoveBlank looking for designation tags  
+'@param[in]: package (EA.package) The package containing elements with potentially SOSI_melding or RationalRose..tags
+sub FindTagValuesDesignationWithBlank(package)
+	Session.Output("The current package is: " & package.Name)
+	
+			dim elements as EA.Collection
+			set elements = package.Elements 'collection of elements that belong to this package (classes, notes... BUT NO packages)
+			
+			dim packages as EA.Collection
+			set packages = package.Packages 'collection of packages that belong to this package
+			
+			
+			
+			' Navigate the package collection and call the FindTagValuesDesignationWithBlank function for each of them
+			dim p
+			for p = 0 to packages.Count - 1
+				dim currentPackage as EA.Package
+				set currentPackage = packages.GetAt( p ) 'getAT
+			
+				FindTagValuesDesignationWithBlank(currentPackage) 'går igjennom pakken for å lete etter underpakker
+			next
+			' Navigate the elements collection, pick the classes, find the taggedValues/designation and do sth. with it
+			'Session.Output( " number of elements in package: " & elements.Count)
+			dim i
+			for i = 0 to elements.Count - 1
+				dim currentElement as EA.Element
+				set currentElement = elements.GetAt( i )
+				
+				
+				'Is the currentElement of type Class? If so, continue checking tags and it's attributes' tags. If not continue with the next element.
+				if currentElement.Type =  "Class"  then 	
+					
+					Call TVRemoveBlank( currentElement, "designation")
+					
+				
+				
+					dim attributesCollection as EA.Collection
+					set attributesCollection = currentElement.Attributes
+					
+					if attributesCollection.Count > 0 then
+							 
+							dim n
+							for n = 0 to attributesCollection.Count - 1 					
+								dim currentAttribute as EA.Attribute		
+								set currentAttribute = attributesCollection.GetAt(n)
+							
+								Call TVRemoveBlank( currentAttribute, "designation") 	
+							next
+							
+						
+					end if
+					
+						
+				end if
+				
+			next
+	
+end sub
+
+'start the main function
+OnProjectBrowserScript
