@@ -60,7 +60,7 @@ sub OnProjectBrowserScript()
 			if UCase(thePackage.element.stereotype) = UCase("applicationSchema") then
 				Msgbox "Starte modellvalidering for pakke [" & thePackage.Name &"]."
 				dim numberOfErrors
-				numberOfErrors = FindNonvalidElementsInPackage(thePackage)
+				numberOfErrors = FindInvalidElementsInPackage(thePackage)
 				Session.Output( "Antall feil funnet i modellen: " & numberOfErrors)
 			else
 				Msgbox "Pakke [" & thePackage.Name &"] har ikke stereotype applicationSchema. Velg en pakke med stereotype applicationSchema for Ã¥ starte modellvalidering."
@@ -90,6 +90,7 @@ sub OnProjectBrowserScript()
 	end select
 	
 end sub
+
 
 'Check if the provided argument for input parameter theObject fulfills the requirements in krav/3:
 'Find elements (classes, attributes, navigable association roles, operations, datatypes) 
@@ -193,7 +194,68 @@ function Krav3(theObject)
 	Krav3 = localCounter
 end function
 
-function FindNonvalidElementsInPackage(package)
+
+'sub procedure to check if the package contains classes with multiple inheritance
+'@param[in]: currentElement (EA.Element). The element "classe" is potentially with a multiple inheritance.
+sub findMultipleInheritance(currentElement)
+
+	dim connectors as EA.Collection 
+ 	set connectors = currentElement.Connectors 
+ 					 
+ 	'iterate the connectors 
+ 					
+ 	dim connectorsCounter 
+	dim numberOfSuperClasses 
+	numberOfSuperClasses = 0 
+	dim theTargetGeneralization as EA.Connector
+	set theTargetGeneralization = nothing
+					
+ 		for connectorsCounter = 0 to connectors.Count - 1 
+			dim currentConnector as EA.Connector 
+			set currentConnector = connectors.GetAt( connectorsCounter ) 
+						
+						
+			'check if the connector type is "Generalization" and if so
+			'get the element on the source end of the connector  
+			if currentConnector.Type = "Generalization"  then
+				if currentConnector.ClientID = currentElement.ElementID then 
+					
+					'count number of classes with a generalization connector on the source side 
+					numberOfSuperClasses = numberOfSuperClasses + 1 
+					set theTargetGeneralization = currentConnector 
+				end if 
+							
+							
+			end if
+			'if theres more than one generalization connecter on the source side the class has multiple inheritance
+				if numberOfSuperClasses > 1 then
+					Session.Output("Error: Found multiple inheritance for class:  " &startClass& ". [/krav/enkelarv]")
+					exit for 
+						
+							
+				end if 
+						
+		next
+					
+			' if there is just one generalization connector on the source side, start checking genralization connectors for the superclasses 
+			if numberOfSuperClasses = 1 and not theTargetGeneralization is nothing then
+						
+				dim superClassID 
+				dim superClass as EA.Element
+				'the elementID of the element at the target end
+				superClassID =  theTargetGeneralization.SupplierID 
+				set superClass = Repository.GetElementByID(superClassID)
+			
+		
+				'Check level of superClass
+				call findMultipleInheritance (superClass)
+						
+			end if 
+					
+end sub
+
+
+function FindInvalidElementsInPackage(package)
 
 			
 			'Session.Output("The current package is: " & package.Name)
@@ -256,9 +318,13 @@ function FindNonvalidElementsInPackage(package)
 			for p = 0 to packages.Count - 1
 				dim currentPackage as EA.Package
 				set currentPackage = packages.GetAt( p )
-				localCounter = localCounter + FindNonvalidElementsInPackage(currentPackage)
+				localCounter = localCounter + FindInvalidElementsInPackage(currentPackage)
 			next
-
+			
+			'------------------------------------------------------------------
+			'---ELEMENTS---
+			'------------------------------------------------------------------		
+			
 			' Navigate the elements collection, pick the classes, find the definitions/notes and do sth. with it
 			'Session.Output( " number of elements in package: " & elements.Count)
 			dim i
@@ -270,9 +336,14 @@ function FindNonvalidElementsInPackage(package)
 				if currentElement.Type = "Class" then
 									
 					'check if there is a definition for the class element (call Krav3 function)
-					'Call the subroutine with currentElement as parameter
 					errorsInFunctionTests = Krav3(currentElement)
 					localCounter = localCounter + errorsInFunctionTests
+					
+					'check if there is there is multiple inheritance for the class element (/krav/enkelArv)
+					'initialize the global variable startClass which is needed in subrutine findMultipleInheritance
+					startClass = currentElement.Name
+					Call findMultipleInheritance(currentElement)
+					
 					
 					'check if first letter of class name is capital letter
 					if not Left(currentElement.Name,1) = UCase(Left(currentElement.Name,1)) then
@@ -286,7 +357,7 @@ function FindNonvalidElementsInPackage(package)
 						'------------------------------------------------------------------
 						'---ATTRIBUTES---
 						'------------------------------------------------------------------					
-					
+						
 						' Retrieve all attributes for this element
 						dim attributesCollection as EA.Collection
 						set attributesCollection = currentElement.Attributes
@@ -447,11 +518,13 @@ function FindNonvalidElementsInPackage(package)
 			next
 			'summerization
 			'Session.Output( "Found " & localCounter & " elements without definition.")
-			FindNonvalidElementsInPackage = localCounter
+			FindInvalidElementsInPackage = localCounter
 		'Session.Output( "Done with package ["& package.Name &"]")
 		'TODO: check counter for local elements
 		'Session.Output( "There are "& localCounter & " elements without definition in this package.")
 		
 end function
 
+'global variable 
+dim startClass 
 OnProjectBrowserScript
