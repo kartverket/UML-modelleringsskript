@@ -59,9 +59,8 @@ sub OnProjectBrowserScript()
 			'check if the selected package has stereotype applicationSchema
 			if UCase(thePackage.element.stereotype) = UCase("applicationSchema") then
 				Msgbox "Starte modellvalidering for pakke [" & thePackage.Name &"]."
-				dim numberOfErrors
-				numberOfErrors = FindInvalidElementsInPackage(thePackage)
-				Session.Output( "Antall feil funnet i modellen: " & numberOfErrors)
+				FindInvalidElementsInPackage(thePackage)
+				Session.Output( "Antall feil funnet i modellen: " & globalErrorCounter)
 			else
 				Msgbox "Pakke [" & thePackage.Name &"] har ikke stereotype applicationSchema. Velg en pakke med stereotype applicationSchema for Ã¥ starte modellvalidering."
 			end if
@@ -99,30 +98,25 @@ end sub
 ' @param[in] theObject (EA.ObjectType) The object to check against krav/3, 
 '			supposed to be one of the following types: EA.Attribute, EA.Method, EA.Connector, EA.Element
 ' @param[out] (Integer) The number of errors found for tested elements.
-function Krav3(theObject)
+sub Krav3(theObject)
 	'Declare local variables
 	Dim currentAttribute as EA.Attribute
 	Dim currentMethod as EA.Method
 	Dim currentConnector as EA.Connector
 	Dim currentElement as EA.Element
-	Dim localCounter
-	
-	'initialize the local variables
-	localCounter = 0
-	'Session.Output("Krav 3 with object type: "& theObject.ObjectType)
+		
 	Select Case theObject.ObjectType
 		Case otElement
 			' Code for when the function's parameter is an element
-			'Session.Output("Krav 3 test for Element")
 			set currentElement = theObject
 			
 			If currentElement.Notes = "" then
 				Session.Output("Error: Class [" & currentElement.Name & "] has no definition. [/krav/3]")	
-				localCounter = localCounter + 1
+				globalErrorCounter = globalErrorCounter + 1
 			end if
 		Case otAttribute
 			' Code for when the function's parameter is an attribute
-			'Session.Output("Krav 3 test for Attribute")
+			
 			set currentAttribute = theObject
 			
 			'get the attribute's parent element
@@ -131,25 +125,25 @@ function Krav3(theObject)
 			
 			if currentAttribute.Notes = "" then
 				Session.Output( "Error: Class ["& attributeParentElement.Name &"] \ attribute [" & currentAttribute.Name & "] has no definition. [/krav/3]")
-				localCounter = localCounter + 1
+				globalErrorCounter = globalErrorCounter + 1
 			end if
 			
 		Case otMethod
 			' Code for when the function's parameter is a method
-			'Session.Output("Krav 3 test for Method")
+			
 			set currentMethod = theObject
 			
-			'get the method's parent element
+			'get the method's parent element, which is the class the method is part of
 			dim methodParentElement as EA.Element
 			set methodParentElement = Repository.GetElementByID(currentMethod.ParentID)
 			
 			if currentMethod.Notes = "" then
 				Session.Output( "Error: Class ["& methodParentElement.Name &"] \ operation [" & currentMethod.Name & "] has no definition. [/krav/3]")
-				localCounter = localCounter + 1
+				globalErrorCounter = globalErrorCounter + 1
 			end if
 		Case otConnector
 			' Code for when the function's parameter is a connector
-			'Session.Output("Krav 3 test for Connector")
+			
 			set currentConnector = theObject
 			
 			'get the necessary connector attributes
@@ -176,7 +170,7 @@ function Krav3(theObject)
 				set sourceEndElement = Repository.GetElementByID(sourceEndElementID)
 				
 				Session.Output( "Error: Class ["& sourceEndElement.Name &"] \ Association role [" & sourceEndName & "] has no definition. [/krav/3]")
-				localCounter = localCounter + 1
+				globalErrorCounter = globalErrorCounter + 1
 			end if
 			
 			if targetEndNavigable = "Navigable" and targetEndDefinition = "" then
@@ -184,15 +178,14 @@ function Krav3(theObject)
 				set sourceEndElement = Repository.GetElementByID(sourceEndElementID)
 				
 				Session.Output( "Error: Class ["& sourceEndElement.Name &"] \ Association role [" & targetEndName & "] has no definition. [/krav/3]")
-				localCounter = localCounter + 1
+				globalErrorCounter = globalErrorCounter + 1
 			end if
 			
 		Case else		
 			Session.Output( "Error: Function [Krav3] started with invalid parameter.")
 	End Select
 	
-	Krav3 = localCounter
-end function
+end sub
 
 
 'sub procedure to check if the package contains classes with multiple inheritance
@@ -230,6 +223,7 @@ sub findMultipleInheritance(currentElement)
 			'if theres more than one generalization connecter on the source side the class has multiple inheritance
 				if numberOfSuperClasses > 1 then
 					Session.Output("Error: Found multiple inheritance for class:  " &startClass& ". [/krav/enkelarv]")
+					globalErrorCounter = globalErrorCounter + 1
 					exit for 
 						
 							
@@ -255,12 +249,8 @@ sub findMultipleInheritance(currentElement)
 end sub
 
 
-function FindInvalidElementsInPackage(package)
+sub FindInvalidElementsInPackage(package)
 
-			
-			'Session.Output("The current package is: " & package.Name)
-			dim localCounter
-			localCounter = 0
 			dim elements as EA.Collection
 			set elements = package.Elements 'collection of elements that belong to this package (classes, notes... BUT NO packages)
 			Dim myDictionary
@@ -269,14 +259,13 @@ function FindInvalidElementsInPackage(package)
 			'check package definition
 			if package.Notes = "" then
 						Session.Output("FEIL: Pakke [" & package.Name & "] mangler definisjon. [/krav/definisjoner]")
-						localCounter = localCounter + 1
+						globalErrorCounter = globalErrorCounter + 1
 			end if
 			
 			'check if first letter of package name is capital letter
-			
 			if not Left(package.Name,1) = UCase(Left(package.Name,1)) then
 						Session.Output("FEIL: Navnet til pakka [" & package.Name & "] skal starte med stor bokstav. [/krav/navning]")
-						localCounter = localCounter + 1
+						globalErrorCounter = globalErrorCounter + 1
 			end if
 			
 			dim packageTaggedValues as EA.Collection
@@ -298,7 +287,7 @@ function FindInvalidElementsInPackage(package)
 					else 
 						if currentTaggedValue.Name = "language" and currentTaggedValue.Value= "" then
 							Session.Output("FEIL: Tagged value ["& currentTaggedValue.Name &"] til pakke ["& package.Name & "] mangler verdi. [/krav/flerspråklighet/pakke]")
-							localCounter = localCounter + 1
+							globalErrorCounter = globalErrorCounter + 1
 							taggedValueLanguageMissing = false
 							exit for
 						end if
@@ -306,7 +295,7 @@ function FindInvalidElementsInPackage(package)
 				next
 				if taggedValueLanguageMissing then
 					Session.Output("FEIL: Tagged value [language] mangler på pakke ["& package.Name & "]. [/krav/flerspråklighet/pakke]")
-					localCounter = localCounter + 1
+					globalErrorCounter = globalErrorCounter + 1
 				end if
 			end if
 			
@@ -318,7 +307,7 @@ function FindInvalidElementsInPackage(package)
 			for p = 0 to packages.Count - 1
 				dim currentPackage as EA.Package
 				set currentPackage = packages.GetAt( p )
-				localCounter = localCounter + FindInvalidElementsInPackage(currentPackage)
+				FindInvalidElementsInPackage(currentPackage)
 			next
 			
 			'------------------------------------------------------------------
@@ -336,11 +325,10 @@ function FindInvalidElementsInPackage(package)
 				if currentElement.Type = "Class" then
 									
 					'check if there is a definition for the class element (call Krav3 function)
-					errorsInFunctionTests = Krav3(currentElement)
-					localCounter = localCounter + errorsInFunctionTests
-					
+					Krav3(currentElement)
+										
 					'check if there is there is multiple inheritance for the class element (/krav/enkelArv)
-					'initialize the global variable startClass which is needed in subrutine findMultipleInheritance
+					'initialize the global variable startClass which is needed in subroutine findMultipleInheritance
 					startClass = currentElement.Name
 					Call findMultipleInheritance(currentElement)
 					
@@ -348,7 +336,7 @@ function FindInvalidElementsInPackage(package)
 					'check if first letter of class name is capital letter
 					if not Left(currentElement.Name,1) = UCase(Left(currentElement.Name,1)) then
 						Session.Output("FEIL: Navnet til klassen [" & currentElement.Name & "] skal starte med stor bokstav. [/krav/navning]")
-						localCounter = localCounter + 1
+						globalErrorCounter = globalErrorCounter + 1
 					end if
 					
 					dim stereotype
@@ -369,13 +357,12 @@ function FindInvalidElementsInPackage(package)
 								set currentAttribute = attributesCollection.GetAt(n)
 								'check if the attribute has a definition									
 								'Call the subfunction with currentAttribute as parameter
-								errorsInFunctionTests = Krav3(currentAttribute)
-								localCounter = localCounter + errorsInFunctionTests
-								
+								Krav3(currentAttribute)
+																
 								'check if the attribute's name starts with lower case
 								if not Left(currentAttribute.Name,1) = LCase(Left(currentAttribute.Name,1)) then
 									Session.Output("FEIL: Navnet til egenskapen [" & currentAttribute.Name & "] til klassen ["&currentElement.Name&"] skal starte med liten bokstav. [/krav/navning]")
-									localCounter = localCounter + 1
+									globalErrorCounter = globalErrorCounter + 1
 								end if
 							next
 						end if	
@@ -431,55 +418,54 @@ function FindInvalidElementsInPackage(package)
 								'if the connector has a name (optional according to the rules), check if it starts with capital letter
 								if not currentConnector.Name = "" and not Left(currentConnector.Name,1) = UCase(Left(currentConnector.Name,1)) then
 									Session.Output("FEIL: Navnet til assosiasjonen [" & currentConnector.Name & "] mellom klasse ["& elementOnOppositeSide.Name &"] og klasse [" & currentElement.Name & "] skal starte med stor bokstav. [/krav/navning]")
-									localCounter = localCounter + 1
+									globalErrorCounter = globalErrorCounter + 1
 								end if
 								
 								'check if the elementOnOppositeSide has stereotype "dataType" and this side's end is no composition
 								if (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType")) and not (currentConnector.ClientEnd.Aggregation = 2) then
 									Session.Output( "FEIL: Klasse [<<"&elementOnOppositeSide.Stereotype&">>"& elementOnOppositeSide.Name &"] har assosiasjon til klasse [" & currentElement.Name & "] som ikke er komposisjon pÃ¥ "& currentElement.Name &"-siden. [/krav/12]")									
-									localCounter = localCounter + 1
+									globalErrorCounter = globalErrorCounter + 1
 								end if
 								'check if this side's element has stereotype "dataType" and the opposite side's end is no composition
 								if (Ucase(currentElement.Stereotype) = Ucase("dataType")) and not (currentConnector.SupplierEnd.Aggregation = 2) then
 									Session.Output( "FEIL: Klasse [<<"&currentElement.Stereotype&">>"& currentElement.Name &"] har assosiasjon til klasse [" & elementOnOppositeSide.Name & "] som ikke er komposisjon pÃ¥ "& elementOnOppositeSide.Name &"-siden. [/krav/12]")									
-									localCounter = localCounter + 1
+									globalErrorCounter = globalErrorCounter + 1
 								end if
 								
 								'check if there is a definition on navigable ends (navigable association roles) of the connector
 								'Call the subfunction with currentConnector as parameter
-								errorsInFunctionTests = Krav3(currentConnector)
-								localCounter = localCounter + errorsInFunctionTests
-																
+								Krav3(currentConnector)
+																								
 								'check if there is multiplicity on navigable ends
 								if sourceEndNavigable = "Navigable" and sourceEndCardinality = "" then
 									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler multiplisitet. [/krav/10]")
-									localCounter = localCounter + 1
+									globalErrorCounter = globalErrorCounter + 1
 								end if
 								
 								if targetEndNavigable = "Navigable" and targetEndCardinality = "" then
 									Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler multiplisitet. [/krav/10]")
-									localCounter = localCounter + 1
+									globalErrorCounter = globalErrorCounter + 1
 								end if
 
 								'check if there are role names on navigable ends
 								if sourceEndNavigable = "Navigable" and sourceEndName = "" then
 									Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& currentElement.Name &"-siden [/krav/11]")
-									localCounter = localCounter + 1
+									globalErrorCounter = globalErrorCounter + 1
 								end if
 								
 								if targetEndNavigable = "Navigable" and targetEndName = "" then
 									Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& elementOnOppositeSide.Name &"-siden [/krav/11]")
-									localCounter = localCounter + 1
+									globalErrorCounter = globalErrorCounter + 1
 								end if
 								
 								'if there are role names on connector ends (regardless of navigability), check if they start with lower case
 								if not sourceEndName = "" and not Left(sourceEndName,1) = LCase(Left(sourceEndName,1)) then
 									Session.Output("FEIL: Navnet til rollen [" & sourceEndName & "] på assosiasjonsende i tilknytning til klassen ["& currentElement.Name &"] skal starte med liten bokstav. [/krav/navning]")
-									localCounter = localCounter + 1
+									globalErrorCounter = globalErrorCounter + 1
 								end if
 								if not (targetEndName = "") and not (Left(targetEndName,1) = LCase(Left(targetEndName,1))) then
 									Session.Output("FEIL: Navnet til rollen [" & targetEndName & "] på assosiasjonsende i tilknytning til klassen ["& elementOnOppositeSide.Name &"] skal starte med liten bokstav. [/krav/navning]")
-									localCounter = localCounter + 1
+									globalErrorCounter = globalErrorCounter + 1
 								end if
 							end if
 																				
@@ -503,28 +489,23 @@ function FindInvalidElementsInPackage(package)
 								'TODO: this rule does not apply for constructor operation
 								if not Left(currentOperation.Name,1) = LCase(Left(currentOperation.Name,1)) then
 									Session.Output("FEIL: Navnet til operasjonen [" & currentOperation.Name & "] til klassen ["&currentElement.Name&"] skal starte med liten bokstav. [/krav/navning]")
-									localCounter = localCounter + 1
+									globalErrorCounter = globalErrorCounter + 1
 								end if
 								
 								'check if there is a definition for the operation (call Krav3 function)
 								'call the subroutine with currentOperation as parameter
-								errorsInFunctionTests = Krav3(currentOperation)
-								localCounter = localCounter + errorsInFunctionTests
-								
+								Krav3(currentOperation)
+																
 							next
 						end if					
 				end if
 				
 			next
-			'summerization
-			'Session.Output( "Found " & localCounter & " elements without definition.")
-			FindInvalidElementsInPackage = localCounter
-		'Session.Output( "Done with package ["& package.Name &"]")
-		'TODO: check counter for local elements
-		'Session.Output( "There are "& localCounter & " elements without definition in this package.")
-		
-end function
+					
+end sub
 
-'global variable 
-dim startClass 
+'global variables
+dim startClass 'the class which is the starting point for searching for multiple inheritance in the findMultipleInheritance subroutine
+dim globalErrorCounter 'counter for number of errors
+globalErrorCounter = 0
 OnProjectBrowserScript
