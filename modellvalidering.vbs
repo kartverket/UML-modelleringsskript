@@ -9,9 +9,9 @@
  ' If you wish to modify this template, it is located in the Config\Script Templates 
  ' directory of your EA install path.    
  ' 
- ' Script Name: Modellvalidering 
- ' Author: Magnus Karge
- ' Date: 2016-08-22 
+ ' Script Name: SOSI model validation 
+ ' Author: Section for technology and standardization - Norwegian Mapping Authority
+ ' Date: 2016-08-31 
  ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
  ' 	Implemented rules: 
  '	- /krav/3:  
