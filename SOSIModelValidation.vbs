@@ -122,42 +122,79 @@
 				box = Msgbox ("Model validation 2016-08-19 Logging errors and warnings for"&Chr(13)&Chr(10)  &mess, vbOKCancel)
 				select case box
 					case vbOK
-						Dim StartTime, EndTime, Elapsed
-						StartTime = timer 
-						startPackageName = thePackage.Name
-						FindInvalidElementsInPackage(thePackage) 
-						Elapsed = formatnumber((Timer - StartTime),2)
-						'------------------------------------------------------------------ 
-						'---Check global variables--- 
-						'------------------------------------------------------------------ 
- 
-						'error-message for /krav/hoveddiagram/navning (sub procedure: CheckPackageForHoveddiagram)
-						'if the applicationSchema package got less than one diagram with a name starting with "Hoveddiagram", then return an error 	
-						if 	not foundHoveddiagram  then
-							Session.Output("Error: Neither package [" &startPackageName& "] nor any of it's subpackages has a diagram with a name starting with <Hoveddiagram> [/krav/hoveddiagram/navning]")
-							globalErrorCounter = globalErrorCounter + 1 
-				
-						end if 	
+						'inputBoxGUI to receive user input regarding the log level
+						dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
+						logLevelInputBoxText = "Please select the log level."&Chr(13)&Chr(10)
+						logLevelInputBoxText = logLevelInputBoxText+ ""&Chr(13)&Chr(10)
+						logLevelInputBoxText = logLevelInputBoxText+ "E - Error log level: logs error messages only"&Chr(13)&Chr(10)
+						logLevelInputBoxText = logLevelInputBoxText+ "W - Warning log level (recommended): logs both error and warning messages"&Chr(13)&Chr(10)
+						logLevelInputBoxText = logLevelInputBoxText+ ""&Chr(13)&Chr(10)
+						logLevelInputBoxText = logLevelInputBoxText+ "Enter E or W:"&Chr(13)&Chr(10)
+						correctInput = false
+						abort = false
+						do while not correctInput
 						
-						'error-message for /krav/hoveddiagram/detaljering/navning (sub: FindHoveddiagramsInAS)
-						'if the applicationSchema package got more than one diagram named "Hoveddiagram", then return an error 
-						if numberOfHoveddiagram > 1 or (numberOfHoveddiagram = 1 and numberOfHoveddiagramWithAdditionalInformationInTheName > 0) then 
-							dim sumOfHoveddiagram 
-							sumOfHoveddiagram = numberOfHoveddiagram + numberOfHoveddiagramWithAdditionalInformationInTheName
-							Session.Output("Error: Package ["&startPackageName&"] has "&sumOfHoveddiagram&" diagrams named 'Hoveddiagram' and "&numberOfHoveddiagram&" of them named exactly 'Hoveddiagram'. When there are multiple diagrams of that type additional information is expected in the diagrams' name. [/krav/hoveddiagram/detaljering/navning]")
-							globalErrorCounter = globalErrorCounter + 1 
-		
-						end if 
-
+							logLevelFromInputBox = InputBox(logLevelInputBoxText, "Select log level", "E")
+							select case true 
+								case UCase(logLevelFromInputBox) = "E"	
+									'code for when E = Error log level has been selected, only Error messages will be shown in the Script Output window
+									globalLogLevelIsWarning = false
+									correctInput = true
+								case UCase(logLevelFromInputBox) = "W"	
+									'code for when W = Error log level has been selected, both Error and Warning messages will be shown in the Script Output window
+									globalLogLevelIsWarning = true
+									correctInput = true
+								case IsEmpty(logLevelFromInputBox)
+									'user pressed cancel or closed the dialog
+									MsgBox "Abort",64
+									abort = true
+									exit do
+								case else
+									MsgBox "You made an incorrect selection! Please enter either 'E' or 'W'.",48
+							end select
 						
-						Session.Output("Number of errors found: " & globalErrorCounter) 
-						Session.Output("Number of warnings found: " & globalWarningCounter)
-						Session.Output("Run time: " &Elapsed& " seconds" )
+						loop
+						
+						if not abort then
+							Dim StartTime, EndTime, Elapsed
+							StartTime = timer 
+							startPackageName = thePackage.Name
+							FindInvalidElementsInPackage(thePackage) 
+							Elapsed = formatnumber((Timer - StartTime),2)
+							'------------------------------------------------------------------ 
+							'---Check global variables--- 
+							'------------------------------------------------------------------ 
+	
+							'error-message for /krav/hoveddiagram/navning (sub procedure: CheckPackageForHoveddiagram)
+							'if the applicationSchema package got less than one diagram with a name starting with "Hoveddiagram", then return an error 	
+							if 	not foundHoveddiagram  then
+								Session.Output("Error: Neither package [" &startPackageName& "] nor any of it's subpackages has a diagram with a name starting with <Hoveddiagram> [/krav/hoveddiagram/navning]")
+								globalErrorCounter = globalErrorCounter + 1 
+					
+							end if 	
+							
+							'error-message for /krav/hoveddiagram/detaljering/navning (sub: FindHoveddiagramsInAS)
+							'if the applicationSchema package got more than one diagram named "Hoveddiagram", then return an error 
+							if numberOfHoveddiagram > 1 or (numberOfHoveddiagram = 1 and numberOfHoveddiagramWithAdditionalInformationInTheName > 0) then 
+								dim sumOfHoveddiagram 
+								sumOfHoveddiagram = numberOfHoveddiagram + numberOfHoveddiagramWithAdditionalInformationInTheName
+								Session.Output("Error: Package ["&startPackageName&"] has "&sumOfHoveddiagram&" diagrams named 'Hoveddiagram' and "&numberOfHoveddiagram&" of them named exactly 'Hoveddiagram'. When there are multiple diagrams of that type additional information is expected in the diagrams' name. [/krav/hoveddiagram/detaljering/navning]")
+								globalErrorCounter = globalErrorCounter + 1 
+			
+							end if 
+	
+							
+							Session.Output("Number of errors found: " & globalErrorCounter) 
+							if globalLogLevelIsWarning then
+								Session.Output("Number of warnings found: " & globalWarningCounter)
+							end if	
+							Session.Output("Run time: " &Elapsed& " seconds" )
+						end if	
 					case VBcancel
-				
+						'nothing to do						
 				end select 
- 			else 
- 				'Msgbox "Pakka [" & thePackage.Name &"] har ikke stereotype ApplicationSchema. Velg en pakke med stereotype ApplicationSchema for å starte modellvalidering." 
+			else 
+				'Msgbox "Pakka [" & thePackage.Name &"] har ikke stereotype ApplicationSchema. Velg en pakke med stereotype ApplicationSchema for å starte modellvalidering." 
  				Msgbox "Package [" & thePackage.Name &"] does not have stereotype «ApplicationSchema». Select a package with stereotype «ApplicationSchema» to start model validation." 
  			end if 
  			 
@@ -394,8 +431,10 @@ sub checkTVLanguageAndDesignation(theElement, taggedValueName)
  					if (currentTaggedValue.Name = "language") and not (currentTaggedValue.Value= "") then 
 						'check if the value is no or en, if not, retrun a warning 
  						if not mid(StrReverse(currentTaggedValue.Value),1,2) = "ne" and not mid(StrReverse(currentTaggedValue.Value),1,2) = "on" then	
-							Session.Output("Warning: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] \ tag ["&currentTaggedvalue.Name& "] has a value which is not <no> or <en>. [/krav/flerspråklighet/pakke]")
-							globalWarningCounter = globalWarningCounter + 1 
+							if globalLogLevelIsWarning then
+								Session.Output("Warning: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] \ tag ["&currentTaggedvalue.Name& "] has a value which is not <no> or <en>. [/krav/flerspråklighet/pakke]")
+								globalWarningCounter = globalWarningCounter + 1 
+							end if
 						end if
 							taggedValueLanguageMissing = false 
 							exit for 
@@ -451,8 +490,10 @@ sub checkTVLanguageAndDesignation(theElement, taggedValueName)
 							
 	
 								if InStr(designationContent, """") then
-									Session.Output("Warning: Package [«" &theElement.Stereotype& "» " &theElement.Name&"] \ tag [designation] has a value ["&currentExistingTaggedValue1.Value&"] that contains illegeal use of quotation marks.")
-									globalWarningCounter = globalWarningCounter + 1 
+									if globalLogLevelIsWarning then
+										Session.Output("Warning: Package [«" &theElement.Stereotype& "» " &theElement.Name&"] \ tag [designation] has a value ["&currentExistingTaggedValue1.Value&"] that contains illegeal use of quotation marks.")
+										globalWarningCounter = globalWarningCounter + 1 
+									end if	
 								end if
 						
 							end if
@@ -798,9 +839,10 @@ sub checkNumericinitialValues(theElement)
 	for each attr in theElement.Attributes 
 		'check if the initial values are numeric 
 		if IsNumeric(attr.Default)   then
-				
-			Session.Output("Warning: Class [«"&theElement.Stereotype&"» "&theElement.Name&"] \ attribute [" &attr.Name& "] has numeric initial value and is possible meaningless. Recommended to use script <flyttInitialverdiPåKodelistekoderTilSOSITag>. [/anbefaling/1]")		
-			globalWarningCounter = globalWarningCounter + 1 
+			if globalLogLevelIsWarning then	
+				Session.Output("Warning: Class [«"&theElement.Stereotype&"» "&theElement.Name&"] \ attribute [" &attr.Name& "] has numeric initial value and is possible meaningless. Recommended to use script <flyttInitialverdiPåKodelistekoderTilSOSITag>. [/anbefaling/1]")		
+				globalWarningCounter = globalWarningCounter + 1 
+			end if
 		else 
 			'no initial values in a list are numeric
 		end if 
@@ -835,15 +877,19 @@ Select Case theElement.ObjectType
 		
 		if UCase(theElement.Element.Stereotype) = "APPLICATIONSCHEMA" then
 			if  not theElement.Element.Stereotype = "ApplicationSchema"   then 
-				Session.Output("Warning: Package [«"&theElement.Element.Stereotype&"» "&theElement.Name&"]  has a stereotype with wrong use of lower-and uppercase. Expected use of case: ApplicationSchema [/anbefaling/styleGuide]")
-				globalWarningCounter = globalWarningCounter + 1 
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Package [«"&theElement.Element.Stereotype&"» "&theElement.Name&"]  has a stereotype with wrong use of lower-and uppercase. Expected use of case: ApplicationSchema [/anbefaling/styleGuide]")
+					globalWarningCounter = globalWarningCounter + 1 
+				end if	
 			end if 
 		end if 
 	
 		if UCase(theElement.Element.Stereotype) = "LEAF" then
 			if  not theElement.Element.Stereotype = "Leaf" then 'and not pack.Element.Stereotype = "Leaf" then
-				Session.Output("Warning: Package [«"&theElement.Element.Stereotype&" »"&theElement.Name&"]  has a stereotype with wrong use of lower-and uppercase. Expected use of case: Leaf [/anbefaling/styleGuide]")
-				globalWarningCounter = globalWarningCounter + 1 
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Package [«"&theElement.Element.Stereotype&" »"&theElement.Name&"]  has a stereotype with wrong use of lower-and uppercase. Expected use of case: Leaf [/anbefaling/styleGuide]")
+					globalWarningCounter = globalWarningCounter + 1 
+				end if	
 			end if 
 		end if
 		
@@ -851,43 +897,55 @@ Select Case theElement.ObjectType
 		set currentElement = theElement 
 		if UCase(theElement.Stereotype) = "CODELIST" then 
 			if  not theElement.Stereotype = "CodeList" then 
-				Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: CodeList [/anbefaling/styleGuide]")
-				globalWarningCounter = globalWarningCounter + 1 
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: CodeList [/anbefaling/styleGuide]")
+					globalWarningCounter = globalWarningCounter + 1 
+				end if	
 			end if 
 		end if 
 		
 		if UCase(theElement.Stereotype) = "DATATYPE" then 
 			if  not theElement.Stereotype = "dataType" then 
-				Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: dataType [/anbefaling/styleGuide]")
-				globalWarningCounter = globalWarningCounter + 1 
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: dataType [/anbefaling/styleGuide]")
+					globalWarningCounter = globalWarningCounter + 1 
+				end if	
 			end if 
 		end if 
 		
 		if UCase(theElement.Stereotype) = "FEATURETYPE" then 
 			if  not theElement.Stereotype = "FeatureType" then 
-				Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: FeatureType [/anbefaling/styleGuide]")
-				globalWarningCounter = globalWarningCounter + 1 
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: FeatureType [/anbefaling/styleGuide]")
+					globalWarningCounter = globalWarningCounter + 1 
+				end if	
 			end if 
 		end if 
 		
 		if UCase(theElement.Stereotype) = "UNION" then 
 			if  not theElement.Stereotype = "Union" then 
-				Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: Union [/anbefaling/styleGuide]")
-				globalWarningCounter = globalWarningCounter + 1 
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: Union [/anbefaling/styleGuide]")
+					globalWarningCounter = globalWarningCounter + 1 
+				end if	
 			end if 
 		end if
 		
 		if UCase(theElement.Stereotype) = "ENUMERATION" then 
 			if  not theElement.Stereotype = "enumeration" then 
-				Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: enumeration [/anbefaling/styleGuide]")
-				globalWarningCounter = globalWarningCounter + 1 
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: enumeration [/anbefaling/styleGuide]")
+					globalWarningCounter = globalWarningCounter + 1 
+				end if	
 			end if 
 		end if
 		
 		if UCase(theElement.Stereotype) = "INTERFACE" then 
 			if  not theElement.Stereotype = "interface" then 
-				Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: interface [/anbefaling/styleGuide]")
-				globalWarningCounter = globalWarningCounter + 1 
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Element [«"&theElement.Stereotype&"» "&theElement.Name&"] has a stereotype with wrong use of lower-and uppercase. Expected use of case: interface [/anbefaling/styleGuide]")
+					globalWarningCounter = globalWarningCounter + 1 
+				end if	
 			end if 
 		end if
 		
@@ -1110,8 +1168,10 @@ sub krav6mnemoniskKodenavn(theElement)
 		end if
 		'if one or more names start with uppercase, return a warning.
 		if lowerCameCase = false then 
-			Session.Output("Warning: All code names are not lowerCamelCase for class: [«" &theElement.Stereotype& "» " &theElement.Name& "].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>  [/krav/6 ]")
-			globalWarningCounter = globalWarningCounter +  numberOfWarnings
+			if globalLogLevelIsWarning then
+				Session.Output("Warning: All code names are not lowerCamelCase for class: [«" &theElement.Stereotype& "» " &theElement.Name& "].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>  [/krav/6 ]")
+				globalWarningCounter = globalWarningCounter +  numberOfWarnings
+			end if	
 		end if
 	
 end sub
@@ -1181,8 +1241,10 @@ sub krav7kodedefinisjon(theElement)
 	
 		'if one or more codes lack definition, warning.
 		if goodNames = false then 
-			Session.Output("Warning: Missing definition for code ["&badName&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. "&numberOfFaults&"/"&numberInList&" of the codes lack definition.   [/krav/7 ]")
-			globalWarningCounter = globalWarningCounter + 1
+			if globalLogLevelIsWarning then
+				Session.Output("Warning: Missing definition for code ["&badName&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. "&numberOfFaults&"/"&numberInList&" of the codes lack definition.   [/krav/7 ]")
+				globalWarningCounter = globalWarningCounter + 1
+			end if	
 		end if
 	
 end sub
@@ -1269,8 +1331,10 @@ sub krav15stereotyper(theElement)
 	
 	'if one or more codes lack definition, warning.
 	if goodNames = false then 
-		Session.Output("Warning: Unknown attribute stereotypes starting with [«"&badStereotype&"» "&badName&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. "&numberOfFaults&"/"&numberInList&" of the attributes have unknown stereotype.   [/krav/15 ]")
-		globalWarningCounter = globalWarningCounter + 1
+		if globalLogLevelIsWarning then
+			Session.Output("Warning: Unknown attribute stereotypes starting with [«"&badStereotype&"» "&badName&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. "&numberOfFaults&"/"&numberInList&" of the attributes have unknown stereotype.   [/krav/15 ]")
+			globalWarningCounter = globalWarningCounter + 1
+		end if	
 	end if
 
 	'operations?
@@ -1294,8 +1358,10 @@ sub krav15stereotyper(theElement)
 		'(ignoring all association roles without name!)
 		if roleName <> "" then
 			if badStereotype <> "" and LCase(badStereotype) <> "estimated" then
-				Session.Output("Warning: Unknown stereotype «"&badStereotype&"» on role name ["&roleName&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "].    [/krav/15 ]")				
- 				globalWarningCounter = globalWarningCounter + 1 
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Unknown stereotype «"&badStereotype&"» on role name ["&roleName&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "].    [/krav/15 ]")				
+					globalWarningCounter = globalWarningCounter + 1 
+				end if	
 			end if
 		end if
 	next
@@ -1309,8 +1375,10 @@ sub krav15stereotyper(theElement)
 				Session.Output("Error: Illegal stereotype «"&conn.Stereotype&"» on association named ["&conn.Name&"] connected to class: [«" &theElement.Stereotype& "» " &theElement.Name& "].   Recommended to use the script <endreTopoAssosiasjonTilRestriksjon>  [/krav/15 ]")				
  				globalErrorCounter = globalErrorCounter + 1 
 			else
-				Session.Output("Warning: Unknown stereotype «"&conn.Stereotype&"» on association named ["&conn.Name&"] connected to class: [«" &theElement.Stereotype& "» " &theElement.Name& "].    [/krav/15 ]")				
- 				globalWarningCounter = globalWarningCounter + 1 
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Unknown stereotype «"&conn.Stereotype&"» on association named ["&conn.Name&"] connected to class: [«" &theElement.Stereotype& "» " &theElement.Name& "].    [/krav/15 ]")				
+					globalWarningCounter = globalWarningCounter + 1 
+				end if	
 			end if
 		end if
 	next
@@ -1469,8 +1537,10 @@ sub krav16unikeNCnavnArvede(theElement, PropertyNames)
 		'(ignoring all association roles without name!)
 		if roleName <> "" then
 			if PropertyNames.IndexOf(UCase(roleName),0) <> -1 then
-				Session.Output("Warning: Non-unique inherited role property name ["&roleName&"] implicitly redefined from  class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. in package: ["&Repository.GetPackageByID(theElement.PackageID).Name&"].    [/krav/16 ]")				
-				globalWarningCounter = globalWarningCounter + 1
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Non-unique inherited role property name ["&roleName&"] implicitly redefined from  class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. in package: ["&Repository.GetPackageByID(theElement.PackageID).Name&"].    [/krav/16 ]")				
+					globalWarningCounter = globalWarningCounter + 1
+				end if	
 			end if
 			'Session.Output("Debug: add role name ["&roleName&"] in class: [" &theElement.Name& "].")
 		end if
@@ -1479,8 +1549,10 @@ sub krav16unikeNCnavnArvede(theElement, PropertyNames)
 	'Operation names
 	for each oper in theElement.Methods
 		if PropertyNames.IndexOf(UCase(oper.Name),0) <> -1 then
-			Session.Output("Warning: Non-unique inherited operation property name ["&oper.Name&"] implicitly redefined from class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. in package: ["&Repository.GetPackageByID(theElement.PackageID).Name&"].   [/krav/16 ]")				
-			globalWarningCounter = globalWarningCounter + 1
+			if globalLogLevelIsWarning then
+				Session.Output("Warning: Non-unique inherited operation property name ["&oper.Name&"] implicitly redefined from class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. in package: ["&Repository.GetPackageByID(theElement.PackageID).Name&"].   [/krav/16 ]")				
+				globalWarningCounter = globalWarningCounter + 1
+			end if	
 		end if
 		'Session.Output("Debug: add operation property name ["&oper.Name&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "].")				
 	next
@@ -1493,8 +1565,10 @@ sub krav16unikeNCnavnArvede(theElement, PropertyNames)
 		'count number of attributes in one list
 		numberInList = numberInList + 1 
 		if PropertyNames.IndexOf(UCase(attr.Name),0) <> -1 then
-			Session.Output("Warning: Non-unique inherited attribute property name["&attr.Name&"]  implicitly redefined from class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. in package: ["&Repository.GetPackageByID(theElement.PackageID).Name&"].    [/krav/16 ]")				
-			globalWarningCounter = globalWarningCounter + 1
+			if globalLogLevelIsWarning then
+				Session.Output("Warning: Non-unique inherited attribute property name["&attr.Name&"]  implicitly redefined from class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. in package: ["&Repository.GetPackageByID(theElement.PackageID).Name&"].    [/krav/16 ]")				
+				globalWarningCounter = globalWarningCounter + 1
+			end if	
 		end if
 		'Session.Output("Debug: add attribute property name ["&attr.Name&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "].")				
 	next
@@ -1695,8 +1769,10 @@ sub reqUmlProfile(theElement)
 		if attr.ClassifierID = 0 then
 			'check if the attribute has a well known core type
 			if ExtensionTypes.IndexOf(attr.Type,0) = -1 then	
-				Session.Output("Warning: Unknown type for attribute ["&attr.Name&" : "&attr.Type&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "].   [/req/uml/profile  ]")
-				globalWarningCounter = globalWarningCounter + 1
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Unknown type for attribute ["&attr.Name&" : "&attr.Type&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "].   [/req/uml/profile  ]")
+					globalWarningCounter = globalWarningCounter + 1
+				end if	
 			end if
 		else
 			'type link exists! type class name must be same as shown type name
@@ -1734,8 +1810,10 @@ end sub
  			 
 			'Iso 19103 Requirement 15 - known stereotypes for packages.
 			if UCase(package.element.Stereotype) <> "APPLICATIONSCHEMA" and UCase(package.element.Stereotype) <> "LEAF" and UCase(package.element.Stereotype) <> "" then
-				Session.Output("Warning: Unknown package stereotype: [«" &package.element.Stereotype& "» " &package.Name& "].   [/krav/15 ]")
-				globalWarningCounter = globalWarningCounter + 1
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Unknown package stereotype: [«" &package.element.Stereotype& "» " &package.Name& "].   [/krav/15 ]")
+					globalWarningCounter = globalWarningCounter + 1
+				end if	
 			end if
 
 			'Iso 19103 Requirement 16 - unique (NC?)Names on subpackages within the package.
@@ -1884,8 +1962,10 @@ end sub
 					'Iso 19103 Requirement 15 - known stereotypes for classes.
 					if UCase(currentElement.Stereotype) = "FEATURETYPE"  Or UCase(currentElement.Stereotype) = "DATATYPE" Or UCase(currentElement.Stereotype) = "UNION" or UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION" Or UCase(currentElement.Stereotype) = "ESTIMATED" or UCase(currentElement.Stereotype) = "MESSAGETYPE"  Or UCase(currentElement.Stereotype) = "INTERFACE" then
 					else
-						Session.Output("Warning: Unknown class stereotype: [«" &currentElement.Stereotype& "» " &currentElement.Name& "].   [/krav/15 ]")
-						globalWarningCounter = globalWarningCounter + 1
+						if globalLogLevelIsWarning then
+							Session.Output("Warning: Unknown class stereotype: [«" &currentElement.Stereotype& "» " &currentElement.Name& "].   [/krav/15 ]")
+							globalWarningCounter = globalWarningCounter + 1
+						end if	
 					end if
 					'Iso 19103 Requirement 15 - known stereotypes for attributes.
 					call krav15stereotyper(currentElement)
@@ -2180,6 +2260,9 @@ end sub
 
  
  'global variables 
+ dim globalLogLevelIsWarning 'boolean variable indicating if warning log level has been choosen or not
+ globalLogLevelIsWarning = true 'default setting for warning log level is true
+ 
  dim startClass 'the class which is the starting point for searching for multiple inheritance in the findMultipleInheritance subroutine 
  dim loopCounterMultipleInheritance 'integer value counting number of loops while searching for multiple inheritance
  dim foundHoveddiagram 'bolean to check if a diagram named Hoveddiagram is found. If found, foundHoveddiagram = true  
