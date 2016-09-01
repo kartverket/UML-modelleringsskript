@@ -11,6 +11,7 @@
  ' 
  ' Script Name: SOSI model validation 
  ' Author: Section for technology and standardization - Norwegian Mapping Authority
+ ' Version: 0.9
  ' Date: 2016-08-31 
  ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
  ' 	Implemented rules: 
@@ -126,15 +127,15 @@
 						dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
 						logLevelInputBoxText = "Please select the log level."&Chr(13)&Chr(10)
 						logLevelInputBoxText = logLevelInputBoxText+ ""&Chr(13)&Chr(10)
-						logLevelInputBoxText = logLevelInputBoxText+ "E - Error log level: logs error messages only"&Chr(13)&Chr(10)
-						logLevelInputBoxText = logLevelInputBoxText+ "W - Warning log level (recommended): logs both error and warning messages"&Chr(13)&Chr(10)
+						logLevelInputBoxText = logLevelInputBoxText+ "E - Error log level: logs error messages only."&Chr(13)&Chr(10)
+						logLevelInputBoxText = logLevelInputBoxText+ "W - Warning log level (recommended): logs error and warning messages."&Chr(13)&Chr(10)
 						logLevelInputBoxText = logLevelInputBoxText+ ""&Chr(13)&Chr(10)
 						logLevelInputBoxText = logLevelInputBoxText+ "Enter E or W:"&Chr(13)&Chr(10)
 						correctInput = false
 						abort = false
 						do while not correctInput
 						
-							logLevelFromInputBox = InputBox(logLevelInputBoxText, "Select log level", "E")
+							logLevelFromInputBox = InputBox(logLevelInputBoxText, "Select log level", "W")
 							select case true 
 								case UCase(logLevelFromInputBox) = "E"	
 									'code for when E = Error log level has been selected, only Error messages will be shown in the Script Output window
@@ -1892,11 +1893,13 @@ end sub
  				dim currentElement as EA.Element 
  				set currentElement = elements.GetAt( i ) 
 				
+				'Session.Output("DEBUG currentElementName: "&currentElement.Name&" --- currentElementType: "& currentElement.Type&" --- currentElementClassifierType: "&currentElement.ClassifierType)
+				
 				'check elements' stereotype for right use of lower- and uppercase [/anbefaling/styleGuide]
 				Call checkStereotypes(currentElement)	
  				 
  				'Is the currentElement of type Class and stereotype codelist or enumeration, check the initial values are numeric or not (/anbefaling/1)
-				if ((currentElement.Type = "Class") and (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION")) then
+				if ((currentElement.Type = "Class") and (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION") Or currentElement.Type = "Enumeration") then
 					call checkNumericinitialValues(currentElement)
 				end if
 
@@ -1942,15 +1945,15 @@ end sub
 
 
 
-				'Is the currentElement of type Class? If so, continue conducting some tests. If not continue with the next element. 
- 				if currentElement.Type = "Class" then 
+				'If the currentElement is of type Class, Enumeration or DataType continue conducting some tests. If not continue with the next element. 
+ 				if currentElement.Type = "Class" Or currentElement.Type = "Enumeration" Or currentElement.Type = "DataType" then 
  									 
 					'------------------------------------------------------------------ 
 					'---CLASSES---  								'   classifiers ???
 					'------------------------------------------------------------------		 
  
 					'Iso 19103 Requirement 6 - NCNames in codelist codes.
-					if (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION") then
+					if (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION" Or currentElement.Type = "Enumeration") then
 						call krav6mnemoniskKodenavn(currentElement)
 					end if
 
@@ -2148,7 +2151,7 @@ end sub
  							'Session.Output("connectorType: "&currentConnector.Type) 
  							 
  							dim elementOnOppositeSide as EA.Element 
- 							if currentElement.ElementID = sourceElementID and not currentConnector.Type = "Realisation" then 
+ 							if currentElement.ElementID = sourceElementID and not currentConnector.Type = "Realisation" and not currentConnector.Type = "Generalization" then 
  								set elementOnOppositeSide = Repository.GetElementByID(targetElementID) 
  								 
  								'if the connector has a name (optional according to the rules), check if it starts with capital letter 
