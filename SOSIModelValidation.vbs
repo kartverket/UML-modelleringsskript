@@ -1,8 +1,6 @@
 ﻿option explicit 
  
- 
  !INC Local Scripts.EAConstants-VBScript 
- 
  
  ' 
  ' This script contains code from the default Project Browser template. 
@@ -14,7 +12,7 @@
  ' Version: 0.9
  ' Date: 2016-08-31 
  ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
- ' 	Implemented rules: 
+ ' Implemented rules: 
  '	- /krav/3:  
  '			Find elements (classes, attributes, navigable association roles, operations, datatypes)  
  '	        without definition (notes/rolenotes) in the selected package and subpackages 
@@ -101,26 +99,30 @@
 				dim box, mess
 				'mess = 	"(TODO: Feil logger bare feil, advarsel logger både feil og advarsler, info logger alt (hva er alt??) Advarsel er på default.)"&Chr(13)&Chr(10)
 				'mess = 	"Model validation 2016-08-19 Logging errors and warnings."&Chr(13)&Chr(10)
-				mess = mess + "/krav/3 -elements with definition."&Chr(13)&Chr(10)
-				mess = mess + "/krav/definisjoner -packages with definition."&Chr(13)&Chr(10)
-				mess = mess + "/krav/6	Iso 19103 Req 6 - NCNames for codes."&Chr(13)&Chr(10)
-				mess = mess + "/krav/7	Iso 19103 Req 7 - definition on codes."&Chr(13)&Chr(10)
-				mess = mess + "/krav/10	Iso 19103 Req 10 -multiplicity."&Chr(13)&Chr(10)
-				mess = mess + "/krav/11	Iso 19103 Req 11 -role names."&Chr(13)&Chr(10)
-				mess = mess + "/krav/flerspråklighet/pakke	-tagged value 'language'."&Chr(13)&Chr(10)
-				mess = mess + "/krav/12	Iso 19103 Req 12 -datatypes target in composition."&Chr(13)&Chr(10)
-				mess = mess + "/krav/enkelArv -single inheritance."&Chr(13)&Chr(10)
-				mess = mess + "/krav/Navning -all names CamelCase."&Chr(13)&Chr(10)
-				mess = mess + "/anbefaling/1	Iso 19103 Rec. 1 -meaningful initial values."&Chr(13)&Chr(10)
-				mess = mess + "/req/uml/packaging Iso 19109 -tagged value 'version'."&Chr(13)&Chr(10)
-				mess = mess + "/krav/SOSI-modellregister/ -known SOSI model registry status codes."&Chr(13)&Chr(10)
-				mess = mess + "/krav/14	Iso 19103 Req 14 -inherit from same stereotypes."&Chr(13)&Chr(10)
-				mess = mess + "/krav/15	Iso 19103 Req 15 -known stereotypes."&Chr(13)&Chr(10)
-				mess = mess + "/krav/16	Iso 19103 Req 16 -legal NCNames case-insesnitively unique."&Chr(13)&Chr(10)
-				mess = mess + "/req/uml/profile	Iso 19103, 19107 and 19109 -well known types."&Chr(13)&Chr(10)
+				mess = "Model validation based on requirements and recommendations in SOSI standard 'Regler for UML-modellering 5.0'"&Chr(13)&Chr(10)
+				mess = mess + ""&Chr(13)&Chr(10)
+				mess = mess + "Please find a list with the implemented rules this script's source code (line 15++)."&Chr(13)&Chr(10)
+				'mess= mess +  "/krav/3 - elements with definition."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/definisjoner - packages with definition."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/6 (Iso 19103 Req 6) - NCNames for codes."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/7 (Iso 19103 Req 7) - definition on codes."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/10	(Iso 19103 Req 10) - multiplicity."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/11	(Iso 19103 Req 11) - role names."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/flerspråklighet/pakke - tagged value 'language'."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/12	(Iso 19103 Req 12) - datatypes target in composition."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/enkelArv - single inheritance."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/Navning - all names CamelCase."&Chr(13)&Chr(10)
+				'mess = mess + "/anbefaling/1 (Iso 19103 Rec 1) - meaningful initial values."&Chr(13)&Chr(10)
+				'mess = mess + "/req/uml/packaging (Iso 19109) - tagged value 'version'."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/SOSI-modellregister - known SOSI model registry status codes."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/14	(Iso 19103 Req 14) - inherit from same stereotypes."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/15	(Iso 19103 Req 15) - known stereotypes."&Chr(13)&Chr(10)
+				'mess = mess + "/krav/16	(Iso 19103 Req 16) - legal NCNames case-insensitively unique."&Chr(13)&Chr(10)
+				'mess = mess + "/req/uml/profile	(Iso 19103, 19107, 19109) - well known types."&Chr(13)&Chr(10)
+				mess = mess + ""&Chr(13)&Chr(10)
 				mess = mess + "Starts model validation for package [" & thePackage.Name &"]."&Chr(13)&Chr(10)
 
-				box = Msgbox ("Model validation 2016-08-19 Logging errors and warnings for"&Chr(13)&Chr(10)  &mess, vbOKCancel)
+				box = Msgbox (mess, vbOKCancel, "SOSI model validation 1.0")
 				select case box
 					case vbOK
 						'inputBoxGUI to receive user input regarding the log level
@@ -169,7 +171,7 @@
 							'error-message for /krav/hoveddiagram/navning (sub procedure: CheckPackageForHoveddiagram)
 							'if the applicationSchema package got less than one diagram with a name starting with "Hoveddiagram", then return an error 	
 							if 	not foundHoveddiagram  then
-								Session.Output("Error: Neither package [" &startPackageName& "] nor any of it's subpackages has a diagram with a name starting with <Hoveddiagram> [/krav/hoveddiagram/navning]")
+								Session.Output("Error: Neither package [" &startPackageName& "] nor any of it's subpackages has a diagram with a name starting with 'Hoveddiagram' [/krav/hoveddiagram/navning]")
 								globalErrorCounter = globalErrorCounter + 1 
 					
 							end if 	
@@ -248,7 +250,7 @@
  			set currentElement = theObject 
  			 
  			If currentElement.Notes = "" then 
- 				Session.Output("Error: Class [" & currentElement.Name & "] has no definition. [/krav/3]")	 
+ 				Session.Output("Error: Class [«" &currentElement.Stereotype& "» "& currentElement.Name & "] has no definition. [/krav/3]")	 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  		Case otAttribute 
@@ -261,7 +263,7 @@
  			set attributeParentElement = Repository.GetElementByID(currentAttribute.ParentID) 
  			 
  			if currentAttribute.Notes = "" then 
-				Session.Output( "Error: Class ["& attributeParentElement.Name &"] \ attribute [" & currentAttribute.Name & "] has no definition. [/krav/3]") 
+				Session.Output( "Error: Class [«" &attributeParentElement.Stereotype& "» "& attributeParentElement.Name &"] \ attribute [" & currentAttribute.Name & "] has no definition. [/krav/3]") 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  			 
@@ -275,7 +277,7 @@
  			set methodParentElement = Repository.GetElementByID(currentMethod.ParentID) 
  			 
  			if currentMethod.Notes = "" then 
- 				Session.Output( "Error: Class ["& methodParentElement.Name &"] \ operation [" & currentMethod.Name & "] has no definition. [/krav/3]") 
+ 				Session.Output( "Error: Class [«" &methodParentElement.Stereotype& "» "& methodParentElement.Name &"] \ operation [" & currentMethod.Name & "] has no definition. [/krav/3]") 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  		Case otConnector 
@@ -307,7 +309,7 @@
  				'get the element on the source end of the connector 
  				set sourceEndElement = Repository.GetElementByID(sourceEndElementID) 
  				 
-				Session.Output( "Error: Class ["& sourceEndElement.Name &"] \ Association role [" & sourceEndName & "] has no definition. [/krav/3]") 
+				Session.Output( "Error: Class [«" &sourceEndElement.Stereotype& "» "& sourceEndElement.Name &"] \ Association role [" & sourceEndName & "] has no definition. [/krav/3]") 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  			 
@@ -315,12 +317,13 @@
  				'get the element on the source end of the connector (also source end element here because error message is related to the element on the source end of the connector) 
  				set sourceEndElement = Repository.GetElementByID(sourceEndElementID) 
  				 
-				Session.Output( "Error: Class ["& sourceEndElement.Name &"] \ Association role [" & targetEndName & "] has no definition. [/krav/3]") 
+				Session.Output( "Error: Class [«"&sourceEndElement.Stereotype&"» "&sourceEndElement.Name &"] \ Association role [" & targetEndName & "] has no definition. [/krav/3]") 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  			 
  		Case else		 
- 			Session.Output( "Error: Function [Krav3] started with invalid parameter.") 
+ 			'TODO: need some type of exception handling here
+			Session.Output( "Error: Function [Krav3] started with invalid parameter. DEBUG ME!") 
 			globalErrorCounter = globalErrorCounter + 1 
  	End Select 
  	 
@@ -369,7 +372,7 @@
  			end if 
  			'if theres more than one generalization connecter on the source side the class has multiple inheritance 
  				if numberOfSuperClasses > 1 then 
- 					Session.Output("Error: Class [" &startClass& "] has multiple inheritance. [/krav/enkelarv]") 
+ 					Session.Output("Error: Class [«"&startClass.Stereotype&"» "&startClass.Name& "] has multiple inheritance. [/krav/enkelarv]") 
  					globalErrorCounter = globalErrorCounter + 1 
  					exit for  
  						 
@@ -393,7 +396,7 @@
  				'Check level of superClass 
  				call findMultipleInheritance (superClass) 
 			elseif loopCounterMultipleInheritance = 21 then 
-				Session.Output("Warning: Found more than 20 inheritance levels for class:  [" &startClass& "] while testing [/krav/enkelarv]. Please check for possible circle inheritance ")
+				Session.Output("Warning: Found more than 20 inheritance levels for class:  [" &startClass.Name& "] while testing [/krav/enkelarv]. Please check for possible circle inheritance ")
 				globalWarningCounter = globalWarningCounter + 1 
 			end if  
 
@@ -1805,7 +1808,7 @@ end sub
  			'check package definition 
  			if package.Notes = "" then 
  						'Session.Output("FEIL: Pakke [" & package.Name & "] mangler definisjon. [/krav/definisjoner]") 
- 						Session.Output("Error: Package [" & package.Name & "] lack a definition. [/krav/definisjoner]") 
+ 						Session.Output("Error: Package [" & package.Name & "] lacks a definition. [/krav/definisjoner]") 
  						globalErrorCounter = globalErrorCounter + 1 
  			end if 
  			 
@@ -1874,7 +1877,7 @@ end sub
 								dim currentPConstraint as EA.Constraint		 
 								set currentPConstraint = constraintPCollection.GetAt(constraintPCounter) 
 								
-								'check if the package got constraints that lacks name or definition (/req/UML/constraint)								
+								'check if the package got constraints that lack name or definition (/req/UML/constraint)								
 								Call checkConstraint(currentPConstraint, currentPackage)
 
 						
@@ -1937,7 +1940,7 @@ end sub
 							dim currentConstraint as EA.Constraint		 
 							set currentConstraint = constraintCollection.GetAt(constraintCounter) 
 							
-							'check if the constraints lacks name or definition (/req/UML/constraint)
+							'check if the constraints lack name or definition (/req/UML/constraint)
 							Call checkConstraint(currentConstraint, currentElement)
 
 						next
@@ -1985,7 +1988,7 @@ end sub
  										 
  					'check if there is there is multiple inheritance for the class element (/krav/enkelArv) 
  					'initialize the global variable startClass which is needed in subroutine findMultipleInheritance 
- 					startClass = currentElement.Name 
+ 					set startClass = currentElement 
 					loopCounterMultipleInheritance = 0
  					Call findMultipleInheritance(currentElement) 
  					 
@@ -2157,24 +2160,35 @@ end sub
  								'if the connector has a name (optional according to the rules), check if it starts with capital letter 
  								if not currentConnector.Name = "" and not Left(currentConnector.Name,1) = UCase(Left(currentConnector.Name,1)) then 
  									'Session.Output("FEIL: Navnet til assosiasjonen [" & currentConnector.Name & "] mellom klasse ["& elementOnOppositeSide.Name &"] og klasse [" & currentElement.Name & "] skal starte med stor bokstav. [/krav/navning]") 
- 									Session.Output("Error: Association name [" & currentConnector.Name & "] between class ["& elementOnOppositeSide.Name &"] and class [" & currentElement.Name & "] shall start with capital letter. [/krav/navning]") 
+ 									Session.Output("Error: Association name [" & currentConnector.Name & "] between class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name &"] and class [«"&currentElement.Stereotype&"» " & currentElement.Name & "] shall start with capital letter. [/krav/navning]") 
  									globalErrorCounter = globalErrorCounter + 1 
  								end if 
  								 
- 								'check if the elementOnOppositeSide has stereotype "dataType" and this side's end is no composition 
- 								'if (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType")) and not (currentConnector.ClientEnd.Aggregation = 2) and (currentConnector.ClientID <> currentConnector.SupplierID) then 
- 								if (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType")) and not (currentConnector.ClientEnd.Aggregation = 2) then 
+								 
+								'-----START-- krav/12----------
+								'TODO: move this part to a separate sub
+ 								'check if elements on both sides of the association are classes with stereotype dataType or of element type DataType
+								dim dataTypeOnBothSides
+								if (Ucase(currentElement.Stereotype) = Ucase("dataType") or currentElement.Type = "DataType") and (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType") or elementOnOppositeSide.Type = "DataType") then
+									dataTypeOnBothSides = true
+								else	
+									dataTypeOnBothSides = false
+								end if
+								
+								'check if the elementOnOppositeSide has stereotype "dataType" and this side's end is no composition and not elements both sides of the association are datatypes
+ 								if (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType")) and not (currentConnector.ClientEnd.Aggregation = 2) and not dataTypeOnBothSides then 
  									'Session.Output( "FEIL: Klasse [<<"&elementOnOppositeSide.Stereotype&">>"& elementOnOppositeSide.Name &"] har assosiasjon til klasse [" & currentElement.Name & "] som ikke er komposisjon pÃ¥ "& currentElement.Name &"-siden. [/krav/12]")									 
  									Session.Output( "Error: Class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name &"] has association to class [" & currentElement.Name & "] that is not a composition on "& currentElement.Name &"-side. [/krav/12]")									 
  									globalErrorCounter = globalErrorCounter + 1 
  								end if 
  								'check if this side's element has stereotype "dataType" and the opposite side's end is no composition 
- 								if (Ucase(currentElement.Stereotype) = Ucase("dataType")) and not (currentConnector.SupplierEnd.Aggregation = 2)  then 
+ 								if (Ucase(currentElement.Stereotype) = Ucase("dataType")) and not (currentConnector.SupplierEnd.Aggregation = 2) and not dataTypeOnBothSides then 
  									'Session.Output( "FEIL: Klasse [<<"&currentElement.Stereotype&">>"& currentElement.Name &"] har assosiasjon til klasse [" & elementOnOppositeSide.Name & "] som ikke er komposisjon pÃ¥ "& elementOnOppositeSide.Name &"-siden. [/krav/12]")									 
  									Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] has association to class [" & elementOnOppositeSide.Name & "] that is not a composition on "& elementOnOppositeSide.Name &"-side. [/krav/12]")									 
  									globalErrorCounter = globalErrorCounter + 1 
  								end if 
- 								 
+								'-----END-- krav/12----------	
+								
  								'check if there is a definition on navigable ends (navigable association roles) of the connector 
  								'Call the subfunction with currentConnector as parameter 
  								Krav3(currentConnector) 
@@ -2182,13 +2196,13 @@ end sub
  								'check if there is multiplicity on navigable ends 
  								if sourceEndNavigable = "Navigable" and sourceEndCardinality = "" then 
  									'Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler multiplisitet. [/krav/10]") 
-									Session.Output( "Error: Class ["& currentElement.Name &"] \ Association role [" & sourceEndName & "] lack multiplicity. [/krav/10]") 
+									Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ Association role [" & sourceEndName & "] lacks multiplicity. [/krav/10]") 
  									globalErrorCounter = globalErrorCounter + 1 
  								end if 
  								 
  								if targetEndNavigable = "Navigable" and targetEndCardinality = "" then 
  									'Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler multiplisitet. [/krav/10]") 
- 									Session.Output( "Error: Class ["& currentElement.Name &"] \ Association role [" & targetEndName & "] lack multiplicity. [/krav/10]") 
+ 									Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ Association role [" & targetEndName & "] lacks multiplicity. [/krav/10]") 
  									globalErrorCounter = globalErrorCounter + 1 
  								end if 
  
@@ -2196,13 +2210,13 @@ end sub
  								'check if there are role names on navigable ends 
  								if sourceEndNavigable = "Navigable" and sourceEndName = "" then 
  									'Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& currentElement.Name &"-siden [/krav/11]") 
- 									Session.Output( "Error : Association between class ["& currentElement.Name &"] and class ["& elementOnOppositeSide.Name & "] lack role name on navigable end on "& currentElement.Name &"-side [/krav/11]") 
+ 									Session.Output( "Error : Association between class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] and class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name & "] lacks role name on navigable end on "& currentElement.Name &"-side [/krav/11]") 
  									globalErrorCounter = globalErrorCounter + 1 
  								end if 
  								 
  								if targetEndNavigable = "Navigable" and targetEndName = "" then 
  									'Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& elementOnOppositeSide.Name &"-siden [/krav/11]") 
-  									Session.Output( "Error : Association between class ["& currentElement.Name &"] and class ["& elementOnOppositeSide.Name & "] lack role name on navigable end on "& elementOnOppositeSide.Name &"-side [/krav/11]") 
+  									Session.Output( "Error : Association between class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] and class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name & "] lacks role name on navigable end on "& elementOnOppositeSide.Name &"-side [/krav/11]") 
 									globalErrorCounter = globalErrorCounter + 1 
  								end if 
  								 
@@ -2266,7 +2280,7 @@ end sub
  dim globalLogLevelIsWarning 'boolean variable indicating if warning log level has been choosen or not
  globalLogLevelIsWarning = true 'default setting for warning log level is true
  
- dim startClass 'the class which is the starting point for searching for multiple inheritance in the findMultipleInheritance subroutine 
+ dim startClass as EA.Element  'the class which is the starting point for searching for multiple inheritance in the findMultipleInheritance subroutine 
  dim loopCounterMultipleInheritance 'integer value counting number of loops while searching for multiple inheritance
  dim foundHoveddiagram 'bolean to check if a diagram named Hoveddiagram is found. If found, foundHoveddiagram = true  
  foundHoveddiagram = false 
@@ -2281,7 +2295,6 @@ end sub
  	'Global list of all used names
 	'http://sparxsystems.com/enterprise_architect_user_guide/12.1/automation_and_scripting/reference.html
 	dim startPackageName
-	dim startClassName
 	dim ClassAndPackageNames
 	Set ClassAndPackageNames = CreateObject("System.Collections.ArrayList")
 
