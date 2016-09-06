@@ -9,8 +9,8 @@
  ' 
  ' Script Name: SOSI model validation 
  ' Author: Section for technology and standardization - Norwegian Mapping Authority
- ' Version: 0.91
- ' Date: 2016-09-05 
+ ' Version: 0.92
+ ' Date: 2016-09-06 
  ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
  ' Implemented rules: 
  '	- /krav/3:  
@@ -850,7 +850,7 @@ sub checkNumericinitialValues(theElement)
 		'check if the initial values are numeric 
 		if IsNumeric(attr.Default)   then
 			if globalLogLevelIsWarning then	
-				Session.Output("Warning: Class [«"&theElement.Stereotype&"» "&theElement.Name&"] \ attribute [" &attr.Name& "] has numeric initial value and is possible meaningless. Recommended to use script <flyttInitialverdiPåKodelistekoderTilSOSITag>. [/anbefaling/1]")		
+				Session.Output("Warning: Class [«"&theElement.Stereotype&"» "&theElement.Name&"] \ attribute [" &attr.Name& "] has numeric initial value [" &attr.Default& "] that is probably meaningless. Recommended to use script <flyttInitialverdiPåKodelistekoderTilSOSITag>. [/anbefaling/1]")		
 				globalWarningCounter = globalWarningCounter + 1 
 			end if
 		else 
@@ -1158,7 +1158,7 @@ sub krav6mnemoniskKodenavn(theElement)
 		if NOT IsNCName(attr.Name) then
 				'count number of numeric initial values for one list
 				numberOfFaults = numberOfFaults + 1
-				Session.Output("Error: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. Illegal code name ["&attr.Name&"].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>   [/krav/6 ]")
+				Session.Output("Error: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has illegal code name ["&attr.Name&"].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>   [/krav/6 ]")
 				if goodNames then
 					badName = attr.Name
 				end if
@@ -1167,7 +1167,9 @@ sub krav6mnemoniskKodenavn(theElement)
 		'check if any of the names are lowerCameCase
 		if NOT (mid(attr.Name,1,1) = LCASE(mid(attr.Name,1,1)) ) then
 				numberOfWarnings = numberOfWarnings + 1
-				Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "].  code name is not lowerCamelCase ["&attr.Name&"].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>  [/krav/6 ]")
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has code name that is not lowerCamelCase ["&attr.Name&"].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>  [/krav/6 ]")
+				end if
 			lowerCameCase = false
 		End if
 	next
@@ -1942,7 +1944,7 @@ end sub
 
 			'Iso 19103 Requirement 16 - unique (NC?)Names on subpackages within the package.
 			if ClassAndPackageNames.IndexOf(UCase(package.Name),0) <> -1 then
-				Session.Output("Error: Non-unique subpackage name ["&package.Name&" in package [" &startPackageName& "].    [/krav/16 ]")				
+				Session.Output("Error: Package [" &startPackageName& "] has non-unique subpackage name ["&package.Name&"].    [/krav/16 ]")				
  				globalErrorCounter = globalErrorCounter + 1 
  			end if
 			ClassAndPackageNames.Add UCase(package.Name)
