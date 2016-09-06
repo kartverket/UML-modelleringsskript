@@ -104,7 +104,7 @@
 				'mess = 	"Model validation 2016-08-19 Logging errors and warnings."&Chr(13)&Chr(10)
 				mess = "Model validation based on requirements and recommendations in SOSI standard 'Regler for UML-modellering 5.0'"&Chr(13)&Chr(10)
 				mess = mess + ""&Chr(13)&Chr(10)
-				mess = mess + "Please find a list with the implemented rules this script's source code (line 15++)."&Chr(13)&Chr(10)
+				mess = mess + "Please find a list with the implemented rules in this script's source code (line 15++)."&Chr(13)&Chr(10)
 				'mess= mess +  "/krav/3 - elements with definition."&Chr(13)&Chr(10)
 				'mess = mess + "/krav/definisjoner - packages with definition."&Chr(13)&Chr(10)
 				'mess = mess + "/krav/6 (Iso 19103 Req 6) - NCNames for codes."&Chr(13)&Chr(10)
