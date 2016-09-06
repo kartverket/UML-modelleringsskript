@@ -9,69 +9,71 @@
  ' 
  ' Script Name: SOSI model validation 
  ' Author: Section for technology and standardization - Norwegian Mapping Authority
- ' Version: 0.92
+ ' Version: 1.0
  ' Date: 2016-09-06 
  ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
  ' Implemented rules: 
- '	- /krav/3:  
+ '	/krav/3:  
  '			Find elements (classes, attributes, navigable association roles, operations, datatypes)  
  '	        without definition (notes/rolenotes) in the selected package and subpackages 
  '
- '	/krav/6		Iso 19103 Requirement 6 - NCNames in codelist codes.
- ' 	/krav/7	    Iso 19103 Requirement 7 - definition of codelist codes.
- '  /krav/14    Iso 19103 Requirement 14 -inherit from same stereotypes
- '  /krav/15    Iso 19103 Requirement 15 -known stereotypes
- '  /krav/16    Iso 19103 Requirement 16 -legal NCNames case-insesnitively unique within their namespace
- '  /krav/18    Iso 19103 Requirement 18 -all elements shall show all structures in at least one diagram
- '  /req/uml/profile      from iso 19109 -well known types for all attributes, including iso 19103 Requirement 22 and 25 
- '
- '   - /krav/definisjoner (partially implemented except for constraints): 
- '			Same as krav/3 but checks also for definitions of packages 
- '	- /krav/10: 
+ '	/krav/6:		
+'			Iso 19103 Requirement 6 - NCNames in codelist codes.
+ ' 	/krav/7:	    
+ '			Iso 19103 Requirement 7 - definition of codelist codes.
+ '  /krav/10: 
  '			Check if all navigable association ends have cardinality 
- '	- /krav/11: 
+ '	/krav/11: 
  '			Check if all navigable association ends have role names 
- '	- /krav/flersprÃ¥klighet/pakke (partially): 
- '			Check if there is a tagged value "language" with any content and check the structure of designation tags for Application-Schema
- '	- /krav/12: 
+  '	/krav/12: 
  '			If datatypes have associations then the datatype shall only be target in a composition 
- '  - /krav/enkelArv
- ' 			To check each class for multiple inheritance 
- '	- /krav/navning (partially): 
- '			Check if names of attributes, operations, roles start with lower case and names of packages,  
- '			classes and associations start with upper case 
- '  - /krav/flerspråklighet/pakke:
-'			Check if the ApplicationSchema-package got a tagged value named "language" and if the value of it is empty or not. 
-' 			And if there are designation-tags, checks that they have correct structure: "{name}"@{language}
-'  - /krav/flerspråklighet/element:		
+ '  /krav/14:
+'			Iso 19103 Requirement 14 -inherit from same stereotypes
+ '  /krav/15:
+ '			Iso 19103 Requirement 15 -known stereotypes
+ '  /krav/16
+ '			Iso 19103 Requirement 16 -legal NCNames case-insesnitively unique within their namespace
+ '  /krav/18
+'			Iso 19103 Requirement 18 -all elements shall show all structures in at least one diagram
+ '	/krav/definisjoner (partially implemented except for constraints): 
+ '			Same as krav/3 but checks also for definitions of packages 
+ '	/krav/eksternKodeliste
+' 			Check if the coedlist has an asDictionary with value "true", if so, checks if the taggedValue "codeList" exist and if the value is valid or not.
+'			Some parts missing. 2 subs.
+'	/krav/enkelArv
+' 			To check each class for multiple inheritance 
+'	/krav/flerspråklighet/element:		
 ' 			if tagged value: "designation", "description" or "definition" exists, the value of the tag must end with "@<language-code>". 
 ' 			Checks attributes, operations, (roles), (constraints) and objecttypes 
-'  - /anbefaling/1:
-'			Checks every initial values in codeLists and enumerations for a package. If one or more initial values are numeric in one list, 
-' 			it return a warning message. 
-'  - /anbefaling/styleGuide:
-'			 Checks that the stereotype for packages and elements got the right use of lower- and uppercase, if not, return an error. Stereotypes to be cheked:
-'			 CodeList, dataType, enumeration, interface, Leaf, Union, FeatureType, ApplicationSchema
-'  - /req/uml/packaging:
-'     		To check if the value of the version-tag (tagged values) for an ApplicationSchema-package is empty or not. 
-'  -/req/UML/constraint
-'			To check if a constraint lacks name or definition. 
-'  - /krav/hoveddiagram/navning: 
-'			Check if an application-schema has less than one diagram named "Hoveddiagram", if so, returns an error 
-'  -/krav/hoveddiagram/detaljering/navnining 
+ '	/krav/flerspråklighet/pakke:
+'			Check if the ApplicationSchema-package got a tagged value named "language" and if the value of it is empty or not. 
+' 			And if there are designation-tags, checks that they have correct structure: "{name}"@{language}
+' 	/krav/hoveddiagram/detaljering/navnining 
 '			Check if a package with stereotype applicationSchema has more than one diagram called "Hoveddiagram", if so, checks that theres more characters
 ' 			in the name after "Hoveddiagram". If there is several "Hoveddiagram"s and one or more diagrams just named "Hoveddiagram" it returns an error. 
-'  - /krav/SOSI-modellregister/ applikasjonsskjema/status
+'  	/krav/hoveddiagram/navning: 
+'			Check if an application-schema has less than one diagram named "Hoveddiagram", if so, returns an error 
+'	/krav/navning (partially): 
+'			Check if names of attributes, operations, roles start with lower case and names of packages,  
+'			classes and associations start with upper case 
+'	/krav/SOSI-modellregister/ applikasjonsskjema/status
 '			Check if the ApplicationSchema-package got a tagged value named "SOSI_modellstatus" and checks if it is a valid value
-'  - /krav/eksternKodeliste
-' 			Check if the coedlist has an asDictionary with value "true", if so, checks if the taggedValue "codeList" exist and if the value is valid or not.
-'			Some parts missing. 2 subs. 
-
- 
- 
- ' 
- ' Project Browser Script main function 
- ' 
+'  	/req/UML/constraint
+'			To check if a constraint lacks name or definition. 
+'  	/req/uml/packaging:
+'     		To check if the value of the version-tag (tagged values) for an ApplicationSchema-package is empty or not. 
+'   /anbefaling/1:
+'			Checks every initial values in codeLists and enumerations for a package. If one or more initial values are numeric in one list, 
+' 			it return a warning message. 
+'  	/anbefaling/styleGuide:
+'			Checks that the stereotype for packages and elements got the right use of lower- and uppercase, if not, return an error. Stereotypes to be cheked:
+'			CodeList, dataType, enumeration, interface, Leaf, Union, FeatureType, ApplicationSchema
+'	/req/uml/profile      
+'			from iso 19109 -well known types for all attributes, including iso 19103 Requirement 22 and 25 
+'
+' 
+' Project Browser Script main function 
+' 
  sub OnProjectBrowserScript() 
  	 
 	Repository.EnsureOutputVisible("Script")
@@ -130,7 +132,9 @@
 						dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
 						logLevelInputBoxText = "Please select the log level."&Chr(13)&Chr(10)
 						logLevelInputBoxText = logLevelInputBoxText+ ""&Chr(13)&Chr(10)
+						logLevelInputBoxText = logLevelInputBoxText+ ""&Chr(13)&Chr(10)
 						logLevelInputBoxText = logLevelInputBoxText+ "E - Error log level: logs error messages only."&Chr(13)&Chr(10)
+						logLevelInputBoxText = logLevelInputBoxText+ ""&Chr(13)&Chr(10)
 						logLevelInputBoxText = logLevelInputBoxText+ "W - Warning log level (recommended): logs error and warning messages."&Chr(13)&Chr(10)
 						logLevelInputBoxText = logLevelInputBoxText+ ""&Chr(13)&Chr(10)
 						logLevelInputBoxText = logLevelInputBoxText+ "Enter E or W:"&Chr(13)&Chr(10)
@@ -315,7 +319,7 @@
  				'get the element on the source end of the connector 
  				set sourceEndElement = Repository.GetElementByID(sourceEndElementID) 
  				 
-				Session.Output( "Error: Class [«" &sourceEndElement.Stereotype& "» "& sourceEndElement.Name &"] \ Association role [" & sourceEndName & "] has no definition. [/krav/3]") 
+				Session.Output( "Error: Class [«" &sourceEndElement.Stereotype& "» "& sourceEndElement.Name &"] \ association role [" & sourceEndName & "] has no definition. [/krav/3]") 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  			 
@@ -323,7 +327,7 @@
  				'get the element on the source end of the connector (also source end element here because error message is related to the element on the source end of the connector) 
  				set sourceEndElement = Repository.GetElementByID(sourceEndElementID) 
  				 
-				Session.Output( "Error: Class [«"&sourceEndElement.Stereotype&"» "&sourceEndElement.Name &"] \ Association role [" & targetEndName & "] has no definition. [/krav/3]") 
+				Session.Output( "Error: Class [«"&sourceEndElement.Stereotype&"» "&sourceEndElement.Name &"] \ association role [" & targetEndName & "] has no definition. [/krav/3]") 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  			 
@@ -1245,7 +1249,9 @@ sub krav7kodedefinisjon(theElement)
 		'check if the code has definition
 		if attr.Notes = "" then
 				numberOfFaults = numberOfFaults + 1
-				Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] is missing definition for code ["&attr.Name&"].   [/krav/7 ]")
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] is missing definition for code ["&attr.Name&"].   [/krav/7 ]")
+				end if
 				if goodNames then
 					badName = attr.Name
 				end if
@@ -1336,7 +1342,10 @@ sub krav15stereotyper(theElement)
 		numberInList = numberInList + 1 
 		if attr.Stereotype <> "" then
 				numberOfFaults = numberOfFaults + 1
-				Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has unknown stereotype. «" & attr.Stereotype & "» on attribute ["&attr.Name&"]  [/krav/15 ]")
+				if globalLogLevelIsWarning then
+					Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has unknown stereotype. «" & attr.Stereotype & "» on attribute ["&attr.Name&"]  [/krav/15 ]")
+					globalWarningCounter = globalWarningCounter + 1
+				end if	
 				if goodNames then
 					badName = attr.Name
 					badStereotype = attr.Stereotype
@@ -1790,11 +1799,9 @@ sub reqUmlProfile(theElement)
 		if attr.ClassifierID = 0 then
 			'check if the attribute has a well known core type
 			if ExtensionTypes.IndexOf(attr.Type,0) = -1 then	
-				if globalLogLevelIsWarning then
-					'Session.Output("Warning: Unknown type for attribute ["&attr.Name&" : "&attr.Type&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "].   [/req/uml/profile  ]")
-					Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has unknown type for attribute ["&attr.Name&" : "&attr.Type&"].   [/req/uml/profile  ]")
-					globalWarningCounter = globalWarningCounter + 1
-				end if	
+				'Session.Output("Warning: Unknown type for attribute ["&attr.Name&" : "&attr.Type&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "].   [/req/uml/profile  ]")
+				Session.Output("Error: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has unknown type for attribute ["&attr.Name&" : "&attr.Type&"].   [/req/uml/profile  ]")
+				globalErrorCounter = globalErrorCounter + 1 
 			end if
 		else
 			'type link exists! type class name must be same as shown type name
@@ -1846,6 +1853,7 @@ sub krav18viseAlt(theElement)
 				if diagram.DiagramID = diaoList.GetByIndex(i) then
 					shownTimes = shownTimes + 1
 					'class is shown in this diagram, find corresponding class display settings (DiagramObject)
+					set diao = nothing
 					for each diao in diagram.DiagramObjects
 						'corresponding diagram object
 						if diao.ElementID = theElement.ElementID then
@@ -1878,12 +1886,11 @@ sub krav18viseAlt(theElement)
 
 end sub
 
-function showAllProperties(theElement, diagram, diagramObject)
-
+function showAllProperties(theElement, diagram, diao)
 	showAllProperties = false
-	if InStr(1,diagram.ExtendedStyle,"HideAtts=1") = 0 and diagramObject.ShowPublicAttributes or InStr(1,diagramObject.Style,"AttCustom=0" ) <> 0 or theElement.Attributes.Count = 0 then
-		if InStr(1,diagram.ExtendedStyle,"HideOps=1") = 0 and diagramObject.ShowPublicOperations or InStr(1,diagramObject.Style,"OpCustom=0" ) <> 0 or theElement.Methods.Count = 0 then
-			if InStr(1,diagram.ExtendedStyle,"ShowCons=0") = 0 or diagramObject.ShowConstraints or InStr(1,diagramObject.Style,"Constraint=1" ) <> 0 or theElement.Constraints.Count = 0 then
+	if InStr(1,diagram.ExtendedStyle,"HideAtts=1") = 0 and diao.ShowPublicAttributes or InStr(1,diao.Style,"AttCustom=0" ) <> 0 or theElement.Attributes.Count = 0 then
+		if InStr(1,diagram.ExtendedStyle,"HideOps=1") = 0 and diao.ShowPublicOperations or InStr(1,diao.Style,"OpCustom=0" ) <> 0 or theElement.Methods.Count = 0 then
+			if InStr(1,diagram.ExtendedStyle,"ShowCons=0") = 0 or diao.ShowConstraints or InStr(1,diao.Style,"Constraint=1" ) <> 0 or theElement.Constraints.Count = 0 then
 				' all attribute parts really shown? ...
 				if InStr(1,diagram.StyleEX,"VisibleAttributeDetail=1" ) = 0 or theElement.Attributes.Count = 0 then
 					' if show all connections then
@@ -2321,13 +2328,13 @@ end sub
  								'check if there is multiplicity on navigable ends 
  								if sourceEndNavigable = "Navigable" and sourceEndCardinality = "" then 
  									'Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler multiplisitet. [/krav/10]") 
-									Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ Association role [" & sourceEndName & "] lacks multiplicity. [/krav/10]") 
+									Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ association role [" & sourceEndName & "] lacks multiplicity. [/krav/10]") 
  									globalErrorCounter = globalErrorCounter + 1 
  								end if 
  								 
  								if targetEndNavigable = "Navigable" and targetEndCardinality = "" then 
  									'Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler multiplisitet. [/krav/10]") 
- 									Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ Association role [" & targetEndName & "] lacks multiplicity. [/krav/10]") 
+ 									Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ association role [" & targetEndName & "] lacks multiplicity. [/krav/10]") 
  									globalErrorCounter = globalErrorCounter + 1 
  								end if 
  
