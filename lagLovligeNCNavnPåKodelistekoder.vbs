@@ -2,19 +2,27 @@ option explicit
 
 !INC Local Scripts.EAConstants-VBScript
 
-' skriptnavn: lagLovligeNCNavnP�Kodelistekoder
+ ' Script Name: lagLovligeNCNavnPåKodelistekoder 
+ ' Author: Kent Jonsrud Kartverket
+ ' Date: 2016-08-23 
+ ' Purpose: replace illegal codes in a code list with a proposal for legal names, must be checked afterwards!
 
 sub fixOldCodelists(el)
-	'Repository.WriteOutput "Script", Now & " CodeList: " & el.Name, 0
-	Repository.WriteOutput "Script", Now & " " & el.Stereotype & " " & el.Name, 0
-
+	Repository.WriteOutput "Script", Now & " Script lagLovligeNCNavnPåKodelistekoder running on CodeList: " & el.Name, 0
+	'Repository.WriteOutput "Script", Now & " " & el.Stereotype & " " & el.Name, 0
+	'Repository.WriteOutput "Script", "id, kode, definisjon, initialverdi, SOSI_verdi, SOSI_presentasjonsnavn",0
+    
+	dim id
+	id = 1
 	dim attr as EA.Attribute
 	for each attr in el.Attributes
-		Repository.WriteOutput "Script", Now & " " & el.Name & "." & attr.Name, 0
+	'	Repository.WriteOutput "Script", Now & " " & el.Name & "." & attr.Name, 0
 
-    kopierKodensNavnTilTomDefinisjon(attr)
+	'If the old codes are in a form suitable as initial draft of proper definition:
+	'kopierKodensNavnTilTomDefinisjon(attr)
+	'remember to refrase these definitions according to the rules for developing definitions
 
-		kopierKodensNavnTilTagSOSI_presentasjonsnavn(attr)
+	kopierKodensNavnTilTagSOSI_presentasjonsnavn(attr)
 
     'flyttInitialverdiTilTagSOSI_verdi(attr)
 
@@ -22,6 +30,11 @@ sub fixOldCodelists(el)
     'eller
     'settKodensNavnTilEgen_Navn(attr)
 
+
+   'Call listKodeliste(el.Name, id, attr)
+   'id = id + 1
+
+	'listKodeliste(attr)
 
 	next
 
@@ -100,14 +113,15 @@ Sub settKodensNavnTilNCName(attr)
 		' make name legal NCName
 		' (alternatively replace each bad character with a "_", typically used for codelist with proper names.)
 		' (Sub settBlankeIKodensNavnTil_(attr))
-    Dim txt, res, tegn, i, u
+    Dim txt, txt1, txt2, res, tegn, i, u
     u=0
+		'Repository.WriteOutput "Script", "Old code: " & attr.Name,0
 		txt = Trim(attr.Name)
-		res = LCase( Mid(txt,1,1) )
+		res = ""
 			'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
 
 		' loop gjennom alle tegn
-		For i = 2 To Len(txt)
+		For i = 1 To Len(txt)
 		  ' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
 		  ' (tatt med flere fnuttetyper, men hva med "."?)
 		  tegn = Mid(txt,i,1)
@@ -119,25 +133,48 @@ Sub settKodensNavnTilNCName(attr)
 			    'Repository.WriteOutput "Script", "Bad2: " & tegn,0
 			    u=1
 		    Else
-		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "�" or tegn = "�" Then
+		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
 			      'Repository.WriteOutput "Script", "Bad3: " & tegn,0
 			      u=1
 		      else
-			      'Repository.WriteOutput "Script", "Good: " & tegn,0
-			      If u = 1 Then
-		          res = res + UCase(tegn)
-		          u=0
-			      else
-		          res = res + tegn
+				if res = "" then
+					if tegn = "1" or tegn = "2" or tegn = "3" or tegn = "4" or tegn = "5" or tegn = "6" or tegn = "7" or tegn = "8" or tegn = "9" or tegn = "0" or tegn = "-" or tegn = "." Then
+						' NCNames can not start with any of these characters, skip this
+					else
+						If u = 1 Then
+							res = res + UCase(tegn)
+							u=0
+						else
+							res = res + tegn
+						end if
+					end if
+				else
+					'Repository.WriteOutput "Script", "Good: " & tegn & "  " & i & " " & u,0
+					If u = 1 Then
+						res = res + UCase(tegn)
+						u=0
+					else
+						res = res + tegn
+					End If
 		        End If
 		      End If
 		    End If
 		  End If
 		Next
-		Repository.WriteOutput "Script", "New NCName: " & res,0
-		' return res
-		attr.Name = res
-		attr.Update()
+		txt1 = LCase( Mid(res,1,1) )
+		i = Len(res) - 1
+		if i < 0 then
+			Repository.WriteOutput "Script", "Error: Unable to construct NCName for code: [" & attr.Name & "]",0
+		else
+			txt2 =Mid(res,2,i)
+			txt = txt1 + txt2
+			if txt <> attr.Name then
+				Repository.WriteOutput "Script", "Change: Old code: [" & attr.Name & "] changed to new NCName: [" & txt & "]",0
+				' return txt
+				attr.Name = txt
+				attr.Update()
+			end if
+		end if
 
 End Sub
 
@@ -164,7 +201,7 @@ Sub settKodensNavnTilEgen_Navn(attr)
 			    'Repository.WriteOutput "Script", "Bad2: " & tegn,0
 			    u=1
 		    Else
-		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "�" or tegn = "�" Then
+		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
 			      'Repository.WriteOutput "Script", "Bad3: " & tegn,0
 			      u=1
 		      else
@@ -187,6 +224,57 @@ Sub settKodensNavnTilEgen_Navn(attr)
 
 End Sub
 
+Sub listKodeliste(codelist, id, attr)
+
+	dim kodenavn, definisjon, SOSI_verdi, SOSI_presentasjonsnavn
+	'dim codelist
+	'codelist = "Navneobjekttype"
+	kodenavn = attr.Name
+	definisjon = attr.Notes
+	definisjon = Replace(definisjon,"""","")
+	
+	'check if the element has a tagged value with the required name
+		dim existingTaggedValue AS EA.TaggedValue
+		'dim currentExistingTaggedValue AS EA.TaggedValue
+		dim taggedValuesCounter
+		for taggedValuesCounter = 0 to attr.TaggedValues.Count - 1
+			set existingTaggedValue = attr.TaggedValues.GetAt(taggedValuesCounter)
+			if existingTaggedValue.Name = "SOSI_verdi" then
+				SOSI_verdi = existingTaggedValue.Value
+			end if
+			if existingTaggedValue.Name = "SOSI_presentasjonsnavn" then
+				SOSI_presentasjonsnavn = existingTaggedValue.Value
+			end if
+		next
+   		Repository.WriteOutput "Script", "INSERT INTO databaseskjema." & codelist & " VALUES (" & id & ",'"& kodenavn & "','" & attr.Default & "','" & ikkelinjeskiftEllerEnkeltfnutt(definisjon) & "','" & SOSI_verdi & "','" & SOSI_presentasjonsnavn & "');",0
+
+End Sub
+
+
+Function ikkelinjeskiftEllerEnkeltfnutt(streng)
+    Dim txt, res, tegn, i, u
+        u = 0
+		txt = ""
+		' loop gjennom alle tegn og ta bort linjeskift og lignende lavverditegn
+		For i = 1 To Len(streng)
+            tegn = Mid(streng,i,1)
+			if tegn >  " " then
+			    if tegn =  "'" or tegn = "’" then
+			       txt = txt + """"
+			    else
+			       txt = txt + tegn
+			    end if
+			    u = 0
+			else
+			    if u = 0 then
+			      txt = txt + " "
+			    end if
+			    u = 1
+			end if
+        next
+  ikkelinjeskiftEllerEnkeltfnutt = txt
+End Function
+
 sub oppdaterKoderForEnValgtKodeliste()
 	' Show and clear the script output window
 	Repository.EnsureOutputVisible "Script"
@@ -199,27 +287,41 @@ sub oppdaterKoderForEnValgtKodeliste()
 	Dim theElement as EA.Element
 	Set theElement = Repository.GetTreeSelectedObject()
 
+	
 	if not theElement is nothing  then
 		if (theElement.ObjectType = otElement) then
-			if ((theElement.Type = "Class") and (theElement.Stereotype = "codeList" Or theElement.Stereotype = "CodeList" Or theElement.Stereotype = "enumeration")) then
-				'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
-				fixOldCodelists(theElement)
-			else
-				MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
-				"Please select a  CodeList class in the Project Browser and try once more." )
-			end if
-		Else
-		  'Other than CodeList selected in the tree
-		  MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
+			dim box, mess
+			mess = 	"Creates legal NCNames from codes in a code list. Script version 2016-08-23." & vbCrLf
+			mess = mess + "NOTE! This script will change the content of element: "& vbCrLf & "[«" & theElement.Stereotype & "» " & theElement.Name & "]."
+
+			box = Msgbox (mess, vbOKCancel)
+			select case box
+			case vbOK
+				if theElement.Type="Class" and LCase(theElement.Stereotype) = "codelist" Or LCase(theElement.Stereotype) = "enumeration" then
+					'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
+					fixOldCodelists(theElement)
+				Else
+					'Other than CodeList selected in the tree
+					MsgBox( "This script requires a class with stereotype «CodeList» to be selected in the Project Browser." & vbCrLf & _
+					"Please select a  CodeList class in the Project Browser and try once more." )
+				end If
+				Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
+				Repository.EnsureOutputVisible "Script"
+			case VBcancel
+						
+			end select 
+		else
+			MsgBox( "This script requires a CodeList class element to be selected in the Project Browser." & vbCrLf & _
 			"Please select a  CodeList class in the Project Browser and try once more." )
-		end If
-		Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
-		Repository.EnsureOutputVisible "Script"
+		end if
 	else
 		'No CodeList selected in the tree
-		MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
+		MsgBox( "This script requires some CodeList class to be selected in the Project Browser." & vbCrLf & _
 	  "Please select a  CodeList class in the Project Browser and try again." )
 	end if
+
+	
+	
 end sub
 
 oppdaterKoderForEnValgtKodeliste
