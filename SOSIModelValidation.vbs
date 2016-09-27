@@ -9,7 +9,7 @@
  ' 
  ' Script Name: SOSI model validation 
  ' Author: Section for technology and standardization - Norwegian Mapping Authority
- ' Version: 1.0.1
+ ' Version: 1.0.2
  ' Date: 2016-09-27 
  ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
  ' Implemented rules: 
@@ -349,9 +349,11 @@
  function getStereotypeOfClass(theClass)
 	dim visibleStereotype
 	visibleStereotype = ""
-	if Ucase(theClass.Stereotype) = Ucase("featuretype") then
+	if (Ucase(theClass.Stereotype) = Ucase("featuretype")) OR (Ucase(theClass.Stereotype) = Ucase("codelist")) OR (Ucase(theClass.Stereotype) = Ucase("datatype")) OR (Ucase(theClass.Stereotype) = Ucase("enumeration")) then
+		'param theClass is Classifier subtype Class with different stereotypes
 		visibleStereotype = theClass.Stereotype
 	elseif (Ucase(theClass.Type) = Ucase("enumeration")) OR (Ucase(theClass.Type) = Ucase("datatype"))  then
+		'param theClass is Classifier subtype DataType or Enumeration
 		visibleStereotype = theClass.Type
 	end if
 	getStereotypeOfClass=visibleStereotype
