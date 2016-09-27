@@ -1,4 +1,4 @@
-﻿option explicit 
+﻿﻿option explicit 
  
  !INC Local Scripts.EAConstants-VBScript 
  
@@ -9,8 +9,8 @@
  ' 
  ' Script Name: SOSI model validation 
  ' Author: Section for technology and standardization - Norwegian Mapping Authority
- ' Version: 1.0
- ' Date: 2016-09-06 
+ ' Version: 1.0.1
+ ' Date: 2016-09-27 
  ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
  ' Implemented rules: 
  '	/krav/3:  
@@ -240,13 +240,15 @@
  
  
  
- 'Check if the provided argument for input parameter theObject fulfills the requirements in krav/3: 
- 'Find elements (classes, attributes, navigable association roles, operations, datatypes)  
- 'without definition (notes/rolenotes) 
- ' 
- ' @param[in] theObject (EA.ObjectType) The object to check against krav/3,  
- '			supposed to be one of the following types: EA.Attribute, EA.Method, EA.Connector, EA.Element 
- ' @param[out] (Integer) The number of errors found for tested elements. 
+'Sub name: 		Krav3
+'Author: 		Magnus Karge
+'Date: 			20160925 
+'Purpose: 		Check if the provided argument for input parameter theObject fulfills the requirements in krav/3: 
+'				Find elements (classes, attributes, navigable association roles, operations, datatypes)  
+'				without definition (notes/rolenotes) 
+'@param[in] 	theObject (EA.ObjectType) The object to check against krav/3,  
+'				supposed to be one of the following types: EA.Attribute, EA.Method, EA.Connector, EA.Element 
+ 
  sub Krav3(theObject) 
  	'Declare local variables 
  	Dim currentAttribute as EA.Attribute 
@@ -260,7 +262,7 @@
  			set currentElement = theObject 
  			 
  			If currentElement.Notes = "" then 
- 				Session.Output("Error: Class [«" &currentElement.Stereotype& "» "& currentElement.Name & "] has no definition. [/krav/3]")	 
+ 				Session.Output("Error: Class [«" &getStereotypeOfClass(currentElement)& "» "& currentElement.Name & "] has no definition. [/krav/3]")	 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  		Case otAttribute 
@@ -273,7 +275,7 @@
  			set attributeParentElement = Repository.GetElementByID(currentAttribute.ParentID) 
  			 
  			if currentAttribute.Notes = "" then 
-				Session.Output( "Error: Class [«" &attributeParentElement.Stereotype& "» "& attributeParentElement.Name &"] \ attribute [" & currentAttribute.Name & "] has no definition. [/krav/3]") 
+				Session.Output( "Error: Class [«" &getStereotypeOfClass(attributeParentElement)& "» "& attributeParentElement.Name &"] \ attribute [" & currentAttribute.Name & "] has no definition. [/krav/3]") 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  			 
@@ -287,7 +289,7 @@
  			set methodParentElement = Repository.GetElementByID(currentMethod.ParentID) 
  			 
  			if currentMethod.Notes = "" then 
- 				Session.Output( "Error: Class [«" &methodParentElement.Stereotype& "» "& methodParentElement.Name &"] \ operation [" & currentMethod.Name & "] has no definition. [/krav/3]") 
+ 				Session.Output( "Error: Class [«" &getStereotypeOfClass(methodParentElement)& "» "& methodParentElement.Name &"] \ operation [" & currentMethod.Name & "] has no definition. [/krav/3]") 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  		Case otConnector 
@@ -319,7 +321,7 @@
  				'get the element on the source end of the connector 
  				set sourceEndElement = Repository.GetElementByID(sourceEndElementID) 
  				 
-				Session.Output( "Error: Class [«" &sourceEndElement.Stereotype& "» "& sourceEndElement.Name &"] \ association role [" & sourceEndName & "] has no definition. [/krav/3]") 
+				Session.Output( "Error: Class [«" &getStereotypeOfClass(sourceEndElement)& "» "& sourceEndElement.Name &"] \ association role [" & sourceEndName & "] has no definition. [/krav/3]") 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  			 
@@ -327,7 +329,7 @@
  				'get the element on the source end of the connector (also source end element here because error message is related to the element on the source end of the connector) 
  				set sourceEndElement = Repository.GetElementByID(sourceEndElementID) 
  				 
-				Session.Output( "Error: Class [«"&sourceEndElement.Stereotype&"» "&sourceEndElement.Name &"] \ association role [" & targetEndName & "] has no definition. [/krav/3]") 
+				Session.Output( "Error: Class [«"&getStereotypeOfClass(sourceEndElement)&"» "&sourceEndElement.Name &"] \ association role [" & targetEndName & "] has no definition. [/krav/3]") 
  				globalErrorCounter = globalErrorCounter + 1 
  			end if 
  			 
@@ -339,14 +341,80 @@
  	 
  end sub 
  
+'Purpose: 		help function in order to set stereotype that is shown 
+'				in diagrams but not accessible as such via EAObjectAPI
+'Used in sub: 	checkElementName
+'@param[in]: theClass (EA.Element)
+'returns: theClass's visible stereotype as character string, empty string if nothing found
+ function getStereotypeOfClass(theClass)
+	dim visibleStereotype
+	visibleStereotype = ""
+	if Ucase(theClass.Stereotype) = Ucase("featuretype") then
+		visibleStereotype = theClass.Stereotype
+	elseif (Ucase(theClass.Type) = Ucase("enumeration")) OR (Ucase(theClass.Type) = Ucase("datatype"))  then
+		visibleStereotype = theClass.Type
+	end if
+	getStereotypeOfClass=visibleStereotype
+ end function
  
  '-----------------------------------------------------------START---------------------------------------------------------------------------------------------
-' Script Name: findMultipleInheritance
+' Sub name: checkElementName
+' Author: Magnus Karge
+' Date: 20160925 
+' Purpose:  sub procedure to check if a given element's name is written correctly
+' 			Implementation of /krav/navning
+' 			
+' @param[in]: theElement (EA.Element). The element to check. Can be class, enumeration, data type, attribute, operation, association, role or package
+ 
+sub checkElementName(theElement) 
+	
+	select case theElement.ObjectType
+		case otPackage
+			'sub parameter is ObjectType oTPackage, check if first letter of the package's name is a capital letter 
+ 			if not Left(theElement.Name,1) = UCase(Left(theElement.Name,1)) then 
+				Session.Output("Error: Package name [" & theElement.Name & "] shall start with capital letter. [/krav/navning]") 
+				globalErrorCounter = globalErrorCounter + 1 
+ 			end if
+		case otElement
+			'sub's parameter is ObjectType oTElement, check if first letter of the element's name is a capital letter (element covers class, enumeration, datatype)
+ 			if not Left(theElement.Name,1) = UCase(Left(theElement.Name,1)) then 
+ 				Session.Output("Error: Class name [«"&getStereotypeOfClass(theElement)&"» "& theElement.Name & "] shall start with capital letter. [/krav/navning]") 
+ 				globalErrorCounter = globalErrorCounter + 1 
+ 			end if 
+		case otAttribute
+			'sub's parameter is ObjectType oTAttribute, check if first letter of the attribute's name is NOT a capital letter 
+			if not Left(theElement.Name,1) = LCase(Left(theElement.Name,1)) then 
+				dim attributeParentElement as EA.Element
+				set attributeParentElement = Repository.GetElementByID(theElement.ParentID)
+				Session.Output("Error: Attribute name [" & theElement.Name & "] in class [«"&getStereotypeOfClass(attributeParentElement)&"» "& attributeParentElement.Name &"] shall start with lowercase letter. [/krav/navning]") 
+				globalErrorCounter = globalErrorCounter + 1
+			end if									
+ 		case otConnector
+			dim connector as EA.Connector
+			set connector = theElement
+			'sub's parameter is ObjectType oTConnector, check if the association has a name (not necessarily the case), if so check if the name starts with a capital letter 
+			if not (connector.Name = "" OR len(connector.Name)=0) and not Left(connector.Name,1) = UCase(Left(connector.Name,1)) then 
+				dim associationSourceElement as EA.Element
+				dim associationTargetElement as EA.Element
+				set associationSourceElement = Repository.GetElementByID(connector.ClientID)
+				set associationTargetElement = Repository.GetElementByID(connector.SupplierID)
+				Session.Output("Error: Association name [" & connector.Name & "] between class [«"&getStereotypeOfClass(associationSourceElement)&"» "& associationSourceElement.Name &"] and class [«"&getStereotypeOfClass(associationTargetElement)&"» " & associationTargetElement.Name & "] shall start with capital letter. [/krav/navning]") 
+				globalErrorCounter = globalErrorCounter + 1 
+			end if 
+		'case otOperation
+		'case otRole
+	end select	
+end sub
+'-----------------------------------------------------------END---------------------------------------------------------------------------------------------
+
+'-----------------------------------------------------------START---------------------------------------------------------------------------------------------
+
+' Sub name: findMultipleInheritance
 ' Author: Sara Henriksen
 ' Date: 14.07.16 
-' Purpose:  To check each class for multiple inheritance
-' /krav/enkelArv
-' sub procedure to check if a given class has multiple inheritance 
+' Purpose:  sub procedure to check if a given class has multiple inheritance 
+' 			Implementation of /krav/enkelArv
+' 			
 ' @param[in]: currentElement (EA.Element). The "class" to check 
  
  sub findMultipleInheritance(currentElement) 
@@ -599,22 +667,32 @@ sub structurOfTVforElement (theElement, taggedValueName)
 					Select Case theElement.ObjectType 
 						'case element
 						Case otElement 
-						set currentElement = theElement 
+							set currentElement = theElement 
 						
-						Session.Output("Error: Class [«"&theElement.Stereotype&"» " &theElement.Name& "] \ tag [" &currentExistingTaggedValue.Name& "] has a value [" &currentExistingTaggedValue.Value& "] with wrong structure. Expected structure: ""{Name}""@{language}. [/krav/flerspråklighet/element]")
-						globalErrorCounter = globalErrorCounter + 1 
+							Session.Output("Error: Class [«"&theElement.Stereotype&"» " &theElement.Name& "] \ tag [" &currentExistingTaggedValue.Name& "] has a value [" &currentExistingTaggedValue.Value& "] with wrong structure. Expected structure: ""{Name}""@{language}. [/krav/flerspråklighet/element]")
+							globalErrorCounter = globalErrorCounter + 1 
 						
 						'case attribute
 						Case otAttribute
-						set currentAttribute = theElement
-						Session.Output("Error: Attribute [" &theElement.Name& "] \ tag [" &currentExistingTaggedValue.Name& "] has a value [" &currentExistingTaggedValue.Value& "] with wrong structure. Expected structure: ""{Name}""@{language}. [/krav/flerspråklighet/element]")
-						globalErrorCounter = globalErrorCounter + 1 
+							set currentAttribute = theElement
+						
+							'get the element (class, enumeration, data Type) the attribute belongs to
+							dim parentElementOfAttribute as EA.Element
+							set parentElementOfAttribute = Repository.GetElementByID(currentAttribute.ParentID)
+						
+							Session.Output("Error: Class [«"& parentElementOfAttribute.Stereotype &"» "& parentElementOfAttribute.Name &"\ attribute [" &theElement.Name& "] \ tag [" &currentExistingTaggedValue.Name& "] has a value [" &currentExistingTaggedValue.Value& "] with wrong structure. Expected structure: ""{Name}""@{language}. [/krav/flerspråklighet/element]")
+							globalErrorCounter = globalErrorCounter + 1 
 						
 						'case operation
 						Case otMethod
-						set currentOperation = theElement
-						Session.Output("Error: Operation [" &theElement.Name& "] \ tag [" &currentExistingTaggedValue.Name& "] has a value: " &currentExistingTaggedValue.Value& " with wrong structure. Expected structure: ""{Name}""@{language}. [/krav/flerspråklighet/element]")
-						globalErrorCounter = globalErrorCounter + 1 
+							set currentOperation = theElement
+							
+							'get the element (class, enumeration, data Type) the operation belongs to
+							dim parentElementOfOperation as EA.Element
+							set parentElementOfOperation = Repository.GetElementByID(currentOperation.ParentID)
+						
+							Session.Output("Error: Class [«"& parentElementOfOperation.Stereotype &"» "& parentElementOfOperation.Name &"\ operation [" &theElement.Name& "] \ tag [" &currentExistingTaggedValue.Name& "] has a value: " &currentExistingTaggedValue.Value& " with wrong structure. Expected structure: ""{Name}""@{language}. [/krav/flerspråklighet/element]")
+							globalErrorCounter = globalErrorCounter + 1 
 						
 						
 					end select 	
@@ -1956,12 +2034,8 @@ end sub
  			end if
 			ClassAndPackageNames.Add UCase(package.Name)
 
-			'check if first letter of package name is capital letter 
- 			if not Left(package.Name,1) = UCase(Left(package.Name,1)) then 
- 						'Session.Output("FEIL: Navnet til pakka [" & package.Name & "] skal starte med stor bokstav. [/krav/navning]") 
-  						Session.Output("Error: Package name [" & package.Name & "] shall start with capital letter. [/krav/navning]") 
- 						globalErrorCounter = globalErrorCounter + 1 
- 			end if 
+			'check if the package name is written correctly according to krav/navning
+ 			checkElementName(package)
  			 
  			dim packageTaggedValues as EA.Collection 
  			set packageTaggedValues = package.Element.TaggedValues 
@@ -2082,7 +2156,7 @@ end sub
  				if currentElement.Type = "Class" Or currentElement.Type = "Enumeration" Or currentElement.Type = "DataType" then 
  									 
 					'------------------------------------------------------------------ 
-					'---CLASSES---  								'   classifiers ???
+					'---CLASSES---ENUMERATIONS---DATATYPE  								'   classifiers ???
 					'------------------------------------------------------------------		 
  
 					'Iso 19103 Requirement 6 - NCNames in codelist codes.
@@ -2130,14 +2204,10 @@ end sub
 						Call structurOfTVforElement( currentElement, "designation") 
 						Call structurOfTVforElement( currentElement, "definition")
 					end if 
-					
- 					'check if first letter of class name is capital letter 
- 					if not Left(currentElement.Name,1) = UCase(Left(currentElement.Name,1)) then 
- 						'Session.Output("FEIL: Navnet til klassen [" & currentElement.Name & "] skal starte med stor bokstav. [/krav/navning]") 
- 						Session.Output("Error: Class name [" & currentElement.Name & "] shall start with capital letter. [/krav/navning]") 
- 						globalErrorCounter = globalErrorCounter + 1 
- 					end if 
- 					
+		
+					'check if the class name is written correctly according to krav/navning (name starts with capital letter)
+					checkElementName(currentElement)
+ 											
 					if ((currentElement.Type = "Class") and (UCase(currentElement.Stereotype) = "CODELIST")) then
 					'Check if an external codelist has a real URL in the codeList tag [/krav/eksternKodeliste]
 						Call checkExternalCodelists(currentElement,  "asDictionary")
@@ -2168,17 +2238,10 @@ end sub
  								Call structurOfTVforElement( currentAttribute, "description")
 								Call structurOfTVforElement( currentAttribute, "designation")
 								Call structurOfTVforElement( currentAttribute, "definition") 
-								
- 								'check if the attribute's name starts with lower case 
- 								if not Left(currentAttribute.Name,1) = LCase(Left(currentAttribute.Name,1)) then 
-									if (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION") then
-									else
-										'Session.Output("FEIL: Navnet til egenskapen [" & currentAttribute.Name & "] til klassen ["&currentElement.Name&"] skal starte med liten bokstav. [/krav/navning]") 
-										Session.Output("Error: Attribute name [" & currentAttribute.Name & "] in class ["&currentElement.Name&"] shall not start with capital letter. [/krav/navning]") 
-										globalErrorCounter = globalErrorCounter + 1
-									end if									
- 								end if 
-								
+															
+								'check if the attribute's name is written correctly according to krav/navning, meaning attribute name does not start with capital letter
+								checkElementName(currentAttribute)
+																								
 								'constraints 
 								dim constraintACollection as EA.Collection 
 								set constraintACollection = currentAttribute.Constraints 
@@ -2290,13 +2353,8 @@ end sub
  								set elementOnOppositeSide = Repository.GetElementByID(targetElementID) 
  								 
  								'if the connector has a name (optional according to the rules), check if it starts with capital letter 
- 								if not currentConnector.Name = "" and not Left(currentConnector.Name,1) = UCase(Left(currentConnector.Name,1)) then 
- 									'Session.Output("FEIL: Navnet til assosiasjonen [" & currentConnector.Name & "] mellom klasse ["& elementOnOppositeSide.Name &"] og klasse [" & currentElement.Name & "] skal starte med stor bokstav. [/krav/navning]") 
- 									Session.Output("Error: Association name [" & currentConnector.Name & "] between class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name &"] and class [«"&currentElement.Stereotype&"» " & currentElement.Name & "] shall start with capital letter. [/krav/navning]") 
- 									globalErrorCounter = globalErrorCounter + 1 
- 								end if 
- 								 
-								 
+ 								checkElementName(currentConnector)
+																 
 								'-----START-- krav/12----------
 								'TODO: move this part to a separate sub
  								'check if elements on both sides of the association are classes with stereotype dataType or of element type DataType
@@ -2355,12 +2413,12 @@ end sub
  								'if there are role names on connector ends (regardless of navigability), check if they start with lower case 
  								if not sourceEndName = "" and not Left(sourceEndName,1) = LCase(Left(sourceEndName,1)) then 
  									'Session.Output("FEIL: Navnet til rollen [" & sourceEndName & "] på assosiasjonsende i tilknytning til klassen ["& currentElement.Name &"] skal starte med liten bokstav. [/krav/navning]") 
- 									Session.Output("Error: Role name [" & sourceEndName & "] on association end connected to class ["& currentElement.Name &"] shall not start with capital letter. [/krav/navning]") 
+ 									Session.Output("Error: Role name [" & sourceEndName & "] on association end connected to class ["& currentElement.Name &"] shall start with lowercase letter. [/krav/navning]") 
  									globalErrorCounter = globalErrorCounter + 1 
  								end if 
  								if not (targetEndName = "") and not (Left(targetEndName,1) = LCase(Left(targetEndName,1))) then 
  									'Session.Output("FEIL: Navnet til rollen [" & targetEndName & "] på assosiasjonsende i tilknytning til klassen ["& elementOnOppositeSide.Name &"] skal starte med liten bokstav. [/krav/navning]") 
- 									Session.Output("Error: Role name [" & targetEndName & "] on association end connected to class ["& elementOnOppositeSide.Name &"] shall not start with capital letter. [/krav/navning]") 
+ 									Session.Output("Error: Role name [" & targetEndName & "] on association end connected to class ["& elementOnOppositeSide.Name &"] shall start with lowercase letter. [/krav/navning]") 
  									globalErrorCounter = globalErrorCounter + 1 
  								end if 
  							end if 
