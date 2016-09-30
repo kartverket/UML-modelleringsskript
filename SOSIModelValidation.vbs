@@ -726,46 +726,37 @@ sub checkValueOfTVVersion(theElement, taggedValueName)
 	if UCase(theElement.stereotype) = UCase("applicationSchema") then
 
 		if not theElement is nothing and Len(taggedValueName) > 0 then
-		
-		
-				'check if the element has a tagged value with the provided name
-				dim taggedValueVersionMissing
-				taggedValueVersionMissing = true
-				dim currentExistingTaggedValue AS EA.TaggedValue 
-				dim taggedValuesCounter
-				for taggedValuesCounter = 0 to theElement.TaggedValues.Count - 1
-					set currentExistingTaggedValue = theElement.TaggedValues.GetAt(taggedValuesCounter)
+
+			'check if the element has a tagged value with the provided name
+			dim taggedValueVersionMissing
+			taggedValueVersionMissing = true
+			dim currentExistingTaggedValue AS EA.TaggedValue 
+			dim taggedValuesCounter
+			for taggedValuesCounter = 0 to theElement.TaggedValues.Count - 1
+				set currentExistingTaggedValue = theElement.TaggedValues.GetAt(taggedValuesCounter)
 
 			
-						'check if the taggedvalue exists, and if so, checks if the value is empty or not. An empty value will give an error-message. 
-						if currentExistingTaggedValue.Name = taggedValueName then
-							'remove spaces before and after a string, if the value only contains blanks  the value is empty
-							currentExistingTaggedValue.Value = Trim(currentExistingTaggedValue.Value)
-							if len (currentExistingTaggedValue.Value) = 0 then 
-								Session.Output("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] has an empty version-tag. [krav/UML/packaging]"   )
-								globalErrorCounter = globalErrorCounter + 1 
-								taggedValueVersionMissing = false 
-							else
-							
-								taggedValueVersionMissing = false 
-								'Session.Output("[" &theElement.Name& "] has version tag:  " &currentExistingTaggedValue.Value)
-							end if 
-						end if
-					
-'			
-'
-				next
-				'if tagged value version lacks for the package, return an error 
-				if taggedValueVersionMissing then
-					Session.Output ("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] lacks a [version] tag. [krav/UML/packaging]")
-					globalErrorCounter = globalErrorCounter + 1 
+				'check if the taggedvalue exists, and if so, checks if the value is empty or not. An empty value will give an error-message. 
+				if currentExistingTaggedValue.Name = taggedValueName then
+					'remove spaces before and after a string, if the value only contains blanks  the value is empty
+					currentExistingTaggedValue.Value = Trim(currentExistingTaggedValue.Value)
+					if len (currentExistingTaggedValue.Value) = 0 then 
+						Session.Output("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] has an empty version-tag. [krav/UML/packaging]"   )
+						globalErrorCounter = globalErrorCounter + 1 
+						taggedValueVersionMissing = false 
+					else
+						taggedValueVersionMissing = false 
+						'Session.Output("[" &theElement.Name& "] has version tag:  " &currentExistingTaggedValue.Value)
+					end if 
 				end if
-'		
-		
+			next
+			'if tagged value version lacks for the package, return an error 
+			if taggedValueVersionMissing then
+				Session.Output ("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] lacks a [version] tag. [krav/UML/packaging]")
+				globalErrorCounter = globalErrorCounter + 1 
+			end if
 		end if 
 	end if
-	
-	
 end sub 
 '--------------------------------------------------------END------------------------------------------------------------------------------------------------- 
  
@@ -779,8 +770,8 @@ end sub
 ' sub procedure to check the current element/attribute/connector/package for constraints without name or definition
 ' @param[in]: currentConstraint (EA.Constraint) theElement (EA.ObjectType) The object to check against req/UML/constraint,  
 ' supposed to be one of the following types: EA.Element, EA.Attribute, EA.Connector, EA.package
+
 sub checkConstraint(currentConstraint, theElement)
-	
 	
 	dim currentConnector as EA.Connector
 	dim currentElement as EA.Element
@@ -788,7 +779,7 @@ sub checkConstraint(currentConstraint, theElement)
 	dim currentPackage as EA.Package
 	
 	Select Case theElement.ObjectType
-	
+
 		'if the object is an element
 		Case otElement 
 		set currentElement = theElement 
@@ -851,11 +842,8 @@ sub checkConstraint(currentConstraint, theElement)
 			globalErrorCounter = globalErrorCounter + 1 
 		
 		end if
-	
 	end select
-	
 end sub
- 
 '--------------------------------------------------------END------------------------------------------------------------------------------------------------ 
  
  
@@ -868,46 +856,43 @@ end sub
 ' sub procedure to check if the tagged value with the provided name exist, and checks if the value is valid or not 
 ' (valid values: utkast, gyldig, utkastOgSkjult, foreslått, erstattet, tilbaketrukket og ugyldig). 
 '@param[in]: theElement (Package Class) and TaggedValueName (String) 
-sub ValidValueSOSI_modellstatus(theElement, taggedValueName)
 
+sub ValidValueSOSI_modellstatus(theElement, taggedValueName)
+	
 	if UCase(theElement.Stereotype) = UCase("applicationSchema") then
 
 		if not theElement is nothing and Len(taggedValueName) > 0 then
-		
 		
 			'check if the element has a tagged value with the provided name
 			dim taggedValueSOSIModellstatusMissing 
 			taggedValueSOSIModellstatusMissing = true 
 			dim currentExistingTaggedValue AS EA.TaggedValue 
 			dim taggedValuesCounter
-				for taggedValuesCounter = 0 to theElement.TaggedValues.Count - 1
-					set currentExistingTaggedValue = theElement.TaggedValues.GetAt(taggedValuesCounter)
+			
+			for taggedValuesCounter = 0 to theElement.TaggedValues.Count - 1
+				set currentExistingTaggedValue = theElement.TaggedValues.GetAt(taggedValuesCounter)
 	
 			
-					if currentExistingTaggedValue.Name = taggedValueName then
-							'check if the value of the tag is one of the approved values. 
-							if currentExistingTaggedValue.Value = "utkast" or currentExistingTaggedValue.Value = "gyldig" or currentExistingTaggedValue.Value = "utkastOgSkjult" or currentExistingTaggedValue.Value = "foreslått" or currentExistingTaggedValue.Value = "erstattet" or currentExistingTaggedValue.Value = "tilbaketrukket" or currentExistingTaggedValue.Value = "ugyldig" then 
-								'Session.Output("[ " &theElement.Name & "] has a valid SOSI_modellstatus value:  " &currentExistingTaggedValue.Value   )
-								taggedValueSOSIModellstatusMissing = false 
-							else
-								Session.Output("Error: Package [«"&theElement.Stereotype&"» "&theElement.Name& "] \ tag [SOSI_modellstatus] has a value [" &currentExistingTaggedValue.Value& "]. The value is not approved. [/krav/SOSI-modellregister/ applikasjonsskjema/status]")
-								globalErrorCounter = globalErrorCounter + 1 
-								taggedValueSOSIModellstatusMissing = false 
-							end if 
-						
-					end if
-		
-				next
-				'if the tag doesen't exist, return an error-message 
-				if taggedValueSOSIModellstatusMissing then
-					Session.Output("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name& "] lacks a [SOSI_modellstatus] tag. [krav/SOSI-modellregister/applikansjonsskjema/status]")
-					globalErrorCounter = globalErrorCounter + 1 
-				end if 
+				if currentExistingTaggedValue.Name = taggedValueName then
+					'check if the value of the tag is one of the approved values. 
+					if currentExistingTaggedValue.Value = "utkast" or currentExistingTaggedValue.Value = "gyldig" or currentExistingTaggedValue.Value = "utkastOgSkjult" or currentExistingTaggedValue.Value = "foreslått" or currentExistingTaggedValue.Value = "erstattet" or currentExistingTaggedValue.Value = "tilbaketrukket" or currentExistingTaggedValue.Value = "ugyldig" then 
+						'Session.Output("[ " &theElement.Name & "] has a valid SOSI_modellstatus value:  " &currentExistingTaggedValue.Value   )
+						taggedValueSOSIModellstatusMissing = false 
+					else
+						Session.Output("Error: Package [«"&theElement.Stereotype&"» "&theElement.Name& "] \ tag [SOSI_modellstatus] has a value [" &currentExistingTaggedValue.Value& "]. The value is not approved. [/krav/SOSI-modellregister/ applikasjonsskjema/status]")
+						globalErrorCounter = globalErrorCounter + 1 
+						taggedValueSOSIModellstatusMissing = false 
+					end if 
+				end if
+			next
 
+			'if the tag doesen't exist, return an error-message 
+			if taggedValueSOSIModellstatusMissing then
+				Session.Output("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name& "] lacks a [SOSI_modellstatus] tag. [krav/SOSI-modellregister/applikansjonsskjema/status]")
+				globalErrorCounter = globalErrorCounter + 1 
+			end if 
 		end if
-		
 	end if 
-
 end sub 
 '--------------------------------------------------------END-------------------------------------------------------------------------------------------------
 
@@ -922,13 +907,9 @@ end sub
 '@param[in]: theElement (EA.element) The element containing  attributes with potentially numeric inital values 
 sub checkNumericinitialValues(theElement)
 
-	
-
 	dim attr as EA.Attribute
 	dim numberOfNumericDefault
 
-	
-	
 	'navigate through all attributes in the codeLists/enumeration 
 	for each attr in theElement.Attributes 
 		'check if the initial values are numeric 
@@ -938,12 +919,9 @@ sub checkNumericinitialValues(theElement)
 				globalWarningCounter = globalWarningCounter + 1 
 			end if
 		else 
-			'no initial values in a list are numeric
+		'no initial values in a list are numeric
 		end if 
-		
 	next
-	
-	
 end sub
 '--------------------------------------------------------END-------------------------------------------------------------------------------------------------
 
@@ -958,13 +936,13 @@ end sub
 'sub procedure to check if the stereotype for a given package or element
 '@param[in]: theElement (EA.ObjectType) The object to check against /anbefaling/styleguide 
 'supposed to be one of the following types: EA.Element, EA.Package  
+
 sub checkStereotypes(theElement)
+	
+	Dim currentElement as EA.Element
+	Dim currentPackage as EA.Package
 
-
-Dim currentElement as EA.Element
-Dim currentPackage as EA.Package
-
-Select Case theElement.ObjectType
+	Select Case theElement.ObjectType
 
 		Case otPackage 
 		set currentPackage = theElement 
@@ -1042,9 +1020,7 @@ Select Case theElement.ObjectType
 				end if	
 			end if 
 		end if
-		
-end select 
-
+	end select 
 end sub
 '--------------------------------------------------------END--------------------------------------------------------------------------------------------------
 
@@ -1058,29 +1034,19 @@ end sub
 'sub procedure to check if the given package got one or more diagrams with a name starting with "Hoveddiagram", if not, returns an error 
 '@param[in]: package (EA.package) The package containing diagrams potentially with one or more names without "Hoveddiagram".
 sub CheckPackageForHoveddiagram(package)
-
 	
-
-		dim diagrams as EA.Collection
-		set diagrams = package.Diagrams
-
-
-		'check all digrams in the package 
-		dim i
-		for i = 0 to diagrams.Count - 1
-			dim currentDiagram as EA.Diagram
-			set currentDiagram = diagrams.GetAt( i )
-		
-			
-			'set foundHoveddiagram true if any diagrams have been found with a name starting with "Hoveddiagram"
-			if Mid((currentDiagram.Name),1,12) = "Hoveddiagram"  then 
-				foundHoveddiagram = true 
-			end if	
-
-		next
-		
-	 
-	
+	dim diagrams as EA.Collection
+	set diagrams = package.Diagrams
+	'check all digrams in the package 
+	dim i
+	for i = 0 to diagrams.Count - 1
+		dim currentDiagram as EA.Diagram
+		set currentDiagram = diagrams.GetAt( i )
+		'set foundHoveddiagram true if any diagrams have been found with a name starting with "Hoveddiagram"
+		if Mid((currentDiagram.Name),1,12) = "Hoveddiagram"  then 
+			foundHoveddiagram = true 
+		end if	
+	next
 end sub
 '--------------------------------------------------------END------------------------------------------------------------------------------------------------
 
@@ -1095,33 +1061,28 @@ end sub
 ' sub procedure to check if the given package and its subpackages has more than one diagram with the provided name, if so, return and error if 
 ' the name of the Diagram is nothing more than "Hoveddiagram".
 '@param[in]: package (EA.package) The package potentially containing diagrams with the provided name
-sub FindHoveddiagramsInAS(package)
 
-		dim diagrams as EA.Collection
-		set diagrams = package.Diagrams
-		
+sub FindHoveddiagramsInAS(package)
 	
+	dim diagrams as EA.Collection
+	set diagrams = package.Diagrams
+
+	'find all digrams in the package 
+	dim i
+	for i = 0 to diagrams.Count - 1
+		dim currentDiagram as EA.Diagram
+		set currentDiagram = diagrams.GetAt( i )
+				
+		'if the package got less than one diagram with a name starting with "Hoveddiagram", then return an error 
+		if UCase(Mid((currentDiagram.Name),1,12)) = "HOVEDDIAGRAM" and len(currentDiagram.Name) = 12 then 
+			numberOfHoveddiagram = numberOfHoveddiagram + 1 
+		end if	 
 		
-		'find all digrams in the package 
-		dim i
-		for i = 0 to diagrams.Count - 1
-			dim currentDiagram as EA.Diagram
-			set currentDiagram = diagrams.GetAt( i )
-				
-			
-			'if the package got less than one diagram with a name starting with "Hoveddiagram", then return an error 
-			if UCase(Mid((currentDiagram.Name),1,12)) = "HOVEDDIAGRAM" and len(currentDiagram.Name) = 12 then 
-				numberOfHoveddiagram = numberOfHoveddiagram + 1 
-				
-			end if	 
-			'count diagrams named 'Hovediagram'
-			if UCase(Mid((currentDiagram.Name),1,12)) = "HOVEDDIAGRAM" and len(currentDiagram.Name) > 12 then 
-				numberOfHoveddiagramWithAdditionalInformationInTheName = numberOfHoveddiagramWithAdditionalInformationInTheName + 1 
-				
-			end if	 
-			
-		next
-		
+		'count diagrams named 'Hovediagram'
+		if UCase(Mid((currentDiagram.Name),1,12)) = "HOVEDDIAGRAM" and len(currentDiagram.Name) > 12 then 
+			numberOfHoveddiagramWithAdditionalInformationInTheName = numberOfHoveddiagramWithAdditionalInformationInTheName + 1 
+		end if	 
+	next
 end sub
 '--------------------------------------------------------END--------------------------------------------------------------------------------------------------
 
@@ -1135,75 +1096,68 @@ end sub
 ' 2 subs, 
 'sub procedure to check if given codelist got the provided tag with value "true", if so, calls another sub procedure
 '@param[in]: theElement (Attribute Class) and TaggedValueName (String)
+
 sub checkExternalCodelists(theElement,  taggedValueName)
 
-if taggedValueName = "asDictionary" then 
+	if taggedValueName = "asDictionary" then 
 
-	if not theElement is nothing and Len(taggedValueName) > 0 then
-		
-		
+		if not theElement is nothing and Len(taggedValueName) > 0 then
+
 			'iterate trough all tagged values
 			dim currentExistingTaggedValue AS EA.TaggedValue 
 			dim taggedValuesCounter
 			for taggedValuesCounter = 0 to theElement.TaggedValues.Count - 1
 				set currentExistingTaggedValue = theElement.TaggedValues.GetAt(taggedValuesCounter)
 
-					'check if the tagged value exists 
-					if currentExistingTaggedValue.Name = taggedValueName then
-						'check if the value is "true" and if so, calls the subroutine to searching for codeList tags. Sikkert mulig å fortsette i denne subrutinen, me hvordan
-						'gjør man det om man skal søke etter en ny tag?
-						if currentExistingTaggedValue.Value = "true" then 
-							
-								
-								Call CheckCodelistTV(theElement, "codeList")
-								'Session.Output("Klasse:  " &theElement.Name& "har riktig tag (" &currentExistingTaggedValue.Name& ") og verdi:  " &currentExistingTaggedValue.Value)
-					
-						end if 
-						
-						
+				'check if the tagged value exists 
+				if currentExistingTaggedValue.Name = taggedValueName then
+					'check if the value is "true" and if so, calls the subroutine to searching for codeList tags. Sikkert mulig å fortsette i denne subrutinen, me hvordan
+					'gjør man det om man skal søke etter en ny tag?
+					if currentExistingTaggedValue.Value = "true" then 
+
+						Call CheckCodelistTV(theElement, "codeList")
+						'Session.Output("Klasse:  " &theElement.Name& "har riktig tag (" &currentExistingTaggedValue.Name& ") og verdi:  " &currentExistingTaggedValue.Value)
 					end if 
+				end if 
 			next
+		end if 
 	end if 
-end if 
-
-	
 end sub
+'--------------------------------------------------------END-------------------------------------------------------------------------------------------------
 
 
+'------------------------------------------------------------START----------------------------------------------------------------------------------------------------
 'sub procedure to check if the provided tag exist (codeList), and if so, check  if the value is empty or not
 '@param[in]: theElement (Element Class) and TaggedValueName (String)
+
 sub CheckCodelistTV (theElement,  taggedValueNAME)
 
-			'iterate tagged Values 
-			dim currentExistingTaggedValue AS EA.TaggedValue 
-			dim taggedValueCodeListMissing
-			taggedValueCodeListMissing = true
-			dim taggedValuesCounter
-			for taggedValuesCounter = 0 to theElement.TaggedValues.Count - 1
-				set currentExistingTaggedValue = theElement.TaggedValues.GetAt(taggedValuesCounter)
-
+	'iterate tagged Values 
+	dim currentExistingTaggedValue AS EA.TaggedValue 
+	dim taggedValueCodeListMissing
+	taggedValueCodeListMissing = true
+	dim taggedValuesCounter
+	
+	for taggedValuesCounter = 0 to theElement.TaggedValues.Count - 1
+		set currentExistingTaggedValue = theElement.TaggedValues.GetAt(taggedValuesCounter)
+		'check if the tagged value exists
+		if currentExistingTaggedValue.Name = taggedValueName then
+			'Session.Output("følgende kodeliste:  " &theElement.Name)
+			taggedValueCodeListMissing = false
 			
-					'check if the tagged value exists
-					if currentExistingTaggedValue.Name = taggedValueName then
-						'Session.Output("følgende kodeliste:  " &theElement.Name)
-						taggedValueCodeListMissing = false
-						
-						'if the codeList-value is empty, return an error 
-						if currentExistingTaggedValue.Value = "" then 
-							Session.Output("Error: Class [«"&theElement.Stereotype&"» "&theElement.Name& "] \ tag [codeList] lacks value. [/krav/eksternKodeliste]")
-							globalErrorCounter = globalErrorCounter + 1 
-  
-						end if 
-					end if 
-					
-				
-			next
-			'if the tagged value "codeList" is missing for an element(codelist), return an error
-			if taggedValueCodeListMissing then
-				Session.Output("Error: Class [«"&theElement.Stereotype&"» "&theElement.Name& "] lacks a [codeList] tag. [/krav/eksternKodeliste]")
+			'if the codeList-value is empty, return an error 
+			if currentExistingTaggedValue.Value = "" then 
+				Session.Output("Error: Class [«"&theElement.Stereotype&"» "&theElement.Name& "] \ tag [codeList] lacks value. [/krav/eksternKodeliste]")
 				globalErrorCounter = globalErrorCounter + 1 
-			end if
-
+			end if 
+		end if 
+	next
+	
+	'if the tagged value "codeList" is missing for an element(codelist), return an error
+	if taggedValueCodeListMissing then
+		Session.Output("Error: Class [«"&theElement.Stereotype&"» "&theElement.Name& "] lacks a [codeList] tag. [/krav/eksternKodeliste]")
+		globalErrorCounter = globalErrorCounter + 1 
+	end if
 end sub
 '--------------------------------------------------------END-------------------------------------------------------------------------------------------------
 
@@ -1223,6 +1177,7 @@ end sub
 	'Advarsel (Feil?) hvis kodens navn ikke er lowerCamelCase-NCName. 
 
 sub krav6mnemoniskKodenavn(theElement)
+	
 	dim goodNames, lowerCameCase, badName
 	goodNames = true
 	lowerCameCase = true
@@ -1240,64 +1195,65 @@ sub krav6mnemoniskKodenavn(theElement)
 		numberInList = numberInList + 1 
 		'check if the name is NCName
 		if NOT IsNCName(attr.Name) then
-				'count number of numeric initial values for one list
-				numberOfFaults = numberOfFaults + 1
-				Session.Output("Error: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has illegal code name ["&attr.Name&"].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>   [/krav/6 ]")
-				if goodNames then
-					badName = attr.Name
-				end if
-				goodNames = false 
+			'count number of numeric initial values for one list
+			numberOfFaults = numberOfFaults + 1
+			Session.Output("Error: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has illegal code name ["&attr.Name&"].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>   [/krav/6 ]")
+			if goodNames then
+				badName = attr.Name
+			end if
+			goodNames = false 
 		end if 
 		'check if any of the names are lowerCameCase
 		if NOT (mid(attr.Name,1,1) = LCASE(mid(attr.Name,1,1)) ) then
-				numberOfWarnings = numberOfWarnings + 1
-				if globalLogLevelIsWarning then
-					Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has code name that is not lowerCamelCase ["&attr.Name&"].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>  [/krav/6 ]")
-				end if
+			numberOfWarnings = numberOfWarnings + 1
+			if globalLogLevelIsWarning then
+				Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has code name that is not lowerCamelCase ["&attr.Name&"].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>  [/krav/6 ]")
+			end if
 			lowerCameCase = false
 		End if
 	next
 	
 	
-		'if one or more names are illegal, return a error.
-		if goodNames = false then 
-			'Session.Output("Error: Illegal code names starts with ["&badName&"] for class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. "&numberOfFaults&"/"&numberInList&" of the names are illegal.  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>   [/krav/6 ]")
-			globalErrorCounter = globalErrorCounter +  numberOfFaults
-		end if
-		'if one or more names start with uppercase, return a warning.
-		if lowerCameCase = false then 
-			if globalLogLevelIsWarning then
-				'Session.Output("Warning: All code names are not lowerCamelCase for class: [«" &theElement.Stereotype& "» " &theElement.Name& "].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>  [/krav/6 ]")
-				globalWarningCounter = globalWarningCounter +  numberOfWarnings
-			end if	
-		end if
+	'if one or more names are illegal, return a error.
+	if goodNames = false then 
+		'Session.Output("Error: Illegal code names starts with ["&badName&"] for class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. "&numberOfFaults&"/"&numberInList&" of the names are illegal.  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>   [/krav/6 ]")
+		globalErrorCounter = globalErrorCounter +  numberOfFaults
+	end if
 	
+	'if one or more names start with uppercase, return a warning.
+	if lowerCameCase = false then 
+		if globalLogLevelIsWarning then
+			'Session.Output("Warning: All code names are not lowerCamelCase for class: [«" &theElement.Stereotype& "» " &theElement.Name& "].  Recommended to use the script <lagLovligeNCNavnPåKodelistekoder>  [/krav/6 ]")
+			globalWarningCounter = globalWarningCounter +  numberOfWarnings
+		end if	
+	end if
 end sub
 
 Function IsNCName(streng)
     Dim txt, res, tegn, i, u
-        u = true
-		txt = ""
-		For i = 1 To Len(streng)
-            tegn = Mid(streng,i,1)
-		    if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
-			    u=false
-			end if 
-		    if tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
-			    u=false
-		    end if 
-		    If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
-			    u=false
-		    end if 
-			if tegn <  " " then
-			    u=false
-			end if
-        next
-		tegn = Mid(streng,1,1)
-		if tegn = "1" or tegn = "2" or tegn = "3" or tegn = "4" or tegn = "5" or tegn = "6" or tegn = "7" or tegn = "8" or tegn = "9" or tegn = "0" or tegn = "-" or tegn = "." Then
-			u=false
+    u = true
+	txt = ""
+	For i = 1 To Len(streng)
+        tegn = Mid(streng,i,1)
+	    if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
+		    u=false
 		end if 
-  IsNCName = u
+	
+		if tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
+		    u=false
+		end if 
+		If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
+		    u=false
+		end if 
+		if tegn <  " " then
+		    u=false
+		end if
+	next
+	tegn = Mid(streng,1,1)
+	if tegn = "1" or tegn = "2" or tegn = "3" or tegn = "4" or tegn = "5" or tegn = "6" or tegn = "7" or tegn = "8" or tegn = "9" or tegn = "0" or tegn = "-" or tegn = "." Then
+		u=false
+	end if 
+	IsNCName = u
 End Function
 ' -------------------------------------------------------END------------------------------------------------------------------------------------------------------
 
@@ -1314,6 +1270,7 @@ End Function
   	'Se Krav 3, bør kun gi advarsel fordi vi ikke kan sjekke om det dreier seg om et egetnavn eller ikke
 
 sub krav7kodedefinisjon(theElement)
+	
 	dim goodNames, badName
 	goodNames = true
 	dim attr as EA.Attribute
@@ -1328,66 +1285,56 @@ sub krav7kodedefinisjon(theElement)
 		numberInList = numberInList + 1 
 		'check if the code has definition
 		if attr.Notes = "" then
-				numberOfFaults = numberOfFaults + 1
-				if globalLogLevelIsWarning then
-					Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] is missing definition for code ["&attr.Name&"].   [/krav/7 ]")
-				end if
-				if goodNames then
-					badName = attr.Name
-				end if
-				goodNames = false 
+			numberOfFaults = numberOfFaults + 1
+			if globalLogLevelIsWarning then
+				Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] is missing definition for code ["&attr.Name&"].   [/krav/7 ]")
+			end if
+			if goodNames then
+				badName = attr.Name
+			end if
+			goodNames = false 
 		end if 
 	next
-	
-	
-		'if one or more codes lack definition, warning.
-		if goodNames = false then 
-			if globalLogLevelIsWarning then
-				'Session.Output("Warning: Missing definition for code ["&badName&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. "&numberOfFaults&"/"&numberInList&" of the codes lack definition.   [/krav/7 ]")
-				globalWarningCounter = globalWarningCounter + 1
-			end if	
-		end if
-	
-end sub
 
+	'if one or more codes lack definition, warning.
+	if goodNames = false then 
+		if globalLogLevelIsWarning then
+			'Session.Output("Warning: Missing definition for code ["&badName&"] in class: [«" &theElement.Stereotype& "» " &theElement.Name& "]. "&numberOfFaults&"/"&numberInList&" of the codes lack definition.   [/krav/7 ]")
+			globalWarningCounter = globalWarningCounter + 1
+		end if	
+	end if
+end sub
 ' -------------------------------------------------------END------------------------------------------------------------------------------------------------------
 
 
- ' -----------------------------------------------------------START---------------------------------------------------------------------------------------------------
-' Sub Name: krav14-inherit from same stereotyper
-' Author: Tore
+' -----------------------------------------------------------START---------------------------------------------------------------------------------------------------
+' Sub Name: krav14 - inherit from same stereotype
+' Author: Tore Johnsen
 ' Date: 2016-08-22
 ' Purpose: 
     '/krav/14
- sub krav14(currentElement)
+sub krav14(currentElement)
 
 	dim connectors as EA.Collection
 	set connectors = currentElement.Connectors
-				
-		dim connectorsCounter
-			for connectorsCounter = 0 to connectors.Count - 1
-				dim currentConnector as EA.Connector
-				set currentConnector = connectors.GetAt( connectorsCounter )
-													
-				dim targetElementID
-				targetElementID = currentConnector.SupplierID
-										
-				dim elementOnOppositeSide as EA.Element
+	dim connectorsCounter
+	
+	for connectorsCounter = 0 to connectors.Count - 1
+		dim currentConnector as EA.Connector
+		set currentConnector = connectors.GetAt( connectorsCounter )
+		dim targetElementID
+		targetElementID = currentConnector.SupplierID
+		dim elementOnOppositeSide as EA.Element
 					
-				if currentConnector.Type = "Generalization" then
-					set elementOnOppositeSide = Repository.GetElementByID(targetElementID)
-								
-								
-					if UCase(elementOnOppositeSide.Stereotype) <> UCase(currentElement.Stereotype) then
-									
-						session.output("Error: The stereotype of class [" & elementOnOppositeSide.Name & "] is not the same as the stereotype of [" & currentElement.Name & "]. A class can only inherit from a class with the same stereotype.  [/krav/14]")
-						globalErrorCounter = globalErrorCounter + 1 
-					end if
-									
-'
-				
-				end if
-			next
+		if currentConnector.Type = "Generalization" then
+			set elementOnOppositeSide = Repository.GetElementByID(targetElementID)
+			
+			if UCase(elementOnOppositeSide.Stereotype) <> UCase(currentElement.Stereotype) then
+				session.output("Error: The stereotype of class [" & elementOnOppositeSide.Name & "] is not the same as the stereotype of [" & currentElement.Name & "]. A class can only inherit from a class with the same stereotype.  [/krav/14]")
+				globalErrorCounter = globalErrorCounter + 1 
+			end if
+		end if
+	next
 end sub
 ' -------------------------------------------------------END------------------------------------------------------------------------------------------------------
 
@@ -1421,16 +1368,16 @@ sub krav15stereotyper(theElement)
 	for each attr in theElement.Attributes
 		numberInList = numberInList + 1 
 		if attr.Stereotype <> "" then
-				numberOfFaults = numberOfFaults + 1
-				if globalLogLevelIsWarning then
-					Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has unknown stereotype. «" & attr.Stereotype & "» on attribute ["&attr.Name&"]  [/krav/15 ]")
-					globalWarningCounter = globalWarningCounter + 1
-				end if	
-				if goodNames then
-					badName = attr.Name
-					badStereotype = attr.Stereotype
-				end if
-				goodNames = false 
+			numberOfFaults = numberOfFaults + 1
+			if globalLogLevelIsWarning then
+				Session.Output("Warning: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has unknown stereotype. «" & attr.Stereotype & "» on attribute ["&attr.Name&"]  [/krav/15 ]")
+				globalWarningCounter = globalWarningCounter + 1
+			end if	
+			if goodNames then
+				badName = attr.Name
+				badStereotype = attr.Stereotype
+			end if
+			goodNames = false 
 		end if 
 	next
 	
@@ -1489,9 +1436,7 @@ sub krav15stereotyper(theElement)
 			end if
 		end if
 	next
-	
 end sub
-
 ' -------------------------------------------------------END------------------------------------------------------------------------------------------------------
 
 
@@ -1508,6 +1453,7 @@ end sub
     'Notat: NCName, unike navn på klasse i underpakker, unike eg-/rolle-/oper-navn (forby polymorfisme på operasjoner?)
  
 sub krav16unikeNCnavn(theElement)
+	
 	dim goodNames, lowerCameCase, badName, roleName
 	goodNames = true
 	lowerCameCase = true
@@ -1577,7 +1523,7 @@ sub krav16unikeNCnavn(theElement)
 		numberInList = numberInList + 1 
 		if PropertyNames.IndexOf(UCase(attr.Name),0) <> -1 then
 			Session.Output("Error: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] has non-unique attribute property name ["&attr.Name&"].    [/krav/16 ]")				
-				globalErrorCounter = globalErrorCounter + 1 
+			globalErrorCounter = globalErrorCounter + 1 
 		else
 			PropertyNames.Add UCase(attr.Name)
 		end if
@@ -1591,8 +1537,6 @@ sub krav16unikeNCnavn(theElement)
  				globalErrorCounter = globalErrorCounter + 1 
 			end if
 		end if 
-		
-		
 	next
 
 	'Other attributes and roles inherited from outside package
@@ -1608,9 +1552,12 @@ sub krav16unikeNCnavn(theElement)
 			end if
 		end if
 	next
-
 end sub
+' -------------------------------------------------------END------------------------------------------------------------------------------------------------------
 
+
+
+' -----------------------------------------------------------START---------------------------------------------------------------------------------------------------
 sub krav16unikeNCnavnArvede(theElement, PropertyNames)
 	dim goodNames, lowerCameCase, badName, roleName
 	goodNames = true
@@ -1624,10 +1571,10 @@ sub krav16unikeNCnavnArvede(theElement, PropertyNames)
 	dim numberInList
 	numberInList = 0
 
-	'test if supertype name is same as one in the tested package. (supertype may well be outside the tested package.)
+'	test if supertype name is same as one in the tested package. (supertype may well be outside the tested package.)
 '	if ClassAndPackageNames.IndexOf(UCase(theElement.Name),0) <> -1 then
-'		Session.Output("Warning: non-unique supertype name [«" &theElement.Stereotype& "» "&theElement.Name&"] in package: ["&Repository.GetPackageByID(theElement.PackageID).Name&"].  EA-type:" &theElement.Type& "  [/krav/16 ]")				
-' 		globalWarningCounter = globalWarningCounter + 1
+'	Session.Output("Warning: non-unique supertype name [«" &theElement.Stereotype& "» "&theElement.Name&"] in package: ["&Repository.GetPackageByID(theElement.PackageID).Name&"].  EA-type:" &theElement.Type& "  [/krav/16 ]")				
+' 	globalWarningCounter = globalWarningCounter + 1
 '	end if
 
 	'Association role names
@@ -1697,7 +1644,6 @@ sub krav16unikeNCnavnArvede(theElement, PropertyNames)
 			end if
 		end if
 	next
-		
 end sub
 ' -------------------------------------------------------END------------------------------------------------------------------------------------------------------
 
@@ -1712,6 +1658,7 @@ end sub
 
 
 sub reqUmlProfile(theElement)
+	
 	dim attr as EA.Attribute
 
 	'List of well known core and extension type names defined in iso 19103:2015
@@ -1895,9 +1842,7 @@ sub reqUmlProfile(theElement)
 			end if
 		end if 
 	next
-	
 end sub
-
 ' -------------------------------------------------------END------------------------------------------------------------------------------------------------------
 
 ' -----------------------------------------------------------START---------------------------------------------------------------------------------------------------
@@ -1929,30 +1874,29 @@ sub krav18viseAlt(theElement)
 	For i = 0 To diaoList.Count - 1
 		if theElement.ElementID = diaoList.GetKey(i) then
 			Set diagram = Repository.GetDiagramByID(diaoList.GetByIndex(i))
-				'if diagram.DiagramID = diaoList.GetByIndex(i) and diagram.Type = "Class" then
-				if diagram.DiagramID = diaoList.GetByIndex(i) then
-					shownTimes = shownTimes + 1
-					'class is shown in this diagram, find corresponding class display settings (DiagramObject)
-					set diao = nothing
-					for each diao in diagram.DiagramObjects
-						'corresponding diagram object
-						if diao.ElementID = theElement.ElementID then
-							'testing for diagram settings in undocumented property strings !!!
-							if InStr(1,diagram.ExtendedStyle,"HideEStereo=1") = 0 then
-								if InStr(1,diagram.ExtendedStyle,"UseAlias=1") = 0 or theElement.Alias = "" then
-									if (showAllProperties(theElement, diagram, diao)) then
-										'shows all OK in this diagram, how about inherited? TODO
-										viserAlt = true
-									end if
+			'if diagram.DiagramID = diaoList.GetByIndex(i) and diagram.Type = "Class" then
+			if diagram.DiagramID = diaoList.GetByIndex(i) then
+				shownTimes = shownTimes + 1
+				'class is shown in this diagram, find corresponding class display settings (DiagramObject)
+				set diao = nothing
+				for each diao in diagram.DiagramObjects
+					'corresponding diagram object
+					if diao.ElementID = theElement.ElementID then
+						'testing for diagram settings in undocumented property strings !!!
+						if InStr(1,diagram.ExtendedStyle,"HideEStereo=1") = 0 then
+							if InStr(1,diagram.ExtendedStyle,"UseAlias=1") = 0 or theElement.Alias = "" then
+								if (showAllProperties(theElement, diagram, diao)) then
+									'shows all OK in this diagram, how about inherited? TODO
+									viserAlt = true
 								end if
 							end if
 						end if
-					next
-				end if
+					end if
+				next
+			end if
 		end if
-		
 	next
-
+	
 	if NOT viserAlt then
  		globalErrorCounter = globalErrorCounter + 1 
  		if shownTimes = 0 then
@@ -1961,9 +1905,6 @@ sub krav18viseAlt(theElement)
 			Session.Output("Error: Class [«" &theElement.Stereotype& "» "&theElement.Name&"] is not shown fully in at least one diagram.    [/krav/18 ]")				
 		end if
 	end if
-		
-
-
 end sub
 
 function showAllProperties(theElement, diagram, diao)
@@ -1987,12 +1928,13 @@ end function
 
 'Recursive loop through subpackages, creating a list of all model elements and their corresponding diagrams
 sub recListDiagramObjects(p)
+	
 	dim d as EA.Diagram
 	dim Dobj as EA.DiagramObject
 	for each d In p.diagrams
 		for each Dobj in d.DiagramObjects
 			If not diaoList.ContainsKey(Dobj.ElementID) Then
-			  diaoList.Add Dobj.ElementID, Dobj.DiagramID
+				diaoList.Add Dobj.ElementID, Dobj.DiagramID
 			end if   
 		next	
 	next
