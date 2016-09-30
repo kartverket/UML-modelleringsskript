@@ -1,43 +1,43 @@
 ﻿﻿option explicit 
  
- !INC Local Scripts.EAConstants-VBScript 
+!INC Local Scripts.EAConstants-VBScript 
  
- ' 
- ' This script contains code from the default Project Browser template. 
- ' If you wish to modify this template, it is located in the Config\Script Templates 
- ' directory of your EA install path.    
- ' 
- ' Script Name: SOSI model validation 
- ' Author: Section for technology and standardization - Norwegian Mapping Authority
- ' Version: 1.0.2
- ' Date: 2016-09-27 
- ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
- ' Implemented rules: 
- '	/krav/3:  
- '			Find elements (classes, attributes, navigable association roles, operations, datatypes)  
- '	        without definition (notes/rolenotes) in the selected package and subpackages 
- '
- '	/krav/6:		
+' 
+' This script contains code from the default Project Browser template. 
+' If you wish to modify this template, it is located in the Config\Script Templates 
+' directory of your EA install path.    
+' 
+' Script Name: SOSI model validation 
+' Author: Section for technology and standardization - Norwegian Mapping Authority
+' Version: 1.0.2
+' Date: 2016-09-27 
+' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
+' Implemented rules: 
+'	/krav/3:  
+'			Find elements (classes, attributes, navigable association roles, operations, datatypes)  
+'	        without definition (notes/rolenotes) in the selected package and subpackages 
+'
+'	/krav/6:		
 '			Iso 19103 Requirement 6 - NCNames in codelist codes.
- ' 	/krav/7:	    
- '			Iso 19103 Requirement 7 - definition of codelist codes.
- '  /krav/10: 
- '			Check if all navigable association ends have cardinality 
- '	/krav/11: 
- '			Check if all navigable association ends have role names 
-  '	/krav/12: 
- '			If datatypes have associations then the datatype shall only be target in a composition 
- '  /krav/14:
+' 	/krav/7:	    
+'			Iso 19103 Requirement 7 - definition of codelist codes.
+'  	/krav/10: 
+'			Check if all navigable association ends have cardinality 
+'	/krav/11: 
+'			Check if all navigable association ends have role names 
+'	/krav/12: 
+'			If datatypes have associations then the datatype shall only be target in a composition 
+'  	/krav/14:
 '			Iso 19103 Requirement 14 -inherit from same stereotypes
- '  /krav/15:
- '			Iso 19103 Requirement 15 -known stereotypes
- '  /krav/16
- '			Iso 19103 Requirement 16 -legal NCNames case-insesnitively unique within their namespace
- '  /krav/18
+'  	/krav/15:
+'			Iso 19103 Requirement 15 -known stereotypes
+'  	/krav/16
+'			Iso 19103 Requirement 16 -legal NCNames case-insesnitively unique within their namespace
+'  	/krav/18
 '			Iso 19103 Requirement 18 -all elements shall show all structures in at least one diagram
- '	/krav/definisjoner (partially implemented except for constraints): 
- '			Same as krav/3 but checks also for definitions of packages 
- '	/krav/eksternKodeliste
+'	/krav/definisjoner (partially implemented except for constraints): 
+'			Same as krav/3 but checks also for definitions of packages 
+'	/krav/eksternKodeliste
 ' 			Check if the coedlist has an asDictionary with value "true", if so, checks if the taggedValue "codeList" exist and if the value is valid or not.
 '			Some parts missing. 2 subs.
 '	/krav/enkelArv
@@ -45,7 +45,7 @@
 '	/krav/flerspråklighet/element:		
 ' 			if tagged value: "designation", "description" or "definition" exists, the value of the tag must end with "@<language-code>". 
 ' 			Checks attributes, operations, (roles), (constraints) and objecttypes 
- '	/krav/flerspråklighet/pakke:
+'	/krav/flerspråklighet/pakke:
 '			Check if the ApplicationSchema-package got a tagged value named "language" and if the value of it is empty or not. 
 ' 			And if there are designation-tags, checks that they have correct structure: "{name}"@{language}
 ' 	/krav/hoveddiagram/detaljering/navnining 
@@ -213,20 +213,20 @@
  			 
  			 
  			 
- '		case otDiagram 
- '			' Code for when a diagram is selected 
- '			dim theDiagram as EA.Diagram 
- '			set theDiagram = Repository.GetTreeSelectedObject() 
- '			 
- '		case otAttribute 
- '			' Code for when an attribute is selected 
- '			dim theAttribute as EA.Attribute 
- '			set theAttribute = Repository.GetTreeSelectedObject() 
- '			 
- '		case otMethod 
- '			' Code for when a method is selected 
- '			dim theMethod as EA.Method 
- '			set theMethod = Repository.GetTreeSelectedObject() 
+'		case otDiagram 
+'			' Code for when a diagram is selected 
+'			dim theDiagram as EA.Diagram 
+'			set theDiagram = Repository.GetTreeSelectedObject() 
+'			 
+'		case otAttribute 
+'			' Code for when an attribute is selected 
+'			dim theAttribute as EA.Attribute 
+'			set theAttribute = Repository.GetTreeSelectedObject() 
+'			 
+'		case otMethod 
+'			' Code for when a method is selected 
+'			dim theMethod as EA.Method 
+'			set theMethod = Repository.GetTreeSelectedObject() 
  		 
  		case else 
  			' Error message 
@@ -235,7 +235,7 @@
  			 
  	end select 
  	 
- end sub 
+end sub 
  
  
  
@@ -339,7 +339,7 @@
 			globalErrorCounter = globalErrorCounter + 1 
  	End Select 
  	 
- end sub 
+end sub 
  
 'Purpose: 		help function in order to set stereotype that is shown 
 '				in diagrams but not accessible as such via EAObjectAPI
@@ -419,7 +419,7 @@ end sub
 ' 			
 ' @param[in]: currentElement (EA.Element). The "class" to check 
  
- sub findMultipleInheritance(currentElement) 
+sub findMultipleInheritance(currentElement) 
  
 	loopCounterMultipleInheritance = loopCounterMultipleInheritance + 1 
  	dim connectors as EA.Collection  
@@ -433,52 +433,47 @@ end sub
  	dim theTargetGeneralization as EA.Connector 
  	set theTargetGeneralization = nothing 
  					 
-  		for connectorsCounter = 0 to connectors.Count - 1  
- 			dim currentConnector as EA.Connector  
- 			set currentConnector = connectors.GetAt( connectorsCounter )  
+	for connectorsCounter = 0 to connectors.Count - 1  
+		dim currentConnector as EA.Connector  
+		set currentConnector = connectors.GetAt( connectorsCounter )  
  						 
  						 
- 			'check if the connector type is "Generalization" and if so 
- 			'get the element on the source end of the connector   
- 			if currentConnector.Type = "Generalization"  then 
- 				if currentConnector.ClientID = currentElement.ElementID then  
+		'check if the connector type is "Generalization" and if so 
+		'get the element on the source end of the connector   
+		if currentConnector.Type = "Generalization"  then 
+			if currentConnector.ClientID = currentElement.ElementID then  
  					 
- 					'count number of classes with a generalization connector on the source side  
- 					numberOfSuperClasses = numberOfSuperClasses + 1  
- 					set theTargetGeneralization = currentConnector  
- 				end if  
- 							 
- 							 
- 			end if 
- 			'if theres more than one generalization connecter on the source side the class has multiple inheritance 
- 				if numberOfSuperClasses > 1 then 
- 					Session.Output("Error: Class [«"&startClass.Stereotype&"» "&startClass.Name& "] has multiple inheritance. [/krav/enkelarv]") 
- 					globalErrorCounter = globalErrorCounter + 1 
- 					exit for  
- 						 
- 							 
- 				end if  
- 			 
-
- 		next 
- 					 
- 			' if there is just one generalization connector on the source side, start checking genralization connectors for the superclasses  
-			' stop if number of loops exceeds 20
- 			if numberOfSuperClasses = 1 and not theTargetGeneralization is nothing and loopCounterMultipleInheritance < 21 then 
- 				
- 				dim superClassID  
- 				dim superClass as EA.Element 
- 				'the elementID of the element at the target end 
- 				superClassID =  theTargetGeneralization.SupplierID  
- 				set superClass = Repository.GetElementByID(superClassID) 
- 			 
- 		 
- 				'Check level of superClass 
- 				call findMultipleInheritance (superClass) 
-			elseif loopCounterMultipleInheritance = 21 then 
-				Session.Output("Warning: Found more than 20 inheritance levels for class:  [" &startClass.Name& "] while testing [/krav/enkelarv]. Please check for possible circle inheritance ")
-				globalWarningCounter = globalWarningCounter + 1 
+				'count number of classes with a generalization connector on the source side  
+				numberOfSuperClasses = numberOfSuperClasses + 1  
+				set theTargetGeneralization = currentConnector  
 			end if  
+		end if 
+
+		'if theres more than one generalization connecter on the source side the class has multiple inheritance 
+		if numberOfSuperClasses > 1 then 
+			Session.Output("Error: Class [«"&startClass.Stereotype&"» "&startClass.Name& "] has multiple inheritance. [/krav/enkelarv]") 
+			globalErrorCounter = globalErrorCounter + 1 
+			exit for  
+		end if  
+ 			 
+	next 
+ 					 
+	' if there is just one generalization connector on the source side, start checking genralization connectors for the superclasses  
+	' stop if number of loops exceeds 20
+	if numberOfSuperClasses = 1 and not theTargetGeneralization is nothing and loopCounterMultipleInheritance < 21 then 
+ 				
+		dim superClassID  
+		dim superClass as EA.Element 
+		'the elementID of the element at the target end 
+		superClassID =  theTargetGeneralization.SupplierID  
+		set superClass = Repository.GetElementByID(superClassID) 
+
+		'Check level of superClass 
+		call findMultipleInheritance (superClass) 
+		elseif loopCounterMultipleInheritance = 21 then 
+			Session.Output("Warning: Found more than 20 inheritance levels for class:  [" &startClass.Name& "] while testing [/krav/enkelarv]. Please check for possible circle inheritance ")
+			globalWarningCounter = globalWarningCounter + 1 
+	end if  
 
  end sub 
 '--------------------------------------------------------END-------------------------------------------------------------------------------------------------
@@ -1948,491 +1943,478 @@ end sub
 
 
  
- sub FindInvalidElementsInPackage(package) 
- 
+sub FindInvalidElementsInPackage(package) 
 			
- 			dim elements as EA.Collection 
- 			set elements = package.Elements 'collection of elements that belong to this package (classes, notes... BUT NO packages) 
- 			Dim myDictionary 
- 			dim errorsInFunctionTests 
+ 	dim elements as EA.Collection 
+ 	set elements = package.Elements 'collection of elements that belong to this package (classes, notes... BUT NO packages) 
+ 	Dim myDictionary 
+ 	dim errorsInFunctionTests 
  			 
- 			'check package definition 
- 			if package.Notes = "" then 
- 						'Session.Output("FEIL: Pakke [" & package.Name & "] mangler definisjon. [/krav/definisjoner]") 
- 						Session.Output("Error: Package [" & package.Name & "] lacks a definition. [/krav/definisjoner]") 
- 						globalErrorCounter = globalErrorCounter + 1 
- 			end if 
+ 	'check package definition 
+ 	if package.Notes = "" then 
+ 		'Session.Output("FEIL: Pakke [" & package.Name & "] mangler definisjon. [/krav/definisjoner]") 
+ 		Session.Output("Error: Package [" & package.Name & "] lacks a definition. [/krav/definisjoner]") 
+ 		globalErrorCounter = globalErrorCounter + 1 
+ 	end if 
  			 
-			'Iso 19103 Requirement 15 - known stereotypes for packages.
-			if UCase(package.element.Stereotype) <> "APPLICATIONSCHEMA" and UCase(package.element.Stereotype) <> "LEAF" and UCase(package.element.Stereotype) <> "" then
+	'Iso 19103 Requirement 15 - known stereotypes for packages.
+	if UCase(package.element.Stereotype) <> "APPLICATIONSCHEMA" and UCase(package.element.Stereotype) <> "LEAF" and UCase(package.element.Stereotype) <> "" then
+		if globalLogLevelIsWarning then
+			Session.Output("Warning: Unknown package stereotype: [«" &package.element.Stereotype& "» " &package.Name& "].   [/krav/15 ]")
+			globalWarningCounter = globalWarningCounter + 1
+		end if	
+	end if
+
+	'Iso 19103 Requirement 16 - unique (NC?)Names on subpackages within the package.
+	if ClassAndPackageNames.IndexOf(UCase(package.Name),0) <> -1 then
+		Session.Output("Error: Package [" &startPackageName& "] has non-unique subpackage name ["&package.Name&"].    [/krav/16 ]")				
+		globalErrorCounter = globalErrorCounter + 1 
+	end if
+
+	ClassAndPackageNames.Add UCase(package.Name)
+
+	'check if the package name is written correctly according to krav/navning
+	checkElementName(package)
+ 			 
+	dim packageTaggedValues as EA.Collection 
+	set packageTaggedValues = package.Element.TaggedValues 
+ 			
+	'only for applicationSchema packages: 
+	'iterate the tagged values collection and check if the applicationSchema package has a tagged value "language" or "designation" with any content [/krav/flerspråklighet/pakke]
+	Call checkTVLanguageAndDesignation (package.Element, "language") 
+	Call checkTVLanguageAndDesignation (package.Element, "designation")
+	'iterate the tagged values collection and check if the applicationSchema package has a tagged value "version" with any content [/req/uml/packaging ]	
+	Call checkValueOfTVVersion( package.Element , "version" ) 
+	'iterate the tagged values collection and check if the applicationSchema package has a tagged value "SOSI_modellstatus" that is valid [/krav/SOSI-modellregister/ applikasjonsskjema/status]
+	Call ValidValueSOSI_modellstatus( package.Element , "SOSI_modellstatus" )
+	'iterate the diagrams and checks if there exists one or more diagram names starting with "Hoveddiagram" if not one has been found already[/krav/hoveddiagram/navning]
+	if 	not foundHoveddiagram  then
+		call CheckPackageForHoveddiagram(package)
+	end if 
+	'iterate the diagrams in the package and count those named "Hoveddiagram" [/krav/hoveddiagram/detaljering/navning]
+	Call FindHoveddiagramsInAS(package)
+					
+	'check packages' stereotype for right use of lower- and uppercase [/anbefaling/styleGuide] 	
+	call checkStereotypes(package)		 
+	
+	dim packages as EA.Collection 
+	set packages = package.Packages 'collection of packages that belong to this package	
+			
+	' Navigate the package collection and call the FindNonvalidElementsInPackage function for each of them 
+	dim p 
+	for p = 0 to packages.Count - 1 
+		dim currentPackage as EA.Package 
+		set currentPackage = packages.GetAt( p ) 
+		FindInvalidElementsInPackage(currentPackage) 
+				
+		'constraints 
+		dim constraintPCollection as EA.Collection 
+		set constraintPCollection = currentPackage.Element.Constraints 
+ 			 
+		if constraintPCollection.Count > 0 then 
+			dim constraintPCounter 
+			for constraintPCounter = 0 to constraintPCollection.Count - 1 					 
+				dim currentPConstraint as EA.Constraint		 
+				set currentPConstraint = constraintPCollection.GetAt(constraintPCounter) 
+								
+				'check if the package got constraints that lack name or definition (/req/UML/constraint)								
+				Call checkConstraint(currentPConstraint, currentPackage)
+
+			next
+		end if	
+	next 
+ 			 
+ 	'------------------------------------------------------------------ 
+	'---ELEMENTS--- 
+	'------------------------------------------------------------------		 
+ 			 
+	' Navigate the elements collection, pick the classes, find the definitions/notes and do sth. with it 
+	'Session.Output( " number of elements in package: " & elements.Count) 
+	dim i 
+	for i = 0 to elements.Count - 1 
+		dim currentElement as EA.Element 
+		set currentElement = elements.GetAt( i ) 
+				
+		'Session.Output("DEBUG currentElementName: "&currentElement.Name&" --- currentElementType: "& currentElement.Type&" --- currentElementClassifierType: "&currentElement.ClassifierType)
+				
+		'check elements' stereotype for right use of lower- and uppercase [/anbefaling/styleGuide]
+		Call checkStereotypes(currentElement)	
+ 				 
+		'Is the currentElement of type Class and stereotype codelist or enumeration, check the initial values are numeric or not (/anbefaling/1)
+		if ((currentElement.Type = "Class") and (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION") Or currentElement.Type = "Enumeration") then
+			call checkNumericinitialValues(currentElement)
+		end if
+
+		' check if inherited stereotypes are all the same
+		Call krav14(currentElement)
+
+		' ---ALL CLASSIFIERS---
+		'Iso 19103 Requirement 16 - unique NCNames of all properties within the classifier.
+		'Inherited properties  also included, strictly not an error situation but implicit redefinition is not well supported anyway
+		if currentElement.Type = "Class" or currentElement.Type = "DataType" or currentElement.Type = "Enumeration" or currentElement.Type = "Interface" then
+			if ClassAndPackageNames.IndexOf(UCase(currentElement.Name),0) <> -1 then
+				'Session.Output("Error: non-unique classifier name [«" &currentElement.Stereotype& "» "&currentElement.Name&"] in package: [" &startPackageName& "].  EA-type:" &currentElement.Type& "  [/krav/16 ]")				
+				Session.Output("Error: Class [«" &currentElement.Stereotype& "» "&currentElement.Name&"] in package: [" &package.Name& "] has non-unique name.  [/krav/16 ]")				
+				globalErrorCounter = globalErrorCounter + 1 
+			end if
+
+			ClassAndPackageNames.Add UCase(currentElement.Name)
+
+			call krav16unikeNCnavn(currentElement)
+		else
+			' ---OTHER ARTIFACTS--- Do their names also need to be tested for uniqueness? (need to be different?)
+			if currentElement.Type <> "Note" and currentElement.Type <> "Text" and currentElement.Type <> "Boundary" then
+				if ClassAndPackageNames.IndexOf(UCase(currentElement.Name),0) <> -1 then
+					Session.Output("Debug: Unexpected unknown element with non-unique name [«" &currentElement.Stereotype& "» " &currentElement.Name& "]. EA-type: [" &currentElement.Type& "].   [/krav/16 ]")
+					'This test is dependent on where the artifact is in the test sequence 
+				end if
+			end if
+		end if
+				
+		'constraints 
+		dim constraintCollection as EA.Collection 
+		set constraintCollection = currentElement.Constraints 
+
+		if constraintCollection.Count > 0 then 
+			dim constraintCounter 
+			for constraintCounter = 0 to constraintCollection.Count - 1 					 
+				dim currentConstraint as EA.Constraint		 
+				set currentConstraint = constraintCollection.GetAt(constraintCounter) 
+							
+				'check if the constraints lack name or definition (/req/UML/constraint)
+				Call checkConstraint(currentConstraint, currentElement)
+
+			next
+		end if		
+
+
+
+		'If the currentElement is of type Class, Enumeration or DataType continue conducting some tests. If not continue with the next element. 
+		if currentElement.Type = "Class" Or currentElement.Type = "Enumeration" Or currentElement.Type = "DataType" then 
+ 									 
+			'------------------------------------------------------------------ 
+			'---CLASSES---ENUMERATIONS---DATATYPE  								'   classifiers ???
+			'------------------------------------------------------------------		 
+ 
+			'Iso 19103 Requirement 6 - NCNames in codelist codes.
+			if (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION" Or currentElement.Type = "Enumeration") then
+				call krav6mnemoniskKodenavn(currentElement)
+			end if
+
+			'Iso 19103 Requirement 7 - definition of codelist codes.
+			if (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION") then
+				call krav7kodedefinisjon(currentElement)
+			end if
+	
+			'Iso 19103 Requirement 15 - known stereotypes for classes.
+			if UCase(currentElement.Stereotype) = "FEATURETYPE"  Or UCase(currentElement.Stereotype) = "DATATYPE" Or UCase(currentElement.Stereotype) = "UNION" or UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION" Or UCase(currentElement.Stereotype) = "ESTIMATED" or UCase(currentElement.Stereotype) = "MESSAGETYPE"  Or UCase(currentElement.Stereotype) = "INTERFACE" then
+			else
 				if globalLogLevelIsWarning then
-					Session.Output("Warning: Unknown package stereotype: [«" &package.element.Stereotype& "» " &package.Name& "].   [/krav/15 ]")
+					Session.Output("Warning: Class [«" &currentElement.Stereotype& "» " &currentElement.Name& "] has unknown stereotype.   [/krav/15 ]")
 					globalWarningCounter = globalWarningCounter + 1
 				end if	
 			end if
 
-			'Iso 19103 Requirement 16 - unique (NC?)Names on subpackages within the package.
-			if ClassAndPackageNames.IndexOf(UCase(package.Name),0) <> -1 then
-				Session.Output("Error: Package [" &startPackageName& "] has non-unique subpackage name ["&package.Name&"].    [/krav/16 ]")				
- 				globalErrorCounter = globalErrorCounter + 1 
- 			end if
-			ClassAndPackageNames.Add UCase(package.Name)
+			'Iso 19103 Requirement 15 - known stereotypes for attributes.
+			call krav15stereotyper(currentElement)
 
-			'check if the package name is written correctly according to krav/navning
- 			checkElementName(package)
- 			 
- 			dim packageTaggedValues as EA.Collection 
- 			set packageTaggedValues = package.Element.TaggedValues 
- 			
- 			'only for applicationSchema packages: 
-				'iterate the tagged values collection and check if the applicationSchema package has a tagged value "language" or "designation" with any content [/krav/flerspråklighet/pakke]
-					Call checkTVLanguageAndDesignation (package.Element, "language") 
-					Call checkTVLanguageAndDesignation (package.Element, "designation")
-				'iterate the tagged values collection and check if the applicationSchema package has a tagged value "version" with any content [/req/uml/packaging ]	
-					Call checkValueOfTVVersion( package.Element , "version" ) 
-				'iterate the tagged values collection and check if the applicationSchema package has a tagged value "SOSI_modellstatus" that is valid [/krav/SOSI-modellregister/ applikasjonsskjema/status]
-					Call ValidValueSOSI_modellstatus( package.Element , "SOSI_modellstatus" )
-				'iterate the diagrams and checks if there exists one or more diagram names starting with "Hoveddiagram" if not one has been found already[/krav/hoveddiagram/navning]
-					if 	not foundHoveddiagram  then
-						call CheckPackageForHoveddiagram(package)
-					end if 
-				'iterate the diagrams in the package and count those named "Hoveddiagram" [/krav/hoveddiagram/detaljering/navning]
-					Call FindHoveddiagramsInAS(package)
+			'Iso 19109 Requirement /req/uml/profile - well known types. Including Iso 19103 Requirements 22 and 25
+			if (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION") then
+				'codelist code type shall be empty, <none> or <undefined>
+			else
+				call reqUmlProfile(currentElement)
+			end if
+
+			'Iso 19103 Requirement 18 - each classifier must show all its (inherited) properties together in at least one diagram.
+			call krav18viseAlt(currentElement)
+
+			'check if there is a definition for the class element (call Krav3 function) 
+			Krav3(currentElement) 
+ 										 
+			'check if there is there is multiple inheritance for the class element (/krav/enkelArv) 
+			'initialize the global variable startClass which is needed in subroutine findMultipleInheritance 
+			set startClass = currentElement 
+			loopCounterMultipleInheritance = 0
+			Call findMultipleInheritance(currentElement) 
+ 					 
+			'check the structure of the value for tag values: designation, description and definition [/krav/flerspråklighet/element]
+			if UCase(currentElement.Stereotype) = "FEATURETYPE" then 
+				Call structurOfTVforElement( currentElement, "description")
+				Call structurOfTVforElement( currentElement, "designation") 
+				Call structurOfTVforElement( currentElement, "definition")
+			end if 
+		
+			'check if the class name is written correctly according to krav/navning (name starts with capital letter)
+			checkElementName(currentElement)
+ 											
+			if ((currentElement.Type = "Class") and (UCase(currentElement.Stereotype) = "CODELIST")) then
+				'Check if an external codelist has a real URL in the codeList tag [/krav/eksternKodeliste]
+				Call checkExternalCodelists(currentElement,  "asDictionary")
+			end if 
 					
-			'check packages' stereotype for right use of lower- and uppercase [/anbefaling/styleGuide] 	
-			call checkStereotypes(package)		 
+					
+			dim stereotype
+			stereotype = currentElement.Stereotype 
+ 					
 				
-	
-			dim packages as EA.Collection 
- 			set packages = package.Packages 'collection of packages that belong to this package	
-			
- 			' Navigate the package collection and call the FindNonvalidElementsInPackage function for each of them 
- 			dim p 
- 			for p = 0 to packages.Count - 1 
- 				dim currentPackage as EA.Package 
- 				set currentPackage = packages.GetAt( p ) 
- 				FindInvalidElementsInPackage(currentPackage) 
-				
-				
+			'------------------------------------------------------------------ 
+			'---ATTRIBUTES--- 
+			'------------------------------------------------------------------					 
+ 						 
+			' Retrieve all attributes for this element 
+			dim attributesCollection as EA.Collection 
+			set attributesCollection = currentElement.Attributes 
+ 			 
+			if attributesCollection.Count > 0 then 
+				dim n 
+				for n = 0 to attributesCollection.Count - 1 					 
+					dim currentAttribute as EA.Attribute		 
+					set currentAttribute = attributesCollection.GetAt(n) 
+					'check if the attribute has a definition									 
+					'Call the subfunction with currentAttribute as parameter 
+					Krav3(currentAttribute) 
+					'check the structure of the value for tag values: designation, description and definition [/krav/flerspråklighet/element]
+					Call structurOfTVforElement( currentAttribute, "description")
+					Call structurOfTVforElement( currentAttribute, "designation")
+					Call structurOfTVforElement( currentAttribute, "definition") 
+															
+					'check if the attribute's name is written correctly according to krav/navning, meaning attribute name does not start with capital letter
+					checkElementName(currentAttribute)
+																								
 					'constraints 
-					dim constraintPCollection as EA.Collection 
-					set constraintPCollection = currentPackage.Element.Constraints 
+					dim constraintACollection as EA.Collection 
+					set constraintACollection = currentAttribute.Constraints 
  			 
-						if constraintPCollection.Count > 0 then 
-							dim constraintPCounter 
-							for constraintPCounter = 0 to constraintPCollection.Count - 1 					 
-								dim currentPConstraint as EA.Constraint		 
-								set currentPConstraint = constraintPCollection.GetAt(constraintPCounter) 
-								
-								'check if the package got constraints that lack name or definition (/req/UML/constraint)								
-								Call checkConstraint(currentPConstraint, currentPackage)
-
-						
-							next
-						end if	
- 			next 
- 			 
- 			'------------------------------------------------------------------ 
- 			'---ELEMENTS--- 
- 			'------------------------------------------------------------------		 
- 			 
- 			' Navigate the elements collection, pick the classes, find the definitions/notes and do sth. with it 
- 			'Session.Output( " number of elements in package: " & elements.Count) 
- 			dim i 
- 			for i = 0 to elements.Count - 1 
- 				dim currentElement as EA.Element 
- 				set currentElement = elements.GetAt( i ) 
-				
-				'Session.Output("DEBUG currentElementName: "&currentElement.Name&" --- currentElementType: "& currentElement.Type&" --- currentElementClassifierType: "&currentElement.ClassifierType)
-				
-				'check elements' stereotype for right use of lower- and uppercase [/anbefaling/styleGuide]
-				Call checkStereotypes(currentElement)	
- 				 
- 				'Is the currentElement of type Class and stereotype codelist or enumeration, check the initial values are numeric or not (/anbefaling/1)
-				if ((currentElement.Type = "Class") and (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION") Or currentElement.Type = "Enumeration") then
-					call checkNumericinitialValues(currentElement)
-				end if
-
-				' check if inherited stereotypes are all the same
-				Call krav14(currentElement)
-
-				' ---ALL CLASSIFIERS---
-				'Iso 19103 Requirement 16 - unique NCNames of all properties within the classifier.
-				'Inherited properties  also included, strictly not an error situation but implicit redefinition is not well supported anyway
-				if currentElement.Type = "Class" or currentElement.Type = "DataType" or currentElement.Type = "Enumeration" or currentElement.Type = "Interface" then
-					if ClassAndPackageNames.IndexOf(UCase(currentElement.Name),0) <> -1 then
-						'Session.Output("Error: non-unique classifier name [«" &currentElement.Stereotype& "» "&currentElement.Name&"] in package: [" &startPackageName& "].  EA-type:" &currentElement.Type& "  [/krav/16 ]")				
- 						Session.Output("Error: Class [«" &currentElement.Stereotype& "» "&currentElement.Name&"] in package: [" &package.Name& "] has non-unique name.  [/krav/16 ]")				
- 						globalErrorCounter = globalErrorCounter + 1 
-					end if
-					ClassAndPackageNames.Add UCase(currentElement.Name)
-
-					call krav16unikeNCnavn(currentElement)
-				else
-					' ---OTHER ARTIFACTS--- Do their names also need to be tested for uniqueness? (need to be different?)
-					if currentElement.Type <> "Note" and currentElement.Type <> "Text" and currentElement.Type <> "Boundary" then
-						if ClassAndPackageNames.IndexOf(UCase(currentElement.Name),0) <> -1 then
-							Session.Output("Debug: Unexpected unknown element with non-unique name [«" &currentElement.Stereotype& "» " &currentElement.Name& "]. EA-type: [" &currentElement.Type& "].   [/krav/16 ]")
-							'This test is dependent on where the artifact is in the test sequence 
-						end if
-					end if
-				end if
-				
-					'constraints 
-					dim constraintCollection as EA.Collection 
-					set constraintCollection = currentElement.Constraints 
-
-					if constraintCollection.Count > 0 then 
-						dim constraintCounter 
-						for constraintCounter = 0 to constraintCollection.Count - 1 					 
-							dim currentConstraint as EA.Constraint		 
-							set currentConstraint = constraintCollection.GetAt(constraintCounter) 
-							
-							'check if the constraints lack name or definition (/req/UML/constraint)
-							Call checkConstraint(currentConstraint, currentElement)
+					if constraintACollection.Count > 0 then 
+						dim constraintACounter 
+						for constraintACounter = 0 to constraintACollection.Count - 1 					 
+							dim currentAConstraint as EA.Constraint		 
+							set currentAConstraint = constraintACollection.GetAt(constraintACounter) 
+									
+							'check if the constraints lacks name or definition (/req/UML/constraint)
+							Call checkConstraint(currentAConstraint, currentAttribute)
 
 						next
 					end if		
-
-
-
-				'If the currentElement is of type Class, Enumeration or DataType continue conducting some tests. If not continue with the next element. 
- 				if currentElement.Type = "Class" Or currentElement.Type = "Enumeration" Or currentElement.Type = "DataType" then 
- 									 
-					'------------------------------------------------------------------ 
-					'---CLASSES---ENUMERATIONS---DATATYPE  								'   classifiers ???
-					'------------------------------------------------------------------		 
- 
-					'Iso 19103 Requirement 6 - NCNames in codelist codes.
-					if (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION" Or currentElement.Type = "Enumeration") then
-						call krav6mnemoniskKodenavn(currentElement)
-					end if
-
-					'Iso 19103 Requirement 7 - definition of codelist codes.
-					if (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION") then
-						call krav7kodedefinisjon(currentElement)
-					end if
-	
-					'Iso 19103 Requirement 15 - known stereotypes for classes.
-					if UCase(currentElement.Stereotype) = "FEATURETYPE"  Or UCase(currentElement.Stereotype) = "DATATYPE" Or UCase(currentElement.Stereotype) = "UNION" or UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION" Or UCase(currentElement.Stereotype) = "ESTIMATED" or UCase(currentElement.Stereotype) = "MESSAGETYPE"  Or UCase(currentElement.Stereotype) = "INTERFACE" then
-					else
-						if globalLogLevelIsWarning then
-							Session.Output("Warning: Class [«" &currentElement.Stereotype& "» " &currentElement.Name& "] has unknown stereotype.   [/krav/15 ]")
-							globalWarningCounter = globalWarningCounter + 1
-						end if	
-					end if
-					'Iso 19103 Requirement 15 - known stereotypes for attributes.
-					call krav15stereotyper(currentElement)
-
-					'Iso 19109 Requirement /req/uml/profile - well known types. Including Iso 19103 Requirements 22 and 25
-					if (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION") then
-						'codelist code type shall be empty, <none> or <undefined>
-					else
-						call reqUmlProfile(currentElement)
-					end if
-					'Iso 19103 Requirement 18 - each classifier must show all its (inherited) properties together in at least one diagram.
-					call krav18viseAlt(currentElement)
-
-					'check if there is a definition for the class element (call Krav3 function) 
- 					Krav3(currentElement) 
- 										 
- 					'check if there is there is multiple inheritance for the class element (/krav/enkelArv) 
- 					'initialize the global variable startClass which is needed in subroutine findMultipleInheritance 
- 					set startClass = currentElement 
-					loopCounterMultipleInheritance = 0
- 					Call findMultipleInheritance(currentElement) 
+				next 
+			end if	 
  					 
- 					'check the structure of the value for tag values: designation, description and definition [/krav/flerspråklighet/element]
-					if UCase(currentElement.Stereotype) = "FEATURETYPE" then 
-						Call structurOfTVforElement( currentElement, "description")
-						Call structurOfTVforElement( currentElement, "designation") 
-						Call structurOfTVforElement( currentElement, "definition")
-					end if 
-		
-					'check if the class name is written correctly according to krav/navning (name starts with capital letter)
-					checkElementName(currentElement)
- 											
-					if ((currentElement.Type = "Class") and (UCase(currentElement.Stereotype) = "CODELIST")) then
-					'Check if an external codelist has a real URL in the codeList tag [/krav/eksternKodeliste]
-						Call checkExternalCodelists(currentElement,  "asDictionary")
-					end if 
-					
-					
- 					dim stereotype 
- 					stereotype = currentElement.Stereotype 
- 					
-				
- 						'------------------------------------------------------------------ 
- 						'---ATTRIBUTES--- 
- 						'------------------------------------------------------------------					 
+			'------------------------------------------------------------------ 
+			'---ASSOCIATIONS--- 
+			'------------------------------------------------------------------ 
  						 
- 						' Retrieve all attributes for this element 
- 						dim attributesCollection as EA.Collection 
- 						set attributesCollection = currentElement.Attributes 
- 			 
- 						if attributesCollection.Count > 0 then 
- 							dim n 
- 							for n = 0 to attributesCollection.Count - 1 					 
- 								dim currentAttribute as EA.Attribute		 
- 								set currentAttribute = attributesCollection.GetAt(n) 
- 								'check if the attribute has a definition									 
- 								'Call the subfunction with currentAttribute as parameter 
- 								Krav3(currentAttribute) 
-								'check the structure of the value for tag values: designation, description and definition [/krav/flerspråklighet/element]
- 								Call structurOfTVforElement( currentAttribute, "description")
-								Call structurOfTVforElement( currentAttribute, "designation")
-								Call structurOfTVforElement( currentAttribute, "definition") 
-															
-								'check if the attribute's name is written correctly according to krav/navning, meaning attribute name does not start with capital letter
-								checkElementName(currentAttribute)
-																								
-								'constraints 
-								dim constraintACollection as EA.Collection 
-								set constraintACollection = currentAttribute.Constraints 
- 			 
-								if constraintACollection.Count > 0 then 
-									dim constraintACounter 
-									for constraintACounter = 0 to constraintACollection.Count - 1 					 
-										dim currentAConstraint as EA.Constraint		 
-										set currentAConstraint = constraintACollection.GetAt(constraintACounter) 
-									
-										'check if the constraints lacks name or definition (/req/UML/constraint)
-										Call checkConstraint(currentAConstraint, currentAttribute)
-
-									next
-								end if		
-								
- 							next 
- 						end if	 
- 					 
- 						'------------------------------------------------------------------ 
- 						'---ASSOCIATIONS--- 
- 						'------------------------------------------------------------------ 
- 						 
- 						'retrieve all associations for this element 
- 						dim connectors as EA.Collection 
- 						set connectors = currentElement.Connectors 
+			'retrieve all associations for this element 
+			dim connectors as EA.Collection 
+			set connectors = currentElement.Connectors 
  					
-					
-					 
-					 
-					 
-					 
- 						'iterate the connectors 
- 						'Session.Output("Found " & connectors.Count & " connectors for featureType " & currentElement.Name) 
- 						dim connectorsCounter 
- 						for connectorsCounter = 0 to connectors.Count - 1 
- 							dim currentConnector as EA.Connector 
- 							set currentConnector = connectors.GetAt( connectorsCounter ) 
+			'iterate the connectors 
+			'Session.Output("Found " & connectors.Count & " connectors for featureType " & currentElement.Name) 
+			dim connectorsCounter 
+			for connectorsCounter = 0 to connectors.Count - 1 
+				dim currentConnector as EA.Connector 
+				set currentConnector = connectors.GetAt( connectorsCounter ) 
 							
-							if currentConnector.Type = "Aggregation" or currentConnector.Type = "Association" then
+				if currentConnector.Type = "Aggregation" or currentConnector.Type = "Association" then
 								
-								'target end 
-								dim supplierEnd as EA.ConnectorEnd
-								set supplierEnd = currentConnector.SupplierEnd
+					'target end 
+					dim supplierEnd as EA.ConnectorEnd
+					set supplierEnd = currentConnector.SupplierEnd
 	
-								Call structurOfTVforElement(supplierEnd, "description") 
-								Call structurOfTVforElement(supplierEnd, "designation")
-								Call structurOfTVforElement(supplierEnd, "definition")
+					Call structurOfTVforElement(supplierEnd, "description") 
+					Call structurOfTVforElement(supplierEnd, "designation")
+					Call structurOfTVforElement(supplierEnd, "definition")
 									
-								'source end 
-								dim clientEnd as EA.ConnectorEnd
-								set clientEnd = currentConnector.ClientEnd
+					'source end 
+					dim clientEnd as EA.ConnectorEnd
+					set clientEnd = currentConnector.ClientEnd
 									
-								Call structurOfTVforElement(clientEnd, "description") 
-								Call structurOfTVforElement(clientEnd, "designation")
-								Call structurOfTVforElement(clientEnd, "definition")
-									
-
-							end if 		
+					Call structurOfTVforElement(clientEnd, "description") 
+					Call structurOfTVforElement(clientEnd, "designation")
+					Call structurOfTVforElement(clientEnd, "definition")
+				end if 		
  							
-							'constraints 
-							dim constraintRCollection as EA.Collection 
-							set constraintRCollection = currentConnector.Constraints 
+				'constraints 
+				dim constraintRCollection as EA.Collection 
+				set constraintRCollection = currentConnector.Constraints 
 							
-							if constraintRCollection.Count > 0 then 
-								dim constraintRCounter 
-								for constraintRCounter = 0 to constraintRCollection.Count - 1 					 
-									dim currentRConstraint as EA.Constraint		 
-									set currentRConstraint = constraintRCollection.GetAt(constraintRCounter) 
-									'check if the connectors got constraints that lacks name or definition (/req/UML/constraint)
-									Call checkConstraint(currentRConstraint, currentConnector)
-								next
-							end if 
+				if constraintRCollection.Count > 0 then 
+					dim constraintRCounter 
+					for constraintRCounter = 0 to constraintRCollection.Count - 1 					 
+						dim currentRConstraint as EA.Constraint		 
+						set currentRConstraint = constraintRCollection.GetAt(constraintRCounter) 
+						'check if the connectors got constraints that lacks name or definition (/req/UML/constraint)
+						Call checkConstraint(currentRConstraint, currentConnector)
+					next
+				end if 
 							
-							
-							
-							
- 							dim sourceElementID 
- 							sourceElementID = currentConnector.ClientID 
- 							dim sourceEndNavigable  
-							sourceEndNavigable = currentConnector.ClientEnd.Navigable 
- 							dim sourceEndName 
- 							sourceEndName = currentConnector.ClientEnd.Role 
- 							dim sourceEndDefinition 
- 							sourceEndDefinition = currentConnector.ClientEnd.RoleNote 
- 							dim sourceEndCardinality		 
- 							sourceEndCardinality = currentConnector.ClientEnd.Cardinality 
+				dim sourceElementID 
+				sourceElementID = currentConnector.ClientID 
+				dim sourceEndNavigable  
+				sourceEndNavigable = currentConnector.ClientEnd.Navigable 
+				dim sourceEndName 
+				sourceEndName = currentConnector.ClientEnd.Role 
+				dim sourceEndDefinition 
+				sourceEndDefinition = currentConnector.ClientEnd.RoleNote 
+				dim sourceEndCardinality		 
+				sourceEndCardinality = currentConnector.ClientEnd.Cardinality 
  							 
- 							dim targetElementID 
- 							targetElementID = currentConnector.SupplierID 
- 							dim targetEndNavigable  
- 							targetEndNavigable = currentConnector.SupplierEnd.Navigable 
- 							dim targetEndName 
- 							targetEndName = currentConnector.SupplierEnd.Role 
- 							dim targetEndDefinition 
- 							targetEndDefinition = currentConnector.SupplierEnd.RoleNote 
- 							dim targetEndCardinality 
- 							targetEndCardinality = currentConnector.SupplierEnd.Cardinality 
+				dim targetElementID 
+				targetElementID = currentConnector.SupplierID 
+				dim targetEndNavigable  
+				targetEndNavigable = currentConnector.SupplierEnd.Navigable 
+				dim targetEndName 
+				targetEndName = currentConnector.SupplierEnd.Role 
+				dim targetEndDefinition 
+				targetEndDefinition = currentConnector.SupplierEnd.RoleNote 
+				dim targetEndCardinality 
+				targetEndCardinality = currentConnector.SupplierEnd.Cardinality 
  							
- 							'if the current element is on the connectors client side conduct some tests 
- 							'(this condition is needed to make sure only associations with  
- 							'source end connected to elements within this applicationSchema package are  
- 							'checked. Associations with source end connected to elements outside of this 
- 							'package are possibly locked and not editable) 
- 							'Session.Output("connectorType: "&currentConnector.Type) 
+				'if the current element is on the connectors client side conduct some tests 
+				'(this condition is needed to make sure only associations with  
+				'source end connected to elements within this applicationSchema package are  
+				'checked. Associations with source end connected to elements outside of this 
+				'package are possibly locked and not editable) 
+				'Session.Output("connectorType: "&currentConnector.Type) 
  							 
- 							dim elementOnOppositeSide as EA.Element 
- 							if currentElement.ElementID = sourceElementID and not currentConnector.Type = "Realisation" and not currentConnector.Type = "Generalization" then 
- 								set elementOnOppositeSide = Repository.GetElementByID(targetElementID) 
+				dim elementOnOppositeSide as EA.Element 
+				if currentElement.ElementID = sourceElementID and not currentConnector.Type = "Realisation" and not currentConnector.Type = "Generalization" then 
+					set elementOnOppositeSide = Repository.GetElementByID(targetElementID) 
  								 
- 								'if the connector has a name (optional according to the rules), check if it starts with capital letter 
- 								checkElementName(currentConnector)
+					'if the connector has a name (optional according to the rules), check if it starts with capital letter 
+					checkElementName(currentConnector)
 																 
-								'-----START-- krav/12----------
-								'TODO: move this part to a separate sub
- 								'check if elements on both sides of the association are classes with stereotype dataType or of element type DataType
-								dim dataTypeOnBothSides
-								if (Ucase(currentElement.Stereotype) = Ucase("dataType") or currentElement.Type = "DataType") and (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType") or elementOnOppositeSide.Type = "DataType") then
-									dataTypeOnBothSides = true
-								else	
-									dataTypeOnBothSides = false
-								end if
+					'-----START-- krav/12----------
+					'TODO: move this part to a separate sub
+					'check if elements on both sides of the association are classes with stereotype dataType or of element type DataType
+					dim dataTypeOnBothSides
+					if (Ucase(currentElement.Stereotype) = Ucase("dataType") or currentElement.Type = "DataType") and (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType") or elementOnOppositeSide.Type = "DataType") then
+						dataTypeOnBothSides = true
+					else	
+						dataTypeOnBothSides = false
+					end if
 								
-								'check if the elementOnOppositeSide has stereotype "dataType" and this side's end is no composition and not elements both sides of the association are datatypes
- 								if (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType")) and not (currentConnector.ClientEnd.Aggregation = 2) and not dataTypeOnBothSides then 
- 									'Session.Output( "FEIL: Klasse [<<"&elementOnOppositeSide.Stereotype&">>"& elementOnOppositeSide.Name &"] har assosiasjon til klasse [" & currentElement.Name & "] som ikke er komposisjon pÃ¥ "& currentElement.Name &"-siden. [/krav/12]")									 
- 									Session.Output( "Error: Class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name &"] has association to class [" & currentElement.Name & "] that is not a composition on "& currentElement.Name &"-side. [/krav/12]")									 
- 									globalErrorCounter = globalErrorCounter + 1 
- 								end if 
- 								'check if this side's element has stereotype "dataType" and the opposite side's end is no composition 
- 								if (Ucase(currentElement.Stereotype) = Ucase("dataType")) and not (currentConnector.SupplierEnd.Aggregation = 2) and not dataTypeOnBothSides then 
- 									'Session.Output( "FEIL: Klasse [<<"&currentElement.Stereotype&">>"& currentElement.Name &"] har assosiasjon til klasse [" & elementOnOppositeSide.Name & "] som ikke er komposisjon pÃ¥ "& elementOnOppositeSide.Name &"-siden. [/krav/12]")									 
- 									Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] has association to class [" & elementOnOppositeSide.Name & "] that is not a composition on "& elementOnOppositeSide.Name &"-side. [/krav/12]")									 
- 									globalErrorCounter = globalErrorCounter + 1 
- 								end if 
-								'-----END-- krav/12----------	
+					'check if the elementOnOppositeSide has stereotype "dataType" and this side's end is no composition and not elements both sides of the association are datatypes
+					if (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType")) and not (currentConnector.ClientEnd.Aggregation = 2) and not dataTypeOnBothSides then 
+						'Session.Output( "FEIL: Klasse [<<"&elementOnOppositeSide.Stereotype&">>"& elementOnOppositeSide.Name &"] har assosiasjon til klasse [" & currentElement.Name & "] som ikke er komposisjon pÃ¥ "& currentElement.Name &"-siden. [/krav/12]")									 
+						Session.Output( "Error: Class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name &"] has association to class [" & currentElement.Name & "] that is not a composition on "& currentElement.Name &"-side. [/krav/12]")									 
+						globalErrorCounter = globalErrorCounter + 1 
+					end if 
+
+					'check if this side's element has stereotype "dataType" and the opposite side's end is no composition 
+					if (Ucase(currentElement.Stereotype) = Ucase("dataType")) and not (currentConnector.SupplierEnd.Aggregation = 2) and not dataTypeOnBothSides then 
+						'Session.Output( "FEIL: Klasse [<<"&currentElement.Stereotype&">>"& currentElement.Name &"] har assosiasjon til klasse [" & elementOnOppositeSide.Name & "] som ikke er komposisjon pÃ¥ "& elementOnOppositeSide.Name &"-siden. [/krav/12]")									 
+						Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] has association to class [" & elementOnOppositeSide.Name & "] that is not a composition on "& elementOnOppositeSide.Name &"-side. [/krav/12]")									 
+						globalErrorCounter = globalErrorCounter + 1 
+					end if 
+					'-----END-- krav/12----------	
 								
- 								'check if there is a definition on navigable ends (navigable association roles) of the connector 
- 								'Call the subfunction with currentConnector as parameter 
- 								Krav3(currentConnector) 
+					'check if there is a definition on navigable ends (navigable association roles) of the connector 
+					'Call the subfunction with currentConnector as parameter 
+					Krav3(currentConnector) 
  																								 
- 								'check if there is multiplicity on navigable ends 
- 								if sourceEndNavigable = "Navigable" and sourceEndCardinality = "" then 
- 									'Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler multiplisitet. [/krav/10]") 
-									Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ association role [" & sourceEndName & "] lacks multiplicity. [/krav/10]") 
- 									globalErrorCounter = globalErrorCounter + 1 
- 								end if 
+					'check if there is multiplicity on navigable ends 
+					if sourceEndNavigable = "Navigable" and sourceEndCardinality = "" then 
+						'Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler multiplisitet. [/krav/10]") 
+						Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ association role [" & sourceEndName & "] lacks multiplicity. [/krav/10]") 
+						globalErrorCounter = globalErrorCounter + 1 
+					end if 
  								 
- 								if targetEndNavigable = "Navigable" and targetEndCardinality = "" then 
- 									'Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler multiplisitet. [/krav/10]") 
- 									Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ association role [" & targetEndName & "] lacks multiplicity. [/krav/10]") 
- 									globalErrorCounter = globalErrorCounter + 1 
- 								end if 
+					if targetEndNavigable = "Navigable" and targetEndCardinality = "" then 
+						'Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler multiplisitet. [/krav/10]") 
+						Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ association role [" & targetEndName & "] lacks multiplicity. [/krav/10]") 
+						globalErrorCounter = globalErrorCounter + 1 
+					end if 
  
- 
- 								'check if there are role names on navigable ends 
- 								if sourceEndNavigable = "Navigable" and sourceEndName = "" then 
- 									'Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& currentElement.Name &"-siden [/krav/11]") 
- 									Session.Output( "Error : Association between class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] and class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name & "] lacks role name on navigable end on "& currentElement.Name &"-side [/krav/11]") 
- 									globalErrorCounter = globalErrorCounter + 1 
- 								end if 
+					'check if there are role names on navigable ends 
+					if sourceEndNavigable = "Navigable" and sourceEndName = "" then 
+						'Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& currentElement.Name &"-siden [/krav/11]") 
+						Session.Output( "Error : Association between class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] and class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name & "] lacks role name on navigable end on "& currentElement.Name &"-side [/krav/11]") 
+						globalErrorCounter = globalErrorCounter + 1 
+					end if 
  								 
- 								if targetEndNavigable = "Navigable" and targetEndName = "" then 
- 									'Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& elementOnOppositeSide.Name &"-siden [/krav/11]") 
-  									Session.Output( "Error : Association between class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] and class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name & "] lacks role name on navigable end on "& elementOnOppositeSide.Name &"-side [/krav/11]") 
-									globalErrorCounter = globalErrorCounter + 1 
- 								end if 
+					if targetEndNavigable = "Navigable" and targetEndName = "" then 
+						'Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& elementOnOppositeSide.Name &"-siden [/krav/11]") 
+						Session.Output( "Error : Association between class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] and class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name & "] lacks role name on navigable end on "& elementOnOppositeSide.Name &"-side [/krav/11]") 
+						globalErrorCounter = globalErrorCounter + 1 
+					end if 
  								 
- 								'if there are role names on connector ends (regardless of navigability), check if they start with lower case 
- 								if not sourceEndName = "" and not Left(sourceEndName,1) = LCase(Left(sourceEndName,1)) then 
- 									'Session.Output("FEIL: Navnet til rollen [" & sourceEndName & "] på assosiasjonsende i tilknytning til klassen ["& currentElement.Name &"] skal starte med liten bokstav. [/krav/navning]") 
- 									Session.Output("Error: Role name [" & sourceEndName & "] on association end connected to class ["& currentElement.Name &"] shall start with lowercase letter. [/krav/navning]") 
- 									globalErrorCounter = globalErrorCounter + 1 
- 								end if 
- 								if not (targetEndName = "") and not (Left(targetEndName,1) = LCase(Left(targetEndName,1))) then 
- 									'Session.Output("FEIL: Navnet til rollen [" & targetEndName & "] på assosiasjonsende i tilknytning til klassen ["& elementOnOppositeSide.Name &"] skal starte med liten bokstav. [/krav/navning]") 
- 									Session.Output("Error: Role name [" & targetEndName & "] on association end connected to class ["& elementOnOppositeSide.Name &"] shall start with lowercase letter. [/krav/navning]") 
- 									globalErrorCounter = globalErrorCounter + 1 
- 								end if 
- 							end if 
- 																				 
- 						next 
+					'if there are role names on connector ends (regardless of navigability), check if they start with lower case 
+					if not sourceEndName = "" and not Left(sourceEndName,1) = LCase(Left(sourceEndName,1)) then 
+						'Session.Output("FEIL: Navnet til rollen [" & sourceEndName & "] på assosiasjonsende i tilknytning til klassen ["& currentElement.Name &"] skal starte med liten bokstav. [/krav/navning]") 
+						Session.Output("Error: Role name [" & sourceEndName & "] on association end connected to class ["& currentElement.Name &"] shall start with lowercase letter. [/krav/navning]") 
+						globalErrorCounter = globalErrorCounter + 1 
+					end if 
+
+					if not (targetEndName = "") and not (Left(targetEndName,1) = LCase(Left(targetEndName,1))) then 
+						'Session.Output("FEIL: Navnet til rollen [" & targetEndName & "] på assosiasjonsende i tilknytning til klassen ["& elementOnOppositeSide.Name &"] skal starte med liten bokstav. [/krav/navning]") 
+						Session.Output("Error: Role name [" & targetEndName & "] on association end connected to class ["& elementOnOppositeSide.Name &"] shall start with lowercase letter. [/krav/navning]") 
+						globalErrorCounter = globalErrorCounter + 1 
+					end if 
+				end if 
+			next 
  						 
- 						'------------------------------------------------------------------ 
- 						'---OPERATIONS--- 
- 						'------------------------------------------------------------------ 
+			'------------------------------------------------------------------ 
+			'---OPERATIONS--- 
+			'------------------------------------------------------------------ 
  						 
- 						' Retrieve all operations for this element 
- 						dim operationsCollection as EA.Collection 
- 						set operationsCollection = currentElement.Methods 
+			' Retrieve all operations for this element 
+			dim operationsCollection as EA.Collection 
+			set operationsCollection = currentElement.Methods 
  			 
- 						if operationsCollection.Count > 0 then 
- 							dim operationCounter 
- 							for operationCounter = 0 to operationsCollection.Count - 1 					 
- 								dim currentOperation as EA.Method		 
- 								set currentOperation = operationsCollection.GetAt(operationCounter) 
+			if operationsCollection.Count > 0 then 
+				dim operationCounter 
+				for operationCounter = 0 to operationsCollection.Count - 1 					 
+					dim currentOperation as EA.Method		 
+					set currentOperation = operationsCollection.GetAt(operationCounter) 
  								
-								'check the structure of the value for tag values: designation, description and definition [/krav/flerspråklighet/element]
-								Call structurOfTVforElement(currentOperation, "description")
-								Call structurOfTVforElement(currentOperation, "designation")
-								Call structurOfTVforElement(currentOperation, "definition")
+					'check the structure of the value for tag values: designation, description and definition [/krav/flerspråklighet/element]
+					Call structurOfTVforElement(currentOperation, "description")
+					Call structurOfTVforElement(currentOperation, "designation")
+					Call structurOfTVforElement(currentOperation, "definition")
 								
- 								'check if the operations's name starts with lower case 
- 								'TODO: this rule does not apply for constructor operation 
- 								if not Left(currentOperation.Name,1) = LCase(Left(currentOperation.Name,1)) then 
- 									'Session.Output("FEIL: Navnet til operasjonen [" & currentOperation.Name & "] til klassen ["&currentElement.Name&"] skal starte med liten bokstav. [/krav/navning]") 
- 									Session.Output("Error: Operation name [" & currentOperation.Name & "] in class ["&currentElement.Name&"] shall not start with capital letter. [/krav/navning]") 
- 									globalErrorCounter = globalErrorCounter + 1 
- 								end if 
+					'check if the operations's name starts with lower case 
+					'TODO: this rule does not apply for constructor operation 
+					if not Left(currentOperation.Name,1) = LCase(Left(currentOperation.Name,1)) then 
+						'Session.Output("FEIL: Navnet til operasjonen [" & currentOperation.Name & "] til klassen ["&currentElement.Name&"] skal starte med liten bokstav. [/krav/navning]") 
+						Session.Output("Error: Operation name [" & currentOperation.Name & "] in class ["&currentElement.Name&"] shall not start with capital letter. [/krav/navning]") 
+						globalErrorCounter = globalErrorCounter + 1 
+					end if 
  								 
- 								'check if there is a definition for the operation (call Krav3 function) 
- 								'call the subroutine with currentOperation as parameter 
- 								Krav3(currentOperation) 
+					'check if there is a definition for the operation (call Krav3 function) 
+					'call the subroutine with currentOperation as parameter 
+					Krav3(currentOperation) 
  																 
- 							next 
- 						end if					 
- 				end if 
- 				 
- 			next 
- 					 
- end sub 
- 
+				next 
+			end if					 
+		end if 
+  	next 
+end sub 
+
 
  
- 'global variables 
- dim globalLogLevelIsWarning 'boolean variable indicating if warning log level has been choosen or not
- globalLogLevelIsWarning = true 'default setting for warning log level is true
+'global variables 
+dim globalLogLevelIsWarning 'boolean variable indicating if warning log level has been choosen or not
+globalLogLevelIsWarning = true 'default setting for warning log level is true
  
- dim startClass as EA.Element  'the class which is the starting point for searching for multiple inheritance in the findMultipleInheritance subroutine 
- dim loopCounterMultipleInheritance 'integer value counting number of loops while searching for multiple inheritance
- dim foundHoveddiagram 'bolean to check if a diagram named Hoveddiagram is found. If found, foundHoveddiagram = true  
- foundHoveddiagram = false 
- dim numberOfHoveddiagram 'number of diagrams named Hoveddiagram
- numberOfHoveddiagram = 0
- dim numberOfHoveddiagramWithAdditionalInformationInTheName 'number of diagrams with a name starting with Hoveddiagram and including additional characters  
- numberOfHoveddiagramWithAdditionalInformationInTheName = 0
- dim globalErrorCounter 'counter for number of errors 
- globalErrorCounter = 0 
- dim globalWarningCounter
- globalWarningCounter = 0
- 	'Global list of all used names
-	'http://sparxsystems.com/enterprise_architect_user_guide/12.1/automation_and_scripting/reference.html
-	dim startPackageName
-	dim ClassAndPackageNames
-	Set ClassAndPackageNames = CreateObject("System.Collections.ArrayList")
-	'Global objects for testing whether a class is showing all its content in at least one diagram.  /krav/18
-	dim startPackage as EA.Package
-	dim diaoList
+dim startClass as EA.Element  'the class which is the starting point for searching for multiple inheritance in the findMultipleInheritance subroutine 
+dim loopCounterMultipleInheritance 'integer value counting number of loops while searching for multiple inheritance
+dim foundHoveddiagram 'bolean to check if a diagram named Hoveddiagram is found. If found, foundHoveddiagram = true  
+foundHoveddiagram = false 
+dim numberOfHoveddiagram 'number of diagrams named Hoveddiagram
+numberOfHoveddiagram = 0
+dim numberOfHoveddiagramWithAdditionalInformationInTheName 'number of diagrams with a name starting with Hoveddiagram and including additional characters  
+numberOfHoveddiagramWithAdditionalInformationInTheName = 0
+dim globalErrorCounter 'counter for number of errors 
+globalErrorCounter = 0 
+dim globalWarningCounter
+globalWarningCounter = 0
+'Global list of all used names
+'http://sparxsystems.com/enterprise_architect_user_guide/12.1/automation_and_scripting/reference.html
+dim startPackageName
+dim ClassAndPackageNames
+Set ClassAndPackageNames = CreateObject("System.Collections.ArrayList")
+'Global objects for testing whether a class is showing all its content in at least one diagram.  /krav/18
+dim startPackage as EA.Package
+dim diaoList
 
- OnProjectBrowserScript 
+OnProjectBrowserScript 
