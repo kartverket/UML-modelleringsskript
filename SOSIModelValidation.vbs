@@ -506,88 +506,72 @@ sub checkTVLanguageAndDesignation(theElement, taggedValueName)
  				dim currentTaggedValue as EA.TaggedValue 
  				set currentTaggedValue = packageTaggedValues.GetAt(packageTaggedValuesCounter) 
 				
-					'check if the provided tagged value exist
- 					if (currentTaggedValue.Name = "language") and not (currentTaggedValue.Value= "") then 
-						'check if the value is no or en, if not, retrun a warning 
- 						if not mid(StrReverse(currentTaggedValue.Value),1,2) = "ne" and not mid(StrReverse(currentTaggedValue.Value),1,2) = "on" then	
-							if globalLogLevelIsWarning then
-								Session.Output("Warning: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] \ tag ["&currentTaggedvalue.Name& "] has a value which is not <no> or <en>. [/krav/flerspråklighet/pakke]")
-								globalWarningCounter = globalWarningCounter + 1 
-							end if
+				'check if the provided tagged value exist
+				if (currentTaggedValue.Name = "language") and not (currentTaggedValue.Value= "") then 
+					'check if the value is no or en, if not, retrun a warning 
+					if not mid(StrReverse(currentTaggedValue.Value),1,2) = "ne" and not mid(StrReverse(currentTaggedValue.Value),1,2) = "on" then	
+						if globalLogLevelIsWarning then
+							Session.Output("Warning: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] \ tag ["&currentTaggedvalue.Name& "] has a value which is not <no> or <en>. [/krav/flerspråklighet/pakke]")
+							globalWarningCounter = globalWarningCounter + 1 
 						end if
-							taggedValueLanguageMissing = false 
-							exit for 
- 					end if   
- 						if currentTaggedValue.Name = "language" and currentTaggedValue.Value= "" then 
-							Session.Output("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] \ tag ["& currentTaggedValue.Name &"] lacks a value. [/krav/flerspråklighet/pakke]") 
- 							globalErrorCounter = globalErrorCounter + 1 
- 							taggedValueLanguageMissing = false 
- 							exit for 
- 						end if 
- 					 
+					end if
+					taggedValueLanguageMissing = false 
+					exit for 
+				end if   
+				if currentTaggedValue.Name = "language" and currentTaggedValue.Value= "" then 
+					Session.Output("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] \ tag ["& currentTaggedValue.Name &"] lacks a value. [/krav/flerspråklighet/pakke]") 
+					globalErrorCounter = globalErrorCounter + 1 
+					taggedValueLanguageMissing = false 
+					exit for 
+				end if 
  			next 
- 				if taggedValueLanguageMissing then 
- 					Session.Output("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] lacks a [language] tag. [/krav/flerspråklighet/pakke]") 
- 					globalErrorCounter = globalErrorCounter + 1 
- 				end if 
+			if taggedValueLanguageMissing then 
+				Session.Output("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] lacks a [language] tag. [/krav/flerspråklighet/pakke]") 
+				globalErrorCounter = globalErrorCounter + 1 
+			end if 
 		end if 
-		
 	end if 
 
 
 
-		if taggedValueName = "designation" then
+	if taggedValueName = "designation" then
 		
-			if not theElement is nothing and Len(taggedValueName) > 0 then
+		if not theElement is nothing and Len(taggedValueName) > 0 then
 		
-		
-				'check if the element has a tagged value with the provided name
-				dim currentExistingTaggedValue1 AS EA.TaggedValue 
-				dim taggedValuesCounter1
-				for taggedValuesCounter1 = 0 to theElement.TaggedValues.Count - 1
-					set currentExistingTaggedValue1 = theElement.TaggedValues.GetAt(taggedValuesCounter1)
+			'check if the element has a tagged value with the provided name
+			dim currentExistingTaggedValue1 AS EA.TaggedValue 
+			dim taggedValuesCounter1
+			for taggedValuesCounter1 = 0 to theElement.TaggedValues.Count - 1
+				set currentExistingTaggedValue1 = theElement.TaggedValues.GetAt(taggedValuesCounter1)
 
-			
-			
-						'check if the tagged value exists, and checks if the value starts with " and ends with "@{language}, if not, return an error. 
-						if currentExistingTaggedValue1.Name = taggedValueName then
+				'check if the tagged value exists, and checks if the value starts with " and ends with "@{language}, if not, return an error. 
+				if currentExistingTaggedValue1.Name = taggedValueName then
 				
-							if not len(currentExistingTaggedValue1.Value) = 0 then 
+					if not len(currentExistingTaggedValue1.Value) = 0 then 
 					
-								if not (mid(currentExistingTaggedValue1.Value, 1,1 )) = """" or not (mid(StrReverse(currentExistingTaggedValue1.Value), 1,4)) = "ne@"""  and not (mid(StrReverse(currentExistingTaggedValue1.Value), 1,4)) = "on@"""then	
-									Session.Output("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] \ tag [designation] has a value [" &currentExistingTaggedValue1.Value& "] with wrong structure. Expected structure: ""{Name}""@{language}. [/krav/flerspråklighet/pakke]")
-									globalErrorCounter = globalErrorCounter + 1 
-								end if 
+						if not (mid(currentExistingTaggedValue1.Value, 1,1 )) = """" or not (mid(StrReverse(currentExistingTaggedValue1.Value), 1,4)) = "ne@"""  and not (mid(StrReverse(currentExistingTaggedValue1.Value), 1,4)) = "on@"""then	
+							Session.Output("Error: Package [«"&theElement.Stereotype&"» " &theElement.Name&"] \ tag [designation] has a value [" &currentExistingTaggedValue1.Value& "] with wrong structure. Expected structure: ""{Name}""@{language}. [/krav/flerspråklighet/pakke]")
+							globalErrorCounter = globalErrorCounter + 1 
+						end if 
 					
-								'Check if the value contains  illegal quotation marks, gives an Warning-message  
-								dim startContent, endContent, designationContent
+						'Check if the value contains  illegal quotation marks, gives an Warning-message  
+						dim startContent, endContent, designationContent
 	
-								startContent = InStr( currentExistingTaggedValue1.Value, """" ) 			
-								endContent = len(currentExistingTaggedValue1.Value)- InStr( StrReverse(currentExistingTaggedValue1.Value), """" ) -1
-								designationContent = Mid(currentExistingTaggedValue1.Value,startContent+1,endContent)			
-	
-							
-	
-								if InStr(designationContent, """") then
-									if globalLogLevelIsWarning then
-										Session.Output("Warning: Package [«" &theElement.Stereotype& "» " &theElement.Name&"] \ tag [designation] has a value ["&currentExistingTaggedValue1.Value&"] that contains illegeal use of quotation marks.")
-										globalWarningCounter = globalWarningCounter + 1 
-									end if	
-								end if
-						
-							end if
-						end if 						
-				
-				next
-				
-			end if 
-		
-		
-		end if
-		
-		
-		
-		
+						startContent = InStr( currentExistingTaggedValue1.Value, """" ) 			
+						endContent = len(currentExistingTaggedValue1.Value)- InStr( StrReverse(currentExistingTaggedValue1.Value), """" ) -1
+						designationContent = Mid(currentExistingTaggedValue1.Value,startContent+1,endContent)			
+
+						if InStr(designationContent, """") then
+							if globalLogLevelIsWarning then
+								Session.Output("Warning: Package [«" &theElement.Stereotype& "» " &theElement.Name&"] \ tag [designation] has a value ["&currentExistingTaggedValue1.Value&"] that contains illegeal use of quotation marks.")
+								globalWarningCounter = globalWarningCounter + 1 
+							end if	
+						end if
+					end if
+				end if 						
+			next
+		end if 
+	end if
 end sub 
 '--------------------------------------------------------END--------------------------------------------------------------------------------------------------
 
@@ -605,9 +589,7 @@ end sub
 ' with a value with wrong structure. 
 sub structureOfTVConnectorEnd(theConnectorEnd,  taggedValueName)
 
-
 	if not theConnectorEnd is nothing and Len(taggedValueName) > 0 then
-	
 	
 		'check if the element has a tagged value with the provided name
 		dim currentExistingTaggedValue as EA.RoleTag 
@@ -616,21 +598,16 @@ sub structureOfTVConnectorEnd(theConnectorEnd,  taggedValueName)
 		for taggedValuesCounter = 0 to theConnectorEnd.TaggedValues.Count - 1
 			set currentExistingTaggedValue = theConnectorEnd.TaggedValues.GetAt(taggedValuesCounter)
 
-				'if the tagged values exist, check the structure of the value 
-				if currentExistingTaggedValue.Tag = taggedValueName then
-					'check if the structure of the tag is: "{value}"@{languagecode}
-					if not (mid(StrReverse(currentExistingTaggedValue.Value), 1,4)) = "ne@"""  and not (mid(StrReverse(currentExistingTaggedValue.Value), 1,4)) = "on@""" or not (mid((currentExistingTaggedValue.Value),1,1)) = """" then
-						Session.Output("Error: Role [" &theConnectorEnd.Role& "] \ tag [" &currentExistingTaggedValue.Tag& "] has a value [" &currentExistingTaggedValue.Value& "] with wrong structure. Expected structure: ""{Name}""@{language}. [/krav/flerspråklighet/element]")
-						globalErrorCounter = globalErrorCounter + 1 
-					end if 
-					
+			'if the tagged values exist, check the structure of the value 
+			if currentExistingTaggedValue.Tag = taggedValueName then
+				'check if the structure of the tag is: "{value}"@{languagecode}
+				if not (mid(StrReverse(currentExistingTaggedValue.Value), 1,4)) = "ne@"""  and not (mid(StrReverse(currentExistingTaggedValue.Value), 1,4)) = "on@""" or not (mid((currentExistingTaggedValue.Value),1,1)) = """" then
+					Session.Output("Error: Role [" &theConnectorEnd.Role& "] \ tag [" &currentExistingTaggedValue.Tag& "] has a value [" &currentExistingTaggedValue.Value& "] with wrong structure. Expected structure: ""{Name}""@{language}. [/krav/flerspråklighet/element]")
+					globalErrorCounter = globalErrorCounter + 1 
 				end if 
-
-
+			end if 
 		next
-
 	end if 
-
 end sub 
 
 
@@ -640,22 +617,18 @@ end sub
 'supposed to be one of the following types: EA.Element, EA.Attribute, EA.Method, EA.Connector 
 sub structurOfTVforElement (theElement, taggedValueName)
 
-
-	
 	if not theElement is nothing and Len(taggedValueName) > 0 and not theElement.ObjectType = otConnectorEnd   then
-	
-	
+
 		'check if the element has a tagged value with the provided name
 		dim currentExistingTaggedValue AS EA.TaggedValue 
 		dim taggedValuesCounter
 
 		for taggedValuesCounter = 0 to theElement.TaggedValues.Count - 1
 			set currentExistingTaggedValue = theElement.TaggedValues.GetAt(taggedValuesCounter)
-			
-				
-				if currentExistingTaggedValue.Name = taggedValueName then
-					'check the structure of the tag: "{value}"@{languagecode}
-					if not (mid(StrReverse(currentExistingTaggedValue.Value), 1,4)) = "ne@"""  and not (mid(StrReverse(currentExistingTaggedValue.Value), 1,4)) = "on@""" or not (mid((currentExistingTaggedValue.Value),1,1)) = """" then
+
+			if currentExistingTaggedValue.Name = taggedValueName then
+				'check the structure of the tag: "{value}"@{languagecode}
+				if not (mid(StrReverse(currentExistingTaggedValue.Value), 1,4)) = "ne@"""  and not (mid(StrReverse(currentExistingTaggedValue.Value), 1,4)) = "on@""" or not (mid((currentExistingTaggedValue.Value),1,1)) = """" then
 					Dim currentElement as EA.Element
 					Dim currentAttribute as EA.Attribute
 					Dim currentOperation as EA.Method
@@ -690,20 +663,15 @@ sub structurOfTVforElement (theElement, taggedValueName)
 						
 							Session.Output("Error: Class [«"& parentElementOfOperation.Stereotype &"» "& parentElementOfOperation.Name &"\ operation [" &theElement.Name& "] \ tag [" &currentExistingTaggedValue.Name& "] has a value: " &currentExistingTaggedValue.Value& " with wrong structure. Expected structure: ""{Name}""@{language}. [/krav/flerspråklighet/element]")
 							globalErrorCounter = globalErrorCounter + 1 
-						
-						
+
 					end select 	
-					
-					end if 
 				end if 
-				
+			end if 
 		next
 	'if the element is a connector then call another sub routine 
 	elseif theElement.ObjectType = otConnectorEnd then
 		Call structureOfTVConnectorEnd(theElement, taggedValueName)
-	
 	end if 
-	
 end sub
 '--------------------------------------------------------END-------------------------------------------------------------------------------------------------
 
