@@ -1261,8 +1261,10 @@ end sub
 ' Sub Name: krav14 - inherit from same stereotype
 ' Author: Tore Johnsen
 ' Date: 2016-08-22
-' Purpose: 
-    '/krav/14
+' Purpose: Checks that there is no inheritance between classes with unequal stereotypes.
+'		/krav/14
+' @param[in]: currentElement
+
 sub krav14(currentElement)
 
 	dim connectors as EA.Collection
