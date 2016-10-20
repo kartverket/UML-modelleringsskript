@@ -98,9 +98,7 @@
  			'check if the selected package has stereotype applicationSchema 
  			if UCase(thePackage.element.stereotype) = UCase("applicationSchema") then 
 				
- 				'Msgbox "Starte modellvalidering for pakke [" & thePackage.Name &"]."  
 				dim box, mess
-				'mess = 	"(TODO: Feil logger bare feil, advarsel logger både feil og advarsler, info logger alt (hva er alt??) Advarsel er på default.)"&Chr(13)&Chr(10)
 				'mess = 	"Model validation 2016-08-19 Logging errors and warnings."&Chr(13)&Chr(10)
 				mess = "Model validation based on requirements and recommendations in SOSI standard 'Regler for UML-modellering 5.0'"&Chr(13)&Chr(10)
 				mess = mess + ""&Chr(13)&Chr(10)
@@ -207,7 +205,6 @@
 						'nothing to do						
 				end select 
 			else 
-				'Msgbox "Pakka [" & thePackage.Name &"] har ikke stereotype ApplicationSchema. Velg en pakke med stereotype ApplicationSchema for å starte modellvalidering." 
  				Msgbox "Package [" & thePackage.Name &"] does not have stereotype «ApplicationSchema». Select a package with stereotype «ApplicationSchema» to start model validation." 
  			end if 
  			 
@@ -230,7 +227,6 @@
  		 
  		case else 
  			' Error message 
- 			'Session.Prompt "[ADVARSEL] Velg en pakke med stereotype applicationSchema for å starte modellvalidering.", promptOK 
  			Session.Prompt "[Warning] You must select a package with stereotype ApplicationSchema in the Project Browser to start the validation.", promptOK 
  			 
  	end select 
@@ -832,7 +828,7 @@ sub ValidValueSOSI_modellstatus(theElement, taggedValueName)
 				if currentExistingTaggedValue.Name = taggedValueName then
 					'check if the value of the tag is one of the approved values. 
 					if currentExistingTaggedValue.Value = "utkast" or currentExistingTaggedValue.Value = "gyldig" or currentExistingTaggedValue.Value = "utkastOgSkjult" or currentExistingTaggedValue.Value = "foreslått" or currentExistingTaggedValue.Value = "erstattet" or currentExistingTaggedValue.Value = "tilbaketrukket" or currentExistingTaggedValue.Value = "ugyldig" then 
-						'Session.Output("[ " &theElement.Name & "] has a valid SOSI_modellstatus value:  " &currentExistingTaggedValue.Value   )
+
 						taggedValueSOSIModellstatusMissing = false 
 					else
 						Session.Output("Error: Package [«"&theElement.Stereotype&"» "&theElement.Name& "] \ tag [SOSI_modellstatus] has a value [" &currentExistingTaggedValue.Value& "]. The value is not approved. [/krav/SOSI-modellregister/ applikasjonsskjema/status]")
@@ -1067,12 +1063,10 @@ sub checkExternalCodelists(theElement,  taggedValueName)
 
 				'check if the tagged value exists 
 				if currentExistingTaggedValue.Name = taggedValueName then
-					'check if the value is "true" and if so, calls the subroutine to searching for codeList tags. Sikkert mulig å fortsette i denne subrutinen, me hvordan
-					'gjør man det om man skal søke etter en ny tag?
+					'check if the value is "true" and if so, calls the subroutine to searching for codeList tags.
 					if currentExistingTaggedValue.Value = "true" then 
 
 						Call CheckCodelistTV(theElement, "codeList")
-						'Session.Output("Klasse:  " &theElement.Name& "har riktig tag (" &currentExistingTaggedValue.Name& ") og verdi:  " &currentExistingTaggedValue.Value)
 					end if 
 				end if 
 			next
@@ -1733,7 +1727,7 @@ sub reqUmlProfile(theElement)
 	ExtensionTypes.Add "CV_DiscreteSolidCoverage"
 	ExtensionTypes.Add "CV_ContinousCoverage"
 	ExtensionTypes.Add "CV_ThiessenPolygonCoverage"
-	'ExtensionTypes.Add "CV_ContinousQuadrilateralGridCoverageCoverage"    feil i SOSI 5.0!? 
+	'ExtensionTypes.Add "CV_ContinousQuadrilateralGridCoverageCoverage"
 	ExtensionTypes.Add "CV_ContinousQuadrilateralGridCoverage"
 	ExtensionTypes.Add "CV_HexagonalGridCoverage"
 	ExtensionTypes.Add "CV_TINCoverage"
@@ -1910,7 +1904,6 @@ sub FindInvalidElementsInPackage(package)
  			 
  	'check package definition 
  	if package.Notes = "" then 
- 		'Session.Output("FEIL: Pakke [" & package.Name & "] mangler definisjon. [/krav/definisjoner]") 
  		Session.Output("Error: Package [" & package.Name & "] lacks a definition. [/krav/definisjoner]") 
  		globalErrorCounter = globalErrorCounter + 1 
  	end if 
@@ -2253,14 +2246,12 @@ sub FindInvalidElementsInPackage(package)
 								
 					'check if the elementOnOppositeSide has stereotype "dataType" and this side's end is no composition and not elements both sides of the association are datatypes
 					if (Ucase(elementOnOppositeSide.Stereotype) = Ucase("dataType")) and not (currentConnector.ClientEnd.Aggregation = 2) and not dataTypeOnBothSides then 
-						'Session.Output( "FEIL: Klasse [<<"&elementOnOppositeSide.Stereotype&">>"& elementOnOppositeSide.Name &"] har assosiasjon til klasse [" & currentElement.Name & "] som ikke er komposisjon pÃ¥ "& currentElement.Name &"-siden. [/krav/12]")									 
 						Session.Output( "Error: Class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name &"] has association to class [" & currentElement.Name & "] that is not a composition on "& currentElement.Name &"-side. [/krav/12]")									 
 						globalErrorCounter = globalErrorCounter + 1 
 					end if 
 
 					'check if this side's element has stereotype "dataType" and the opposite side's end is no composition 
 					if (Ucase(currentElement.Stereotype) = Ucase("dataType")) and not (currentConnector.SupplierEnd.Aggregation = 2) and not dataTypeOnBothSides then 
-						'Session.Output( "FEIL: Klasse [<<"&currentElement.Stereotype&">>"& currentElement.Name &"] har assosiasjon til klasse [" & elementOnOppositeSide.Name & "] som ikke er komposisjon pÃ¥ "& elementOnOppositeSide.Name &"-siden. [/krav/12]")									 
 						Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] has association to class [" & elementOnOppositeSide.Name & "] that is not a composition on "& elementOnOppositeSide.Name &"-side. [/krav/12]")									 
 						globalErrorCounter = globalErrorCounter + 1 
 					end if 
@@ -2272,39 +2263,33 @@ sub FindInvalidElementsInPackage(package)
  																								 
 					'check if there is multiplicity on navigable ends 
 					if sourceEndNavigable = "Navigable" and sourceEndCardinality = "" then 
-						'Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & sourceEndName & "] mangler multiplisitet. [/krav/10]") 
 						Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ association role [" & sourceEndName & "] lacks multiplicity. [/krav/10]") 
 						globalErrorCounter = globalErrorCounter + 1 
 					end if 
  								 
 					if targetEndNavigable = "Navigable" and targetEndCardinality = "" then 
-						'Session.Output( "FEIL: Klasse ["& currentElement.Name &"] \ Assosiasjonsrolle [" & targetEndName & "] mangler multiplisitet. [/krav/10]") 
 						Session.Output( "Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] \ association role [" & targetEndName & "] lacks multiplicity. [/krav/10]") 
 						globalErrorCounter = globalErrorCounter + 1 
 					end if 
  
 					'check if there are role names on navigable ends 
 					if sourceEndNavigable = "Navigable" and sourceEndName = "" then 
-						'Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& currentElement.Name &"-siden [/krav/11]") 
 						Session.Output( "Error : Association between class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] and class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name & "] lacks role name on navigable end on "& currentElement.Name &"-side [/krav/11]") 
 						globalErrorCounter = globalErrorCounter + 1 
 					end if 
  								 
 					if targetEndNavigable = "Navigable" and targetEndName = "" then 
-						'Session.Output( "FEIL: Assosiasjonen mellom klasse ["& currentElement.Name &"] og klasse ["& elementOnOppositeSide.Name & "] mangler rollenavn på navigerbar ende på "& elementOnOppositeSide.Name &"-siden [/krav/11]") 
 						Session.Output( "Error : Association between class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] and class [«"&elementOnOppositeSide.Stereotype&"» "& elementOnOppositeSide.Name & "] lacks role name on navigable end on "& elementOnOppositeSide.Name &"-side [/krav/11]") 
 						globalErrorCounter = globalErrorCounter + 1 
 					end if 
  								 
 					'if there are role names on connector ends (regardless of navigability), check if they start with lower case 
 					if not sourceEndName = "" and not Left(sourceEndName,1) = LCase(Left(sourceEndName,1)) then 
-						'Session.Output("FEIL: Navnet til rollen [" & sourceEndName & "] på assosiasjonsende i tilknytning til klassen ["& currentElement.Name &"] skal starte med liten bokstav. [/krav/navning]") 
 						Session.Output("Error: Role name [" & sourceEndName & "] on association end connected to class ["& currentElement.Name &"] shall start with lowercase letter. [/krav/navning]") 
 						globalErrorCounter = globalErrorCounter + 1 
 					end if 
 
 					if not (targetEndName = "") and not (Left(targetEndName,1) = LCase(Left(targetEndName,1))) then 
-						'Session.Output("FEIL: Navnet til rollen [" & targetEndName & "] på assosiasjonsende i tilknytning til klassen ["& elementOnOppositeSide.Name &"] skal starte med liten bokstav. [/krav/navning]") 
 						Session.Output("Error: Role name [" & targetEndName & "] on association end connected to class ["& elementOnOppositeSide.Name &"] shall start with lowercase letter. [/krav/navning]") 
 						globalErrorCounter = globalErrorCounter + 1 
 					end if 
@@ -2333,7 +2318,6 @@ sub FindInvalidElementsInPackage(package)
 					'check if the operations's name starts with lower case 
 					'TODO: this rule does not apply for constructor operation 
 					if not Left(currentOperation.Name,1) = LCase(Left(currentOperation.Name,1)) then 
-						'Session.Output("FEIL: Navnet til operasjonen [" & currentOperation.Name & "] til klassen ["&currentElement.Name&"] skal starte med liten bokstav. [/krav/navning]") 
 						Session.Output("Error: Operation name [" & currentOperation.Name & "] in class ["&currentElement.Name&"] shall not start with capital letter. [/krav/navning]") 
 						globalErrorCounter = globalErrorCounter + 1 
 					end if 
