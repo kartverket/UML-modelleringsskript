@@ -1,6 +1,6 @@
-﻿﻿option explicit 
+﻿option explicit 
  
-!INC Local Scripts.EAConstants-VBScript 
+ !INC Local Scripts.EAConstants-VBScript 
  
 ' 
 ' This script contains code from the default Project Browser template. 
@@ -9,8 +9,8 @@
 ' 
 ' Script Name: SOSI model validation 
 ' Author: Section for technology and standardization - Norwegian Mapping Authority
-' Version: 1.0.2
-' Date: 2016-09-27 
+' Version: 1.0.3
+' Date: 2016-10-27 
 ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
 ' Implemented rules: 
 '	/krav/3:  
@@ -46,7 +46,8 @@
 ' 			if tagged value: "designation", "description" or "definition" exists, the value of the tag must end with "@<language-code>". 
 ' 			Checks attributes, operations, (roles), (constraints) and objecttypes 
 '	/krav/flerspråklighet/pakke:
-'			Check if the ApplicationSchema-package got a tagged value named "language" and if the value of it is empty or not. 
+'			Check if the ApplicationSchema-package got a tagged value named "language" (error message if that is not the case) 
+'			and if the value of it is empty or not (error message if empty). 
 ' 			And if there are designation-tags, checks that they have correct structure: "{name}"@{language}
 ' 	/krav/hoveddiagram/detaljering/navnining 
 '			Check if a package with stereotype applicationSchema has more than one diagram called "Hoveddiagram", if so, checks that theres more characters
@@ -2072,7 +2073,7 @@ sub FindInvalidElementsInPackage(package)
 			call krav15stereotyper(currentElement)
 
 			'Iso 19109 Requirement /req/uml/profile - well known types. Including Iso 19103 Requirements 22 and 25
-			if (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION") then
+			if (UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION" Or currentElement.Type = "Enumeration") then
 				'codelist code type shall be empty, <none> or <undefined>
 			else
 				call reqUmlProfile(currentElement)
