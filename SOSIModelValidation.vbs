@@ -1422,6 +1422,10 @@ sub krav16unikeNCnavn(theElement)
 	dim PropertyNames
 	Set PropertyNames = CreateObject("System.Collections.ArrayList")
 
+	'List of element IDs to check for endless recursion (Åsmund)
+	dim inheritanceElementList
+	set inheritanceElementList = CreateObject("System.Collections.ArrayList")
+	
 	'Session.Output("Debug: Class name [«" &theElement.Stereotype& "» " &theElement.Name& "]. and ID:[" &theElement.ElementID& "].")
 
 	'Association role names
@@ -1501,7 +1505,20 @@ sub krav16unikeNCnavn(theElement)
 			if theElement.ElementID = conn.ClientID then
 				set super = Repository.GetElementByID(conn.SupplierID)
 				'Session.Output("Debug: Inheritance from supplier : [«" &super.Stereotype& "» " &super.Name& "]. direction: "&conn.Direction&".")				
-				call krav16unikeNCnavnArvede(super, PropertyNames)
+				
+				'Check agains endless recursion (Åsmund)
+				dim hopOutOfEndlessRecursion
+				dim inheritanceElementID
+				hopOutOfEndlessRecursion = 0
+				inheritanceElementList.Add(theElement.ElementID)
+				for each inheritanceElementID in inheritanceElementList
+					if inheritanceElementID = super.ElementID then 
+						hopOutOfEndlessRecursion = 1
+						Session.Output("Error: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] is a generalization of itself.")
+						globalErrorCounter = globalErrorCounter + 1
+					end if
+				next
+				if hopOutOfEndlessRecursion=0 then call krav16unikeNCnavnArvede(super, PropertyNames, inheritanceElementList)
 			end if
 		end if
 	next
@@ -1510,7 +1527,7 @@ end sub
 
 
 ' -----------------------------------------------------------START-------------------------------------------------------------------------------------------
-sub krav16unikeNCnavnArvede(theElement, PropertyNames)
+sub krav16unikeNCnavnArvede(theElement, PropertyNames, inheritanceElementList)
 	dim goodNames, lowerCameCase, badName, roleName
 	goodNames = true
 	lowerCameCase = true
@@ -1591,7 +1608,19 @@ sub krav16unikeNCnavnArvede(theElement, PropertyNames)
 			if theElement.ElementID = conn.ClientID then
 				set super = Repository.GetElementByID(conn.SupplierID)
 				'Session.Output("Debug: Arv Inheritance from supplier : [«" &super.Stereotype& "» " &super.Name& "]. direction: "&conn.Direction&".")				
-				call krav16unikeNCnavnArvede(super, PropertyNames)
+				'Check agains endless recursion (Åsmund)
+				dim hopOutOfEndlessRecursion
+				dim inheritanceElementID
+				hopOutOfEndlessRecursion = 0
+				inheritanceElementList.Add(theElement.ElementID)
+				for each inheritanceElementID in inheritanceElementList
+					if inheritanceElementID = super.ElementID then 
+						hopOutOfEndlessRecursion = 1
+						Session.Output("Error: Class: [«" &theElement.Stereotype& "» " &theElement.Name& "] is a generalization of itself.")
+						globalErrorCounter = globalErrorCounter + 1
+					end if
+				next
+				if hopOutOfEndlessRecursion=0 then call krav16unikeNCnavnArvede(super, PropertyNames, inheritanceElementList)
 			end if
 		end if
 	next
