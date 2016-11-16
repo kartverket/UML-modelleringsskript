@@ -3,13 +3,13 @@ option explicit
 !INC Local Scripts.EAConstants-VBScript
 
 '
-' Script Name: 	AddMissingTags
-' Author: 		Magnus Karge
-' Purpose: 		To add missing tags defined in the Norwegian standard "SOSI regler for UML-modellering"
-' 				to model elements (application schemas, feature types & attributes, data types & attributes,
-'				code lists, enumerations)
-' Date: 		11.09.2015   + Moddet av Kent 2016-03-09: Legger nå inn forslag til verdi i alle taggene!
-' scriptnavn: leggInnGMLformatTagger
+' Script Name: 	leggInnGMLformatTagger (AddMissingTags)
+' Author: 		Magnus Karge / Kent Jonsrud
+' Purpose: 		To add missing tags on model elements 
+'               (application schemas, feature types & attributes, data types & attributes,code lists, enumerations)
+'				for genetrating GML-ApplicationSchema as defined in the Norwegian standard "SOSI regler for UML-modellering"
+' Date: 		2016-08-24     Original:11.09.2015   + Moddet av Kent 2016-03-09/08-24: Legger nÃ¥ inn forslag til verdi i alle taggene!
+' scriptnavn: leggInnGMLTagger
 
 
 ' Project Browser Script main function
@@ -32,7 +32,26 @@ sub OnProjectBrowserScript()
 			dim thePackage as EA.Package
 			set thePackage = Repository.GetTreeSelectedObject()
 			'Msgbox "The selected package is: [" & thePackage.Name &"]. Starting search for elements with missing tags."
-			FindElementsWithMissingTagsInPackage(thePackage)
+			dim box, mess
+			mess = 	"Creates tags needed for creating GML format from model elements. Script version 2016-08-24." & vbCrLf
+			mess = mess + "NOTE! This script may add content of all elements in package: "& vbCrLf & "[Â«" & thePackage.element.Stereotype & "Â» " & thePackage.Name & "]."
+
+			box = Msgbox (mess, vbOKCancel)
+			select case box
+			case vbOK
+				if LCase(thePackage.element.Stereotype) = "applicationschema" then
+					FindElementsWithMissingTagsInPackage(thePackage)
+				Else
+					'Other than package selected in the tree
+					MsgBox( "This script requires a package with stereotype Â«ApplicationSchemaÂ» to be selected in the Project Browser." & vbCrLf & _
+					"Please select this and try once more." )
+				end If
+				Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
+				Repository.EnsureOutputVisible "Script"
+			case VBcancel
+						
+			end select 
+
 
 '
 '		case otDiagram
@@ -69,22 +88,22 @@ sub FindElementsWithMissingTagsInPackage(package)
 				' Kapittel13kravSOSI: language, version, targetNamespace, SOSI_kortnavn, SOSI_modellstatus, SOSI_versjon
 				' Kapittel13kravGML: language, version, targetNamespace, xmlns, xsdDocument, SOSI_modellstatus
 				' Kapittel13kravAlle: designation og definition for engelsk
-				ASpackage = "http://skjema.geonorge.no/SOSI/produktspesifikasjon/" + toNCName(package.Name,"/")
+				ASpackage = "http://skjema.geonorge.no/SOSI/produktspesifikasjon/" + toNCName(package.Name,"/-DraftName")
 				'Call TVSetElementTaggedValue("ApplicationSchema",package.element, "SOSI_kortnavn",toNCName(package.Name,"-"))
-				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "SOSI_modellstatus","underArbeid")
+				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "SOSI_modellstatus","utkastOgSkjult")
 				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "language","no")
 				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "version","0.1")
 				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "targetNamespace",ASpackage)
 				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "xmlns","app")
-				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "xsdDocument",toNCName(package.Name, "-") & ".xsd")
-				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "definition","""""@en")
-				' TODO: Klipp inn engelsk fra notefeltet der du finner --Definition --
-				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "designation","""""@en")
-				' TODO: Klipp inn det engelske navnet fra Alias-feltet der dette finnes
-				' Er denne også praktisk å ha med her nå?
+				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "xsdDocument",toNCName(package.Name, "-") & "-DraftName.xsd")
+				'Call TVSetElementTaggedValue("ApplicationSchema",package.element, "definition","""""@en")
+				' TODO: Klipp inn engelsk fra notefeltet dersom du finner --Definition --
+				'Call TVSetElementTaggedValue("ApplicationSchema",package.element, "designation","""""@en")
+				' TODO: Klipp inn det engelske navnet fra Alias-feltet dersom dette finnes
+				' Er denne ogsÃ¥ praktisk Ã¥ ha med her nÃ¥?
 				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "xsdEncodingRule","sosi")
 				'
-				'TODO: sette korrekt case på stereotypen?
+				'TODO: sette korrekt case pÃ¥ pakkestereotypen?
 				'TODO: package.element.stereotype = "ApplicationSchema"
 				'TODO: package.element.stereotype.Update()
 				'
@@ -121,7 +140,7 @@ sub FindElementsWithMissingTagsInPackage(package)
 					'one function call for each of the required tags
 					'Call TVSetElementTaggedValue(currentElement, "SOSI_navn")
 					'Call TVSetElementTaggedValue(currentElement, "isCollection")
-					' Følgende er ikke påkrevet!
+					' FÃ¸lgende er ikke pÃ¥krevet!
 					'Call TVSetElementTaggedValue("FeatureType", currentElement, "byValuePropertyType", "false")
 					'Call TVSetElementTaggedValue("FeatureType", currentElement, "noPropertyType", "true")
 				end if
@@ -133,7 +152,7 @@ sub FindElementsWithMissingTagsInPackage(package)
 					'Call TVSetElementTaggedValue(currentElement, "SOSI_navn")
 					'Call TVSetElementTaggedValue(currentElement, "SOSI_datatype")
 					'Call TVSetElementTaggedValue(currentElement, "SOSI_lengde")
-					' Følgende er ikke påkrevet!
+					' FÃ¸lgende er ikke pÃ¥krevet!
 					Call TVSetElementTaggedValue("CodeList", currentElement, "asDictionary", "false")
 					if ASpackage <> "" then
 						Call TVSetElementTaggedValue("CodeList", currentElement, "codeList", ASpackage + "/" + currentElement.Name)
@@ -167,7 +186,7 @@ sub FindElementsWithMissingTagsInPackage(package)
 						'Call TVSetElementTaggedValue(currentAttribute, "SOSI_navn")
 						'Call TVSetElementTaggedValue(currentAttribute, "SOSI_datatype")
 						'Call TVSetElementTaggedValue(currentAttribute, "SOSI_lengde")
-						' Følgende er ikke påkrevet!
+						' FÃ¸lgende er ikke pÃ¥krevet!
 						'Call TVSetElementTaggedValue(currentElement.Name, currentAttribute, "inLineOrByReference", "inline")
 						'Call TVSetElementTaggedValue(currentElement.Name, currentAttribute, "isMetadata", "false")
 
@@ -248,7 +267,7 @@ function toNCName(namestring, blankbeforenumber)
 			    'Repository.WriteOutput "Script", "Bad2: " & tegn,0
 			    u=1
 		    Else
-		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
+		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "Â´" or tegn = "Â¨" Then
 			      'Repository.WriteOutput "Script", "Bad3: " & tegn,0
 			      u=1
 		      else
