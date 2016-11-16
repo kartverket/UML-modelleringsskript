@@ -3,13 +3,13 @@ option explicit
 !INC Local Scripts.EAConstants-VBScript
 
 '
-' Script Name: 	AddMissingTags
-' Author: 		Magnus Karge
-' Purpose: 		To add missing tags defined in the Norwegian standard "SOSI regler for UML-modellering"
-' 				to model elements (application schemas, feature types & attributes, data types & attributes,
-'				code lists, enumerations)
-' Date: 		11.09.2015   + Moddet av Kent 2016-03-09: Legger nå inn forslag til verdi i alle taggene!
-' scriptnavn: leggInnSOSIformatTagger
+' Script Name: 	leggInnSOSIformatTagger (AddMissingTags)
+' Author: 		Magnus Karge / Kent Jonsrud
+' Purpose: 		To add missing tags on model elements 
+'               (application schemas, feature types & attributes, data types & attributes,code lists, enumerations)
+'				for genetrating GML-ApplicationSchema as defined in the Norwegian standard "SOSI regler for UML-modellering"
+' Date: 		2016-08-24     Original:11.09.2015   + Moddet av Kent 2016-03-09/08-24: Legger nÃ¥ inn forslag til verdi i alle taggene!
+' scriptnavn: leggInnSOSITagger
 
 
 ' Project Browser Script main function
@@ -32,7 +32,29 @@ sub OnProjectBrowserScript()
 			dim thePackage as EA.Package
 			set thePackage = Repository.GetTreeSelectedObject()
 			'Msgbox "The selected package is: [" & thePackage.Name &"]. Starting search for elements with missing tags."
-			FindElementsWithMissingTagsInPackage(thePackage)
+			dim box, mess
+			'mess = 	"Script: leggInnSOSIformatTagger" & vbCrLf
+			mess =    	  "Generates tags needed for creating SOSI format from model elements." & vbCrLf
+			mess = mess + "This script should not be run before all errors found with the script modellvalidering are properly corrected! "& vbCrLf
+			mess = mess + "NOTE! This script may add content of all elements in the package: "& vbCrLf & "[Â«" & thePackage.element.Stereotype & "Â» " & thePackage.Name & "]."
+
+			box = Msgbox (mess, vbOKCancel,"SOSI 5.0 Script: leggInnSOSIformatTagger version: 2016-08-24")
+			select case box
+			case vbOK
+				if LCase(thePackage.element.Stereotype) = "applicationschema" then
+					Repository.ClearOutput "Script"
+					FindElementsWithMissingTagsInPackage(thePackage)
+				Else
+					'Other than package selected in the tree
+					MsgBox( "This script requires a package with stereotype Â«ApplicationSchemaÂ» to be selected in the Project Browser." & vbCrLf & _
+					"Please select this and try once more." )
+				end If
+				Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
+				Repository.EnsureOutputVisible "Script"
+			case VBcancel
+						
+			end select 
+
 
 '
 '		case otDiagram
@@ -65,27 +87,27 @@ sub FindElementsWithMissingTagsInPackage(package)
 
 			Session.Output("The current package is: " & package.Name)
 			'if the current package has stereotype applicationSchema then check tagged values
-			if package.element.stereotype = "applicationSchema" or package.element.stereotype = "ApplicationSchema" then
+			if LCase(package.element.stereotype) = "applicationschema" then
 				' Kapittel13kravSOSI: language, version, targetNamespace, SOSI_kortnavn, SOSI_modellstatus, SOSI_versjon
 				' Kapittel13kravGML: language, version, targetNamespace, xmlns, xsdDocument, SOSI_modellstatus
 				' Kapittel13kravAlle: designation og definition for engelsk
-				ASpackage = "http://skjema.geonorge.no/SOSI/produktspesifikasjon/" + toNCName(package.Name,"/")
+				ASpackage = "http://skjema.geonorge.no/SOSI/produktspesifikasjon/" + toNCName(package.Name,"/-DraftName")
 				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "SOSI_kortnavn",toNCName(package.Name,"-"))
-				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "SOSI_modellstatus","underArbeid")
+				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "SOSI_modellstatus","utkastOgSkjult")
 				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "SOSI_versjon","5.0")
 				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "language","no")
 				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "version","0.1")
 				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "targetNamespace",ASpackage)
 				'Call TVSetElementTaggedValue("ApplicationSchema",package.element, "xmlns","app")
-				'Call TVSetElementTaggedValue("ApplicationSchema",package.element, "xsdDocument",toNCName(package.Name, "-") & ".xsd")
-				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "definition","""""@en")
-				' TODO: Klipp inn engelsk fra notefeltet der du finner --Definition --
-				Call TVSetElementTaggedValue("ApplicationSchema",package.element, "designation","""""@en")
-				' TODO: Klipp inn det engelske navnet fra Alias-feltet der dette finnes
-				' Er denne også praktisk å ha med her nå?
+				'Call TVSetElementTaggedValue("ApplicationSchema",package.element, "xsdDocument",toNCName(package.Name, "-") & "-DraftName.xsd")
+				'Call TVSetElementTaggedValue("ApplicationSchema",package.element, "definition","""""@en")
+				' TODO: Klipp inn engelsk fra notefeltet dersom du finner --Definition --
+				'Call TVSetElementTaggedValue("ApplicationSchema",package.element, "designation","""""@en")
+				' TODO: Klipp inn det engelske navnet fra Alias-feltet dersom dette finnes
+				' Er denne ogsÃ¥ praktisk Ã¥ ha med her nÃ¥?
 				'Call TVSetElementTaggedValue("ApplicationSchema",package.element, "xsdEncodingRule","sosi")
 				'
-				'TODO: sette korrekt case på stereotypen?
+				'TODO: sette korrekt case pÃ¥ pakkestereotypen?
 				'TODO: package.element.stereotype = "ApplicationSchema"
 				'TODO: package.element.stereotype.Update()
 				'
@@ -117,70 +139,60 @@ sub FindElementsWithMissingTagsInPackage(package)
 				Session.Output("The current element is: " & currentElement.Name & " [Stereotype: " & currentElement.Stereotype & "]")
 
 				'check if the currentElement has stereotype FeatureType.
-				if ((currentElement.Stereotype = "FeatureType") or (currentElement.Stereotype = "featureType")) then
+				if LCase(currentElement.Stereotype) = "featuretype" then
 					'call sub function TVSetElementTaggedValue
 					'one function call for each of the required tags
+					'Call TVSetElementTaggedValue(currentElement, "SOSI_navn")
 					'Call TVSetElementTaggedValue(currentElement, "isCollection")
-					' Følgende er ikke påkrevet!
-					Call TVSetElementTaggedValue("FeatureType", currentElement, "SOSI_geometri", "PUNKT;KURVE;FLATE;")
+					' FÃ¸lgende er ikke pÃ¥krevet!
 					'Call TVSetElementTaggedValue("FeatureType", currentElement, "byValuePropertyType", "false")
 					'Call TVSetElementTaggedValue("FeatureType", currentElement, "noPropertyType", "true")
 				end if
 
 				'check if the currentElement has stereotype CodeList.
-				if ((currentElement.Stereotype = "CodeList") or (currentElement.Stereotype = "codeList")) then
-					'call sub function TVSetElementTaggedValue
-					'one function call for each of the required tags
-					' Følgende er egentlig ikke påkrevet!
-					Call TVSetElementTaggedValue("CodeList", currentElement, "SOSI_navn", UCase(currentElement.Name))
-					'Call TVSetElementTaggedValue("CodeList", currentElement, "SOSI_datatype", "")
-					Call TVSetElementTaggedValue("CodeList", currentElement, "SOSI_lengde", "")
-					' Følgende er ikke påkrevet!
+				if LCase(currentElement.Stereotype) = "codelist" then
+					Call TVSetElementTaggedValue("CodeList", currentElement, "SOSI_navn", UCASE(currentElement.Name))
+					'Call TVSetElementTaggedValue(currentElement, "SOSI_datatype")
+					'Call TVSetElementTaggedValue("CodeList", currentElement, "SOSI_lengde", "")
+					' FÃ¸lgende er ikke pÃ¥krevet!
 					Call TVSetElementTaggedValue("CodeList", currentElement, "asDictionary", "false")
 					if ASpackage <> "" then
-						Call TVSetElementTaggedValue("CodeList", currentElement, "codeList", ASpackage + "/" + currentElement.Name)
+						Call TVSetElementTaggedValue("CodeList", currentElement, "codeList", ASpackage + "/" + currentElement.Name + "-DraftName")
 					end if
 				end if
 
 				'check if the currentElement has stereotype dataType.
-				if ((currentElement.Stereotype = "DataType") or (currentElement.Stereotype = "dataType")) then
-					'call sub function TVSetElementTaggedValue
-					'one function call for each of the required tags
-					' Følgende er egentlig ikke påkrevet!
-					Call TVSetElementTaggedValue("dataType", currentElement, "SOSI_navn", UCase(currentElement.Name))
-					'Call TVSetElementTaggedValue("dataType", currentElement, "SOSI_datatype", "")
-					'Call TVSetElementTaggedValue("dataType", currentElement, "SOSI_lengde", "")
+				if LCase(currentElement.Stereotype) = "datatype" then
+					Call TVSetElementTaggedValue("dataType", currentElement, "SOSI_navn", UCASE(currentElement.Name))
 				end if
 
 				'check if the currentElement has stereotype enumeration.
-				if ((currentElement.Stereotype = "Enumeration") or (currentElement.Stereotype = "enumeration")) then
-					' Følgende er egentlig ikke påkrevet!
-					Call TVSetElementTaggedValue("enumeration", currentElement, "SOSI_navn", UCase(currentElement.Name))
-					'Call TVSetElementTaggedValue(currentElement, "SOSI_navn")
-					'call sub function TVSetElementTaggedValue
-					'one function call for each of the required tags
+				if LCase(currentElement.Stereotype) = "enumeration" then
+					Call TVSetElementTaggedValue("enumeration", currentElement, "SOSI_navn", UCASE(currentElement.Name))
 				end if
 
 				'if the currentElement has stereotype dataType or FeatureType then
 				'navigate the attributes and check for missing tags
-				if ((currentElement.Stereotype = "DataType") or (currentElement.Stereotype = "dataType") or (currentElement.Stereotype = "FeatureType") or (currentElement.Stereotype = "featureType")) then
+				if LCase(currentElement.Stereotype) = "featuretype" or LCase(currentElement.Stereotype) = "datatype" then
 					dim attributesCounter
 					for attributesCounter = 0 to currentElement.Attributes.Count - 1
 						dim currentAttribute as EA.Attribute
 						set currentAttribute = currentElement.Attributes.GetAt ( attributesCounter )
 						'Session.Output( "  The current attribute is ["& currentAttribute.Name &"]")
-						'call sub function TVSetElementTaggedValue
-						'one function call for each of the required tags
-						' Følgende er egentlig ikke påkrevet!
-					  Call TVSetElementTaggedValue(currentElement.Name, currentAttribute, "SOSI_navn", UCase(currentAttribute.Name))
-					  Call TVSetElementTaggedValue(currentElement.Name, currentAttribute, "SOSI_datatype", "H")
-					  Call TVSetElementTaggedValue(currentElement.Name, currentAttribute, "SOSI_lengde", "111")
-						' Følgende er ikke påkrevet!
-						'Call TVSetElementTaggedValue(currentElement.Name, currentAttribute, "inLineOrByReference", "inline")
-						'Call TVSetElementTaggedValue(currentElement.Name, currentAttribute, "isMetadata", "false")
-
-						'Call TVSetElementTaggedValue(currentElement.Name, currentAttribute, "sequenceNumber", "1")
-						'Call TVSetElementTaggedValue(currentElement.Name, currentAttribute, "sequenceNumber", "")
+						if LCase(currentAttribute.Type) = "integer" or LCase(currentAttribute.Type) = "real" or LCase(currentAttribute.Type) = "boolean" or LCase(currentAttribute.Type) = "characterstring" or LCase(currentAttribute.Type) = "datetime" or LCase(currentAttribute.Type) = "date" then 
+							Call TVSetElementTaggedValue("attribute", currentAttribute, "SOSI_navn", UCASE(currentAttribute.Name))
+							Call TVSetElementTaggedValue("attribute", currentAttribute, "SOSI_datatype", "T")
+							Call TVSetElementTaggedValue("attribute", currentAttribute, "SOSI_lengde", "")
+						else
+							if LCase(currentAttribute.Type) = "punkt" or LCase(currentAttribute.Type) = "kurve" or LCase(currentAttribute.Type) = "flate" or LCase(currentAttribute.Type) = "sverm" then 
+							else
+								'not a predefined name, must get the SOSI attribute name from the SOSI_navn of this class name 
+								if not currentAttribute.ClassifierID then 
+									Session.Output( "ERROR: Attribute with unknown/unconnected type: ["& currentAttribute.Name &" : "& currentAttribute.Type &"]")
+								end if
+							end if
+						end if
+						' FÃ¸lgende er ikke pÃ¥krevet!
 					Next
 					' traverse all roles: tbd
 
@@ -225,14 +237,12 @@ sub TVSetElementTaggedValue( ownerElementName, theElement, taggedValueName, theV
 		next
 
 		'if the element does not contain a tagged value with the provided name, create a new one
-		'if not (taggedValueExists = True and taggedValueValue <> "") then
-		'linje 229: Hva med de elementene som kan bruke tagged values fra sin datatype?????(Hvis vi setter inn tomt element skjuler vi da denne?)
 		if not taggedValueExists = True then
 			set newTaggedValue = theElement.TaggedValues.AddNew( taggedValueName, theValue )
 			newTaggedValue.Update()
-			Session.Output( "    ADDED To " & ownerElementName & " " & theElement.Name & " tagged value [" & taggedValueName & " = " & theValue & "]")
+			Session.Output( "    Added to [" & ownerElementName & " " & theElement.Name & "] tagged value [" & taggedValueName & " = " & theValue & "]")
 		else
-			Session.Output( "    FOUND On " & ownerElementName & " " & theElement.Name & " tagged value [" & taggedValueName & " = " & taggedValueValue & "]")
+			Session.Output( "    Found on [" & ownerElementName & " " & theElement.Name & "] tagged value [" & taggedValueName & " = " & taggedValueValue & "]")
 		end if
 	end if
 end sub
@@ -258,7 +268,7 @@ function toNCName(namestring, blankbeforenumber)
 			    'Repository.WriteOutput "Script", "Bad2: " & tegn,0
 			    u=1
 		    Else
-		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
+		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "Â´" or tegn = "Â¨" Then
 			      'Repository.WriteOutput "Script", "Bad3: " & tegn,0
 			      u=1
 		      else
