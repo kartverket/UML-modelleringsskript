@@ -2,17 +2,19 @@ option explicit
 
 !INC Local Scripts.EAConstants-VBScript
 
-' Script Name:
+' Script Name: kobleOppDatatyperFraSammeApplikasjonsskjema (reconnectDatatypes)
 ' Author: Tor Kjetil Nilsen, Arkitektum AS
 ' Purpose: Validate use of incorrect or disconnected types
 ' Date: 2015-12-30
-' Rette opp av Kent 2016-03-04  (ClassifierId->ElementId, og rekursering fra topp-pakka hvis ikke funnet i samme pakke)
+' 2016-03-04 Rette opp av Kent, (ClassifierId->ElementId, og rekursering fra topp-pakka hvis ikke funnet i samme pakke)
 ' Nytt selvforklarende navn: kobleOppDatatyperFraSammeApplikasjonsskjema
+' 2016-09-10 Lagt inn meldingsboks for å forklare hva skriptet gjør og gi brukeren mulighet for å avbryte!
 
 sub OnProjectBrowserScript()
 
 
 	' Get the type of element selected in the Project Browser
+	Repository.EnsureOutputVisible "Script"
 	dim treeSelectedType
 	treeSelectedType = Repository.GetTreeSelectedItemType()
 	select case treeSelectedType
@@ -20,20 +22,30 @@ sub OnProjectBrowserScript()
 		' Code for when a package is selected
 			dim thePackage as EA.Package
 			set thePackage = Repository.GetTreeSelectedObject()
-			Repository.WriteOutput "Script", "Start fixing unlinked datatypes[" & thePackage.Name & "] " & Now,0
-			ValidatePackage(thePackage)
-			Repository.WriteOutput "Script", "End linking datatypes[" & thePackage.Name & "] " & Now,0
-		case else
-			' Error message
-			Session.Prompt "This script does not support items of this type.", promptOK
+			dim box, mess
+			'mess = 	"Changes misspelled base datatype names and reconnects broken links to datatypes defined in the same package or below. Version 2016-09-10." & vbCrLf
+			'mess = mess + "NOTE! This script will change the content of element: "& vbCrLf & "[«" & thePackage.element.Stereotype & "» " & thePackage.Name & "]."
+			mess = 	"Retter opp feilskrevne basisdatatyper og kobler opp brutte linker til datatypeklasser med samme navn som finnes i pakka eller i underpakker." & vbCrLf
+			mess = mess + "ADVARSEL! Dette skriptet vil  kunne endre alle elementer i pakka: "& vbCrLf & "[«" & thePackage.element.Stereotype & "» " & thePackage.Name & "]."
 
+			box = Msgbox (mess, vbOKCancel,"Script kobleOppDatatyperFraSammeApplikasjonsskjema 2016-09-10.")
+			select case box
+			case vbOK
+					Repository.WriteOutput "Script", "Start fixing misspelled and unlinked datatypes in package: [" & thePackage.Name & "] " & Now,0
+					reconnectDatatypes(thePackage)
+					Repository.WriteOutput "Script", "End linking datatypes[" & thePackage.Name & "] " & Now,0
+			case VBcancel
+						
+			end select 
+		case else
+			MsgBox( "This script requires a package to be selected in the Project Browser.")
 	end select
 
 end sub
 
 OnProjectBrowserScript
 
-sub ValidatePackage(p)
+sub reconnectDatatypes(p)
 	dim stringTypes
 	Set stringTypes = CreateObject("System.Collections.ArrayList")
 	stringTypes.Add "char"
@@ -201,40 +213,41 @@ end with
 					elseif Len(att.Type) = 0 then
 						Repository.WriteOutput "Script", "[ERROR] Class [" & el.Name & "]\Attribute [" & att.Name & "] has no type.",0
 					elseif stringTypes.IndexOf(LCase(att.Type),0) <> -1 then
-						Repository.WriteOutput "Script", "[FIXED] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [CharacterString].",0
+						Repository.WriteOutput "Script", "[FIXEDc] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [CharacterString].",0
 						att.Type = "CharacterString"
 						att.Update()
 					elseif intTypes.IndexOf(LCase(att.Type),0) <> -1 then
-						Repository.WriteOutput "Script", "[FIXED] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Integer].",0
+						Repository.WriteOutput "Script", "[FIXEDi] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Integer].",0
 						att.Type = "Integer"
 						att.Update()
 					elseif realTypes.IndexOf(LCase(att.Type),0) <> -1 then
-						Repository.WriteOutput "Script", "[FIXED] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Real].",0
+						Repository.WriteOutput "Script", "[FIXEDr] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Real].",0
 						att.Type = "Real"
 						att.Update()
 					elseif boolTypes.IndexOf(LCase(att.Type),0) <> -1 then
-						Repository.WriteOutput "Script", "[FIXED] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Boolean].",0
+						Repository.WriteOutput "Script", "[FIXEDb] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Boolean].",0
 						att.Type = "Boolean"
 						att.Update()
 					else
 						dim classifierid
-						classifierid = SearchTypeInPackage(att.Type, p)
+						classifierid = SearchTypeInSamePackage(att.Type, p)
 						if classifierid <> 0 then
-							Repository.WriteOutput "Script", "[FIXED] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is now reconnected to class [" & att.Type & "].",0
+							Repository.WriteOutput "Script", "[FIXED_] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is now reconnected to class [" & att.Type & "].",0
 							att.ClassifierID = classifierid
 							att.Update()
 ' Kent
 						else
-						  ' start � lete fra toppen (NB: hva med flere underpakker med samme klasse i?)
+						  ' start å lete i underpakker av denne
+						  ' start å lete fra toppen (NB: hva med flere underpakker med samme klasse i?)
 						  dim q as EA.Package
 						  set q = Repository.GetTreeSelectedObject()
 						  classifierid = SearchTypeInSubPackages(att.Type, q)
 						  if classifierid <> 0 then
-							  Repository.WriteOutput "Script", "[FIKSA] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is now reconnected to class in a different subpackage::[" & att.Type & "].",0
+							  Repository.WriteOutput "Script", "[FIKSA_] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is now reconnected to class in a different subpackage::[" & att.Type & "].",0
 							  att.ClassifierID = classifierid
 							  att.Update()
 						  else
-							  Repository.WriteOutput "Script", "[ERROR] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is not connected to class [" & att.Type & "]. Please reconnect manually to correct class.",0
+							  Repository.WriteOutput "Script", "[ERROR_] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is not connected to class [" & att.Type & "]. Please reconnect manually to correct class.",0
 						  end if
 						end if
 ' /Kent
@@ -246,16 +259,16 @@ end with
 
 	dim subP as EA.Package
 	for each subP in p.packages
-	    ValidatePackage(subP)
+	    reconnectDatatypes(subP)
 	next
 end sub
 
-function SearchTypeInPackage(classifierType , p)
-	SearchTypeInPackage = 0
+function SearchTypeInSamePackage(classifierType , p)
+	SearchTypeInSamePackage = 0
 	dim el as EA.Element
 	for each el In p.elements
 		if el.Name = classifierType then
-			SearchTypeInPackage = el.ElementId
+			SearchTypeInSamePackage = el.ElementId
 			exit function
 		end if
 	next
