@@ -1,6 +1,6 @@
 option explicit
 !INC Local Scripts.EAConstants-VBScript
-' Sub Name: listDiagrammerSomViserElementet (krav18-viseAlt)
+' Sub Name: listDiagrammerSomViserElementet (krav18-viseAlt) 
 ' Author: Kent Jonsrud
 ' Date: 2016-09-29, 2017-01-05/09/17/02-21/22/05-12/13
 
