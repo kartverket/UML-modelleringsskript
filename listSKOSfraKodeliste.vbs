@@ -2,7 +2,63 @@ option explicit
 
 !INC Local Scripts.EAConstants-VBScript
 
-' skriptnavn:         listSKOSfraKodeliste
+' script:         listSKOSfraKodeliste
+' date  :         2017-06-29
+	DIM objFSO
+	DIM outFile
+	DIM objFile
+
+	DIM codeFSO
+	DIM outCodeFile
+	DIM objCodeFile
+
+sub listKoderForEnValgtKodeliste()
+	' Show and clear the script output window
+	Repository.EnsureOutputVisible "Script"
+	Repository.ClearOutput "Script"
+	Repository.CreateOutputTab "Error"
+	Repository.ClearOutput "Error"
+
+	'Get the currently selected CodeList in the tree to work on
+
+	Dim theElement as EA.Element
+	Set theElement = Repository.GetTreeSelectedObject()
+
+	if not theElement is nothing  then 
+		if theElement.Type="Class" and ( LCASE(theElement.Stereotype) = "codelist" or LCASE(theElement.Stereotype) = "enumeration") or theElement.Type="Enumeration"then
+			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
+					dim message
+			dim box
+			box = Msgbox ("List class : [«" & theElement.Stereotype &"» "& theElement.Name & "]. to SKOS/RDF/xml format."& vbCrLf & "Creates one file with all codes in the same folder as the .eap-file,"& vbCrLf & " and a subfolder with one file for each code in the list.",1)
+			select case box
+			case vbOK
+		 		'Session.Output("Debug: ------------ Start class: [«" &theElement.Stereotype& "» " &theElement.Name& "] of type. [" &theElement.Type& "]. ")
+				'inputBoxGUI to receive user input regarding the namespace
+				dim namespace
+				'namespace = "http://skjema.geonorge.no/SOSI/produktspesifikasjon/Stedsnavn/5.0/"
+				namespace = getTaggedValue(theElement, "codeList")
+				if namespace = "" then
+					namespace = getPackageTaggedValue(getAppSchPackage(theElement),"targetNamespace")
+				end if
+
+				namespace = InputBox("Please select the namespace name for the codelist.", "namespace", namespace)
+				call listCodelistCodes(theElement,namespace)
+			case VBcancel
+
+			end select
+		else
+		  'Other than CodeList selected in the tree
+		  MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
+			"Please select a  CodeList class in the Project Browser and try once more." )
+		end if
+		'Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
+		Repository.EnsureOutputVisible "Script"
+	else
+		'No CodeList selected in the tree
+		MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
+	  "Please select a  CodeList class in the Project Browser and try again." )
+	end if
+end sub
 
 sub listCodelistCodes(el,namespace)
 	'Repository.WriteOutput "Script", Now & " CodeList: " & el.Name, 0
@@ -13,21 +69,31 @@ sub listCodelistCodes(el,namespace)
 	' pakke inn noter som inneholder <>?
 	'Repository.WriteOutput "Script", "Codelist Name: " & el.Name,0
 	
-	Repository.WriteOutput "Script", "<?xml version=""1.0"" encoding=""UTF-8""?>",0
-	Repository.WriteOutput "Script", "<rdf:RDF",0
-    Repository.WriteOutput "Script", "  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""",0
-	Repository.WriteOutput "Script", "  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""",0
-	Repository.WriteOutput "Script", "  xml:base="""&namespace&""">",0
+	Set objFSO=CreateObject("Scripting.FileSystemObject")
+	outFile = getNCNameX(el.Name)&".skos.xml"
+	Set objFile = objFSO.CreateTextFile(outFile,True,True)
+	if not objFSO.FolderExists(el.Name) then
+		objFSO.CreateFolder el.Name
+	end if
+
+	Repository.WriteOutput "Script", "Writes Codelist Name: " & el.Name & " to file " & outfile& " and subfolder " & el.Name,0
+	Repository.WriteOutput "Script", "With namespace: " & namespace,0
+
+	objFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
+	objFile.Write"<rdf:RDF" & vbCrLf
+    objFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
+	objFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
+	objFile.Write"  xml:base="""&namespace&"/"">" & vbCrLf
 
 
-    Repository.WriteOutput "Script", "  <skos:ConceptScheme rdf:about="""&el.Name&"""/>",0
+    objFile.Write"  <skos:ConceptScheme rdf:about="""&el.Name&""">" & vbCrLf
 	presentasjonsnavn = getTaggedValue(el,"SOSI_presentasjonsnavn") 
 	if presentasjonsnavn = "" then presentasjonsnavn = el.Name
-    Repository.WriteOutput "Script", "    <skos:prefLabel xml:lang=""no"">"&presentasjonsnavn&"</skos:prefLabel>",0
-    Repository.WriteOutput "Script", "    <skos:prefLabel xml:lang=""en"">"&getTaggedValue(el,"definition")&"</skos:prefLabel>",0
-    Repository.WriteOutput "Script", "    <skos:definition xml:lang=""no"">"&el.Notes&"</skos:definition>",0
-    Repository.WriteOutput "Script", "    <skos:definition xml:lang=""en"">"&getTaggedValue(el,"definition")&"</skos:definition>",0
-    Repository.WriteOutput "Script", "  </skos:ConceptScheme>",0
+    objFile.Write"    <skos:prefLabel xml:lang=""no"">"&presentasjonsnavn&"</skos:prefLabel>" & vbCrLf
+    objFile.Write"    <skos:prefLabel xml:lang=""en"">"&getTaggedValue(el,"definition")&"</skos:prefLabel>" & vbCrLf
+    objFile.Write"    <skos:definition xml:lang=""no"">"&getCleanDefinitionText(el)&"</skos:definition>" & vbCrLf
+    objFile.Write"    <skos:definition xml:lang=""en"">"&getTaggedValue(el,"definition")&"</skos:definition>" & vbCrLf
+    objFile.Write"  </skos:ConceptScheme>" & vbCrLf
 
 
 	dim attr as EA.Attribute
@@ -45,26 +111,64 @@ sub listCodelistCodes(el,namespace)
 		'settKodensNavnTilEgen_Navn(attr)
 		
 		'call settPrefiksPaKoder(attr,prefiks)
-		call listSKOSfraKode(attr,el.Name)
+		'Repository.WriteOutput "Script", "Debug:: [" & attr.Name & "] - " & getNCName(attr.Name) & " ",0
+		if attr.Name = getNCNameX(attr.Name) then
+			call listSKOSfraKode(attr,el.Name,namespace)
+		else
+			Repository.WriteOutput "Script", "Error trying to make http-URI out of this code: [" & attr.Name & "] - not a valid NCName!",0
+		end if
 	next
-	Repository.WriteOutput "Script", "</rdf:RDF>",0
+	'Repository.WriteOutput "Script", "</rdf:RDF>",0
+	objFile.Write"</rdf:RDF>" & vbCrLf
+	objFile.Close
 
+
+	' Release the file system object
+    Set objFSO= Nothing
+	Repository.WriteOutput "Script", "SKOS/RDF/xml-file: "&outFile&" written",0
+	
 end sub
 
-Sub listSKOSfraKode(attr, codelist)
+Sub listSKOSfraKode(attr, codelist, namespace)
 
 	dim presentasjonsnavn
- 	Repository.WriteOutput "Script", "  <skos:Concept rdf:about="""&codelist&"/"&attr.Name&""">",0
- 	Repository.WriteOutput "Script", "    <skos:inScheme rdf:resource="""&codelist&"""/>",0
+ 	objFile.Write"  <skos:Concept rdf:about="""&codelist&"/"&attr.Name&""">" & vbCrLf
+ 	objFile.Write"    <skos:inScheme rdf:resource="""&codelist&"""/>" & vbCrLf
 	presentasjonsnavn = getTaggedValue(attr,"SOSI_presentasjonsnavn") 
 	if presentasjonsnavn = "" then presentasjonsnavn = attr.Name
-	Repository.WriteOutput "Script", "    <skos:prefLabel xml:lang=""no"">"&presentasjonsnavn&"</skos:prefLabel>",0
+	objFile.Write"    <skos:prefLabel xml:lang=""no"">"&presentasjonsnavn&"</skos:prefLabel>" & vbCrLf
         '<skos:prefLabel xml:lang=""en""">"&getTaggedValue(el,"SOSI_presentasjonsnavn")&"</skos:prefLabel>
-    Repository.WriteOutput "Script", "    <skos:definition xml:lang=""no"">"&attr.Notes&"</skos:definition>",0
+    objFile.Write"    <skos:definition xml:lang=""no"">"&getCleanDefinitionText(attr)&"</skos:definition>" & vbCrLf
         '<skos:definition xml:lang="en">Measured in terrain</skos:definition>
-    Repository.WriteOutput "Script", "  </skos:Concept>",0
+    objFile.Write"  </skos:Concept>" & vbCrLf
 
 		'<skos:broader rdf:resource="Målemetode/terrengmåltUspesifisertMåleinstrument"/>
+		
+		
+	' write each code to a to separate filer in a subfolder
+	Set codeFSO=CreateObject("Scripting.FileSystemObject")
+	outCodeFile = codeList&"\"&getNCNameX(attr.Name)&".skos.xml"
+	Set objCodeFile = codeFSO.CreateTextFile(outCodeFile,True,True)
+
+	objCodeFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
+	objCodeFile.Write"<rdf:RDF" & vbCrLf
+    objCodeFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
+	objCodeFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
+	objCodeFile.Write"  xml:base="""&namespace&"/"&codelist&"/"&""">" & vbCrLf
+
+ 	objCodeFile.Write"  <skos:Concept rdf:about="""&attr.Name&""">" & vbCrLf
+ 	objCodeFile.Write"    <skos:inScheme rdf:resource="""&namespace&"/"&codelist&"""/>" & vbCrLf
+
+	objCodeFile.Write"    <skos:prefLabel xml:lang=""no"">"&presentasjonsnavn&"</skos:prefLabel>" & vbCrLf
+    objCodeFile.Write"    <skos:definition xml:lang=""no"">"&getCleanDefinitionText(attr)&"</skos:definition>" & vbCrLf
+	objCodeFile.Write"  </skos:Concept>" & vbCrLf
+	objCodeFile.Write"</rdf:RDF>" & vbCrLf
+
+	objCodeFile.Close
+
+    Set codeFSO= Nothing
+		
+	
 End Sub
 
 function getTaggedValue(element,taggedValueName)
@@ -78,83 +182,93 @@ function getTaggedValue(element,taggedValueName)
 		next
 end function
 
-Sub kopierKodensNavnTilTomDefinisjon(attr)
-		if attr.Notes = "" then
-			dim notestring
-		  ' Move ALL (old) names to START of definition by commenting out the if/endif around
-		  ' and use this "notestring =" instead
-			' notestring = attr.Name & " " & attr.Notes
-			notestring = attr.Name
-			Repository.WriteOutput "Script", "New notestring: " & notestring,0
-			attr.Notes = notestring
-			attr.Update()
-		end if
-
-End Sub
-
-Sub kopierKodensNavnTilTagSOSI_presentasjonsnavn(attr)
-  		'Repository.WriteOutput "Script", "SOSI_presentasjonsnavn: " & attr.Name,0
-      Call TVSetElementTaggedValue(attr, "SOSI_presentasjonsnavn", attr.Name)
-
-End Sub
-
-
-Sub flyttInitialverdiTilTagSOSI_verdi(attr)
-		If attr.Default <> "" then
-  		Repository.WriteOutput "Script", "Initial value moved: " & attr.Default,0
-
-      Call TVSetElementTaggedValue(attr, "SOSI_verdi", attr.Default)
-
-      attr.Default = ""
-      attr.Update()
-
-		End if
-End Sub
-
-sub TVSetElementTaggedValue( theElement, taggedValueName, taggedValue)
-	'Repository.WriteOutput "Script", "  Checking if tagged value [" & taggedValueName & "] exists",0
-	if not theElement is nothing and Len(taggedValueName) > 0 then
-		dim newTaggedValue as EA.TaggedValue
-		set newTaggedValue = nothing
-		dim taggedValueExists
-		taggedValueExists = False
-
-		'check if the element has a tagged value with the provided name
-		dim existingTaggedValue AS EA.TaggedValue
-		dim currentExistingTaggedValue AS EA.TaggedValue
-		dim taggedValuesCounter
-		for taggedValuesCounter = 0 to theElement.TaggedValues.Count - 1
-			set existingTaggedValue = theElement.TaggedValues.GetAt(taggedValuesCounter)
+function getPackageTaggedValue(package,taggedValueName)
+		dim i, existingTaggedValue
+		getPackageTaggedValue = ""
+		for i = 0 to package.element.TaggedValues.Count - 1
+			set existingTaggedValue = package.element.TaggedValues.GetAt(i)
 			if existingTaggedValue.Name = taggedValueName then
-				taggedValueExists = True
-				set currentExistingTaggedValue = theElement.TaggedValues.GetAt(taggedValuesCounter)
+				getPackageTaggedValue = existingTaggedValue.Value
 			end if
 		next
+end function
 
-		'if the element does not contain a tagged value with the provided name, create a new one
-		if not taggedValueExists = True then
-			set newTaggedValue = theElement.TaggedValues.AddNew( taggedValueName, taggedValue )
-			newTaggedValue.Update()
-			'Repository.WriteOutput "Script", "    ADDED tagged value ["& taggedValueName & " " & taggedValue & "]",0
-		Else
-		  If currentExistingTaggedValue.Value = "" Then
-		    currentExistingTaggedValue.Value = taggedValue
-		    currentExistingTaggedValue.Update()
-			  ' Repository.WriteOutput "Script", "    ADDED value ["& taggedValueName & " " & taggedValue& "]",0
-		  End If
-			'Repository.WriteOutput "Script", "    FOUND tagged value ["& taggedValueName & " " & currentExistingTaggedValue.Value & "]",0
-		end if
-	end if
-end Sub
-
-Sub settKodensNavnTilNCName(attr)
-		' make name legal NCName
-		' (alternatively replace each bad character with a "_", typically used for codelist with proper names.)
-		' (Sub settBlankeIKodensNavnTil_(attr))
+function getCleanDefinitionText(currentElement)
+	'removes all formatting in notes fields
     Dim txt, res, tegn, i, u
     u=0
-		txt = Trim(attr.Name)
-		res = LCase( Mid(txt,1,1) )
+	getCleanDefinitionText = ""
+		txt = Trim(currentElement.Notes)
+		res = ""
+		' loop gjennom alle tegn
+		For i = 1 To Len(txt)
+		  tegn = Mid(txt,i,1)
+		  If tegn = "<" Then
+				u = 1
+			   'res = res + " "
+		  Else 
+			If tegn = ">" Then
+				u = 0
+			   'res = res + " "
+				'If tegn = """" Then
+				'  res = res + "'"
+			Else
+				  If tegn < " " Then
+					res = res + " "
+				  Else
+					if u = 0 then
+						res = res + Mid(txt,i,1)
+					end if
+				  End If
+				'End If
+			End If
+		  End If
+		  
+		Next
+		
+	getCleanDefinitionText = res
+
+end function
+
+function getAppSchPackage(element)
+	dim package as EA.Package
+	dim package2 as EA.Package
+		
+	set package = Repository.GetPackageByID(element.PackageID)
+	if LCASE(package.element.Stereotype) = "applicationschema" or package.ParentID = 0 then
+		set getAppSchPackage = package
+	else
+		set package2 = getAppSchParentPackage(package)
+		set getAppSchPackage = package2
+	end if
+	
+		
+end function
+
+function getAppSchParentPackage(pkg)
+	dim package as EA.Package
+	dim package2 as EA.Package
+	set package = Repository.GetPackageByID(pkg.ParentID)
+	if package.ParentID <> 0 then
+		if LCASE(package.element.Stereotype) = "applicationschema" then
+			set getAppSchParentPackage = package
+		else
+			set package2 = getAppSchParentPackage(package)
+			set getAppSchParentPackage = package2
+		end if
+		
+	end if
+	
+end function
+
+
+function getNCNameX(str)
+	' make name legal NCName
+	Dim txt, res, tegn, i, u
+    u=0
+		txt = Trim(str)
+		'res = LCase( Mid(txt,1,1) )
+		res = Mid(txt,1,1)
 			'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
 
 		' loop gjennom alle tegn
@@ -185,114 +299,9 @@ Sub settKodensNavnTilNCName(attr)
 		    End If
 		  End If
 		Next
-		Repository.WriteOutput "Script", "New NCName: " & res,0
 		' return res
-		attr.Name = res
-		attr.Update()
+		getNCNameX = res
 
-End Sub
-
-Sub settKodensNavnTilEgen_Navn(attr)
-		' make name legal NCName by replacing each bad character with a "_", typically used for codelist with proper names.)
-
-    Dim txt, res, tegn, i, u
-    u=0
-		txt = Trim(attr.Name)
-		'res = LCase( Mid(txt,1,1) )
-		res = Mid(txt,1,1)
-			'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
-
-		' loop gjennom alle tegn
-		For i = 2 To Len(txt)
-		  ' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
-		  ' (tatt med flere fnuttetyper, men hva med "."?)
-		  tegn = Mid(txt,i,1)
-		  if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
-			  'Repository.WriteOutput "Script", "Bad1: " & tegn,0
-			  u=1
-		  Else
-		    if tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
-			    'Repository.WriteOutput "Script", "Bad2: " & tegn,0
-			    u=1
-		    Else
-		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
-			      'Repository.WriteOutput "Script", "Bad3: " & tegn,0
-			      u=1
-		      else
-			      'Repository.WriteOutput "Script", "Good: " & tegn,0
-			      If u = 1 Then
-			        res = res + "_"
-		          'res = res + UCase(tegn)
-		          u=0
-			      'else
-		        End If
-		        res = res + tegn
-		      End If
-		    End If
-		  End If
-		Next
-		Repository.WriteOutput "Script", "New NCName: " & res,0
-		' return res
-		attr.Name = res
-		attr.Update()
-
-End Sub
-
-
-Sub settPrefiksPaKoder(attr, prefiks)
-
-    Dim txt, res, tegn, i, u
-		Repository.WriteOutput "Script", "Old NCName: " & attr.Name,0
-			res = prefiks + attr.Name
-		Repository.WriteOutput "Script", "New NCName: " & res,0
-		' return res
-		attr.Name = res
-		attr.Update()
-
-End Sub
-
-sub listKoderForEnValgtKodeliste()
-	' Show and clear the script output window
-	Repository.EnsureOutputVisible "Script"
-	Repository.ClearOutput "Script"
-	Repository.CreateOutputTab "Error"
-	Repository.ClearOutput "Error"
-
-	'Get the currently selected CodeList in the tree to work on
-
-	Dim theElement as EA.Element
-	Set theElement = Repository.GetTreeSelectedObject()
-
-	if not theElement is nothing  then
-		if theElement.Type="Class" and theElement.Stereotype = "codeList" Or theElement.Stereotype = "CodeList" Or theElement.Stereotype = "enumeration" then
-			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
-					dim message
-			dim box
-			box = Msgbox ("Start listing SKOS for element : [" & theElement.Name & "]. ",1)
-			select case box
-			case vbOK
-		 		'Session.Output("Debug: ------------ Start class: [«" &theElement.Stereotype& "» " &theElement.Name& "] of type. [" &theElement.Type& "]. ")
-				'inputBoxGUI to receive user input regarding the namespace
-				dim namespace
-				namespace = InputBox("Please select the namespace name.", "namespace", "http://skjema.geonorge.no/SOSI/produktspesifikasjon/Stedsnavn/5.0/")
-				call listCodelistCodes(theElement,namespace)
-			case VBcancel
-
-			end select
-	
-
-		Else
-		  'Other than CodeList selected in the tree
-		  MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
-			"Please select a  CodeList class in the Project Browser and try once more." )
-		end If
-		'Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
-		Repository.EnsureOutputVisible "Script"
-	else
-		'No CodeList selected in the tree
-		MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
-	  "Please select a  CodeList class in the Project Browser and try again." )
-	end if
-end sub
+End function
 
 listKoderForEnValgtKodeliste
