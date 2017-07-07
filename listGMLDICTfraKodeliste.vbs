@@ -2,8 +2,9 @@ option explicit
 
 !INC Local Scripts.EAConstants-VBScript
 
-' skriptnavn:         listGMLDICTfraKodeliste
-' date  :         2017-06-29
+' skriptnavn:       listGMLDICTfraKodeliste
+' description:		Skriver til egen gml:Dictionary.xml fil på samme sti som .eap-fila ligger.
+' date  :			2017-06-29, 07-07
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -31,9 +32,18 @@ sub listKoderForEnValgtKodeliste()
 		 		'Session.Output("Debug: ------------ Start class: [«" &theElement.Stereotype& "» " &theElement.Name& "] of type. [" &theElement.Type& "]. ")
 				'inputBoxGUI to receive user input regarding the namespace
 				'if namespace = "" and getTaggedValue(theElement, "asDictionary") = "true" then
-				dim namespace
+				dim namespace, nsp
 				'namespace = ""
 				namespace = getTaggedValue(theElement, "codeList")
+				if namespace <> "" then
+					nsp = Mid(namespace,Len(namespace)-Len(theElement.Name)+1,Len(theElement.Name))
+		'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+					if nsp = theElement.Name then
+		'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+						namespace = Mid(namespace,1,Len(namespace)-Len(nsp)-1)
+		'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+					end if
+				end if
 				if namespace = "" then
 					namespace = getPackageTaggedValue(getAppSchPackage(theElement),"targetNamespace")
 				end if
@@ -73,7 +83,7 @@ sub listCodelistCodes(el,namespace)
     objFile.Write"  xmlns:gml=""http://www.opengis.net/gml/3.2""" & vbCrLf
     objFile.Write"  xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""" & vbCrLf
     objFile.Write"  gml:id="""&el.Name&"""" & vbCrLf
-    objFile.Write"  xsi:schemaLocation=""http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1"">" & vbCrLf
+    objFile.Write"  xsi:schemaLocation=""http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"">" & vbCrLf
 	objFile.Write"  <description>"&getCleanDefinitionText(el)&"</description>" & vbCrLf
 	objFile.Write"  <identifier codeSpace="""&namespace&""">"&el.Name&"</identifier>" & vbCrLf
 
@@ -106,13 +116,13 @@ Sub listDICTfraKode(attr, codelist, namespace)
     objFile.Write"    <Definition gml:id="""&getNCNameX(attr.Name)&""">" & vbCrLf
     objFile.Write"      <description>"&getCleanDefinitionText(attr)&"</description>" & vbCrLf
     if attr.Default <> "" then
-		objFile.Write"      <identifier codeSpace="""&namespace&""">"&attr.Default&"</identifier>" & vbCrLf
+		objFile.Write"      <identifier codeSpace="""&namespace&"/"&codelist&""">"&attr.Default&"</identifier>" & vbCrLf
 		if presentasjonsnavn <> "" then
 			objFile.Write"      <name>"&presentasjonsnavn&"</name>" & vbCrLf
 		end if
   		objFile.Write"      <name>"&attr.Name&"</name>" & vbCrLf
 	else
-		objFile.Write"      <identifier codeSpace="""&namespace&""">"&attr.Name&"</identifier>" & vbCrLf
+		objFile.Write"      <identifier codeSpace="""&namespace&"/"&codelist&""">"&attr.Name&"</identifier>" & vbCrLf
 		if presentasjonsnavn <> "" then
 			objFile.Write"      <name>"&presentasjonsnavn&"</name>" & vbCrLf
 		end if
@@ -222,7 +232,11 @@ function getNCNameX(str)
     u=0
 		txt = Trim(str)
 		'res = LCase( Mid(txt,1,1) )
-		res = Mid(txt,1,1)
+		if Mid(txt,1,1) < ":" then
+			res = "_" + Mid(txt,1,1)
+		else
+			res = Mid(txt,1,1)
+		end if
 			'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
 
 		' loop gjennom alle tegn
