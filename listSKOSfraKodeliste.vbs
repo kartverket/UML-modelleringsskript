@@ -2,12 +2,16 @@ option explicit
 
 !INC Local Scripts.EAConstants-VBScript
 
-' skriptnavn:       listGMLDICTfraKodeliste
-' description:		Skriver til egen gml:Dictionary.xml fil på samme sti som .eap-fila ligger.
-' date  :			2017-06-29, 07-07
+' script:			listSKOSfraKodeliste
+' description:		Skriver til egne SKOS-filer under samme sti som .eap-fila ligger.
+' date  :			2017-06-29,07-07
 	DIM objFSO
 	DIM outFile
 	DIM objFile
+
+	DIM codeFSO
+	DIM outCodeFile
+	DIM objCodeFile
 
 sub listKoderForEnValgtKodeliste()
 	' Show and clear the script output window
@@ -26,14 +30,13 @@ sub listKoderForEnValgtKodeliste()
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
 					dim message
 			dim box
-			box = Msgbox ("List class : [«" & theElement.Stereotype &"» "& theElement.Name & "]. to gml:Dictionary.xml format."& vbCrLf & "Creates one file with all codes in the same folder as the .eap-file.",1)
+			box = Msgbox ("List class : [«" & theElement.Stereotype &"» "& theElement.Name & "]. to SKOS/RDF/xml format."& vbCrLf & "Creates one file with all codes in the same folder as the .eap-file,"& vbCrLf & " and a subfolder with one file for each code in the list.",1)
 			select case box
 			case vbOK
 		 		'Session.Output("Debug: ------------ Start class: [«" &theElement.Stereotype& "» " &theElement.Name& "] of type. [" &theElement.Type& "]. ")
 				'inputBoxGUI to receive user input regarding the namespace
-				'if namespace = "" and getTaggedValue(theElement, "asDictionary") = "true" then
 				dim namespace, nsp
-				'namespace = ""
+				'namespace = "http://skjema.geonorge.no/SOSI/produktspesifikasjon/Stedsnavn/5.0/"
 				namespace = getTaggedValue(theElement, "codeList")
 				if namespace <> "" then
 					nsp = Mid(namespace,Len(namespace)-Len(theElement.Name)+1,Len(theElement.Name))
@@ -48,7 +51,7 @@ sub listKoderForEnValgtKodeliste()
 					namespace = getPackageTaggedValue(getAppSchPackage(theElement),"targetNamespace")
 				end if
 
-				namespace = InputBox("Please select the codespace name for the codelist.", "namespace", namespace)
+				namespace = InputBox("Please select the namespace name for the codelist.", "namespace", namespace)
 				call listCodelistCodes(theElement,namespace)
 			case VBcancel
 
@@ -68,72 +71,108 @@ sub listKoderForEnValgtKodeliste()
 end sub
 
 sub listCodelistCodes(el,namespace)
+	'Repository.WriteOutput "Script", Now & " CodeList: " & el.Name, 0
+	'Repository.WriteOutput "Script", Now & " " & el.Stereotype & " " & el.Name, 0
 	dim presentasjonsnavn
-
+	'TODO: endre linjeskift i noter til blanke?
+	' må vi legge på / på slutten der angitt namespace ikke ender på / ?
+	' pakke inn noter som inneholder <>?
+	'Repository.WriteOutput "Script", "Codelist Name: " & el.Name,0
+	
 	Set objFSO=CreateObject("Scripting.FileSystemObject")
-	outFile = el.Name&".xml"
+	outFile = getNCNameX(el.Name)&".skos.xml"
+	Repository.WriteOutput "Script", Now & " outFile: " & outFile, 0
 	Set objFile = objFSO.CreateTextFile(outFile,True,True)
+	if not objFSO.FolderExists(el.Name) then
+		objFSO.CreateFolder el.Name
+	end if
 
-	Repository.WriteOutput "Script", "Writes Codelist Name: " & el.Name & " to file " & outfile,0
-	Repository.WriteOutput "Script", "With codespace: " & namespace,0
+	Repository.WriteOutput "Script", "Writes Codelist Name: " & el.Name & " to file " & outfile& " and subfolder " & el.Name,0
+	Repository.WriteOutput "Script", "With namespace: " & namespace,0
 
 	objFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
-	objFile.Write"<?xml-stylesheet type='text/xsl' href='./CodelistDictionary-v32.xsl'?>" & vbCrLf
-	objFile.Write"<Dictionary xmlns=""http://www.opengis.net/gml/3.2""" & vbCrLf
-    objFile.Write"  xmlns:gml=""http://www.opengis.net/gml/3.2""" & vbCrLf
-    objFile.Write"  xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""" & vbCrLf
-    objFile.Write"  gml:id="""&el.Name&"""" & vbCrLf
-    objFile.Write"  xsi:schemaLocation=""http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"">" & vbCrLf
-	objFile.Write"  <description>"&getCleanDefinitionText(el)&"</description>" & vbCrLf
-	objFile.Write"  <identifier codeSpace="""&namespace&""">"&el.Name&"</identifier>" & vbCrLf
+	objFile.Write"<rdf:RDF" & vbCrLf
+    objFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
+	objFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
+	objFile.Write"  xml:base="""&namespace&"/"">" & vbCrLf
 
 
+    objFile.Write"  <skos:ConceptScheme rdf:about="""&el.Name&""">" & vbCrLf
+	presentasjonsnavn = getTaggedValue(el,"SOSI_presentasjonsnavn") 
+	if presentasjonsnavn = "" then presentasjonsnavn = el.Name
+    objFile.Write"    <skos:prefLabel xml:lang=""no"">"&presentasjonsnavn&"</skos:prefLabel>" & vbCrLf
+    'objFile.Write"    <skos:prefLabel xml:lang=""en"">"&getTaggedValue(el,"definition")&"</skos:prefLabel>" & vbCrLf
+    objFile.Write"    <skos:definition xml:lang=""no"">"&getCleanDefinitionText(el)&"</skos:definition>" & vbCrLf
+    'objFile.Write"    <skos:definition xml:lang=""en"">"&getTaggedValue(el,"definition")&"</skos:definition>" & vbCrLf
+    objFile.Write"  </skos:ConceptScheme>" & vbCrLf
 
 
 	dim attr as EA.Attribute
 	for each attr in el.Attributes
-		'Repository.WriteOutput "Script", Now & " " & el.Name & "." & attr.Name, 0
-
-		call listDICTfraKode(attr,el.Name,namespace)
+		'Repository.WriteOutput "Script", "Debug:: [" & attr.Name & "] - " & getNCName(attr.Name) & " ",0
+		if attr.Name = getNCNameX(attr.Name) then
+			call listSKOSfraKode(attr,el.Name,namespace)
+		else
+			Repository.WriteOutput "Script", "Error trying to make http-URI out of this code: [" & attr.Name & "] - not a valid NCName!",0
+		end if
 	next
-	objFile.Write"</Dictionary>" & vbCrLf
+	'Repository.WriteOutput "Script", "</rdf:RDF>",0
+	objFile.Write"</rdf:RDF>" & vbCrLf
 	objFile.Close
 
 
 	' Release the file system object
     Set objFSO= Nothing
-	Repository.WriteOutput "Script", "gml:Dictionary.xml-file: "&outFile&" written",0
-
+	Repository.WriteOutput "Script", "SKOS/RDF/xml-file: "&outFile&" written",0
+	
 end sub
 
-Sub listDICTfraKode(attr, codelist, namespace)
+Sub listSKOSfraKode(attr, codelist, namespace)
 
 	dim presentasjonsnavn
+ 	objFile.Write"  <skos:Concept rdf:about="""&codelist&"/"&attr.Name&""">" & vbCrLf
+ 	objFile.Write"    <skos:inScheme rdf:resource="""&codelist&"""/>" & vbCrLf
 	presentasjonsnavn = getTaggedValue(attr,"SOSI_presentasjonsnavn") 
-	
-	
-	objFile.Write"  <dictionaryEntry>" & vbCrLf
-    objFile.Write"    <Definition gml:id="""&getNCNameX(attr.Name)&""">" & vbCrLf
-    objFile.Write"      <description>"&getCleanDefinitionText(attr)&"</description>" & vbCrLf
-    if attr.Default <> "" then
-		objFile.Write"      <identifier codeSpace="""&namespace&"/"&codelist&""">"&attr.Default&"</identifier>" & vbCrLf
-		if presentasjonsnavn <> "" then
-			objFile.Write"      <name>"&presentasjonsnavn&"</name>" & vbCrLf
-		end if
-  		objFile.Write"      <name>"&attr.Name&"</name>" & vbCrLf
-	else
-		objFile.Write"      <identifier codeSpace="""&namespace&"/"&codelist&""">"&attr.Name&"</identifier>" & vbCrLf
-		if presentasjonsnavn <> "" then
-			objFile.Write"      <name>"&presentasjonsnavn&"</name>" & vbCrLf
-		end if
- 	end if
- 
+	if presentasjonsnavn = "" then presentasjonsnavn = attr.Name
+	objFile.Write"    <skos:prefLabel xml:lang=""no"">"&presentasjonsnavn&"</skos:prefLabel>" & vbCrLf
+        '<skos:prefLabel xml:lang=""en""">"&getTaggedValue(el,"SOSI_presentasjonsnavn")&"</skos:prefLabel>
+    objFile.Write"    <skos:definition xml:lang=""no"">"&getCleanDefinitionText(attr)&"</skos:definition>" & vbCrLf
+        '<skos:definition xml:lang="en">Measured in terrain</skos:definition>
+    objFile.Write"  </skos:Concept>" & vbCrLf
 
-	objFile.Write"    </Definition>" & vbCrLf
-    objFile.Write"  </dictionaryEntry>" & vbCrLf
+		'<skos:broader rdf:resource="Målemetode/terrengmåltUspesifisertMåleinstrument"/>
+		
+		
+	' write each code to a to separate filer in a subfolder
+	Set codeFSO=CreateObject("Scripting.FileSystemObject")
+	outCodeFile = codeList&"\"&getNCNameX(attr.Name)&".skos.xml"
+	Set objCodeFile = codeFSO.CreateTextFile(outCodeFile,True,True)
 
+	objCodeFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
+	objCodeFile.Write"<rdf:RDF" & vbCrLf
+    objCodeFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
+	objCodeFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
+	objCodeFile.Write"  xml:base="""&namespace&"/"&codelist&"/"&""">" & vbCrLf
+
+ 	objCodeFile.Write"  <skos:Concept rdf:about="""&attr.Name&""">" & vbCrLf
+ 	objCodeFile.Write"    <skos:inScheme rdf:resource="""&namespace&"/"&codelist&"""/>" & vbCrLf
+
+	objCodeFile.Write"    <skos:prefLabel xml:lang=""no"">"&presentasjonsnavn&"</skos:prefLabel>" & vbCrLf
+    objCodeFile.Write"    <skos:definition xml:lang=""no"">"&getCleanDefinitionText(attr)&"</skos:definition>" & vbCrLf
+	if codelist = "Kommunenummer" then
+		dim fy
+		fy = Mid(attr.Name,1,2)
+		objCodeFile.Write"    <skos:broader rdf:resource="""&namespace&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
+	end if
+	objCodeFile.Write"  </skos:Concept>" & vbCrLf
+	objCodeFile.Write"</rdf:RDF>" & vbCrLf
+
+	objCodeFile.Close
+
+    Set codeFSO= Nothing
+		
+	
 End Sub
-
 
 function getTaggedValue(element,taggedValueName)
 		dim i, existingTaggedValue
@@ -232,11 +271,7 @@ function getNCNameX(str)
     u=0
 		txt = Trim(str)
 		'res = LCase( Mid(txt,1,1) )
-		if Mid(txt,1,1) < ":" then
-			res = "_" + Mid(txt,1,1)
-		else
-			res = Mid(txt,1,1)
-		end if
+		res = Mid(txt,1,1)
 			'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
 
 		' loop gjennom alle tegn
@@ -271,7 +306,5 @@ function getNCNameX(str)
 		getNCNameX = res
 
 End function
-
-
 
 listKoderForEnValgtKodeliste
