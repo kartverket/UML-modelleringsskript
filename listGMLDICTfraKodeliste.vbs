@@ -3,8 +3,9 @@ option explicit
 !INC Local Scripts.EAConstants-VBScript
 
 ' skriptnavn:       listGMLDICTfraKodeliste
-' description:		Skriver til egen gml:Dictionary.xml fil på samme sti som .eap-fila ligger.
-' date  :			2017-06-29, 07-07
+' description:		Skriver en kodeliste til egen gml:Dictionary.xml fil. på samme sti som .eap-fila ligger.
+' author:			Kent
+' date  :			2017-06-29, 07-07,09-08
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -37,11 +38,11 @@ sub listKoderForEnValgtKodeliste()
 				namespace = getTaggedValue(theElement, "codeList")
 				if namespace <> "" then
 					nsp = Mid(namespace,Len(namespace)-Len(theElement.Name)+1,Len(theElement.Name))
-		'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+					'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
 					if nsp = theElement.Name then
-		'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+						'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
 						namespace = Mid(namespace,1,Len(namespace)-Len(nsp)-1)
-		'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+						'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
 					end if
 				end if
 				if namespace = "" then
@@ -56,14 +57,14 @@ sub listKoderForEnValgtKodeliste()
 		else
 		  'Other than CodeList selected in the tree
 		  MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
-			"Please select a  CodeList class in the Project Browser and try once more." )
+			"Please select a CodeList class in the Project Browser and try once more." )
 		end if
 		'Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
 		Repository.EnsureOutputVisible "Script"
 	else
 		'No CodeList selected in the tree
 		MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
-	  "Please select a  CodeList class in the Project Browser and try again." )
+	  "Please select a CodeList class in the Project Browser and try again." )
 	end if
 end sub
 
@@ -72,8 +73,8 @@ sub listCodelistCodes(el,namespace)
 
 	Set objFSO=CreateObject("Scripting.FileSystemObject")
 	outFile = el.Name&".xml"
-	Set objFile = objFSO.CreateTextFile(outFile,True,True)
-
+	Set objFile = objFSO.CreateTextFile(outFile,True,False)
+	'  får ut 16-bits unicode ved å sette True som siste flagg i kallet over.
 	Repository.WriteOutput "Script", "Writes Codelist Name: " & el.Name & " to file " & outfile,0
 	Repository.WriteOutput "Script", "With codespace: " & namespace,0
 
@@ -82,10 +83,10 @@ sub listCodelistCodes(el,namespace)
 	objFile.Write"<Dictionary xmlns=""http://www.opengis.net/gml/3.2""" & vbCrLf
     objFile.Write"  xmlns:gml=""http://www.opengis.net/gml/3.2""" & vbCrLf
     objFile.Write"  xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""" & vbCrLf
-    objFile.Write"  gml:id="""&el.Name&"""" & vbCrLf
+    objFile.Write"  gml:id="""&utf8(el.Name)&"""" & vbCrLf
     objFile.Write"  xsi:schemaLocation=""http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"">" & vbCrLf
-	objFile.Write"  <description>"&getCleanDefinitionText(el)&"</description>" & vbCrLf
-	objFile.Write"  <identifier codeSpace="""&namespace&""">"&el.Name&"</identifier>" & vbCrLf
+	objFile.Write"  <description>"&utf8(getCleanDefinitionText(el))&"</description>" & vbCrLf
+	objFile.Write"  <identifier codeSpace="""&utf8(namespace)&""">"&utf8(el.Name)&"</identifier>" & vbCrLf
 
 
 
@@ -113,18 +114,18 @@ Sub listDICTfraKode(attr, codelist, namespace)
 	
 	
 	objFile.Write"  <dictionaryEntry>" & vbCrLf
-    objFile.Write"    <Definition gml:id="""&getNCNameX(attr.Name)&""">" & vbCrLf
-    objFile.Write"      <description>"&getCleanDefinitionText(attr)&"</description>" & vbCrLf
+    objFile.Write"    <Definition gml:id="""&utf8(getNCNameX(attr.Name))&""">" & vbCrLf
+    objFile.Write"      <description>"&utf8(getCleanDefinitionText(attr))&"</description>" & vbCrLf
     if attr.Default <> "" then
-		objFile.Write"      <identifier codeSpace="""&namespace&"/"&codelist&""">"&attr.Default&"</identifier>" & vbCrLf
+		objFile.Write"      <identifier codeSpace="""&utf8(namespace)&"/"&utf8(codelist)&""">"&utf8(attr.Default)&"</identifier>" & vbCrLf
 		if presentasjonsnavn <> "" then
-			objFile.Write"      <name>"&presentasjonsnavn&"</name>" & vbCrLf
+			objFile.Write"      <name>"&utf8(presentasjonsnavn)&"</name>" & vbCrLf
 		end if
-  		objFile.Write"      <name>"&attr.Name&"</name>" & vbCrLf
+  		objFile.Write"      <name>"&utf8(attr.Name)&"</name>" & vbCrLf
 	else
-		objFile.Write"      <identifier codeSpace="""&namespace&"/"&codelist&""">"&attr.Name&"</identifier>" & vbCrLf
+		objFile.Write"      <identifier codeSpace="""&utf8(namespace)&"/"&utf8(codelist)&""">"&utf8(attr.Name)&"</identifier>" & vbCrLf
 		if presentasjonsnavn <> "" then
-			objFile.Write"      <name>"&presentasjonsnavn&"</name>" & vbCrLf
+			objFile.Write"      <name>"&utf8(presentasjonsnavn)&"</name>" & vbCrLf
 		end if
  	end if
  
@@ -272,6 +273,47 @@ function getNCNameX(str)
 
 End function
 
+
+function utf8(str)
+	' make string utf-8
+	Dim txt, res, tegn, utegn, vtegn, wtegn, i
+	
+    res = ""
+	txt = Trim(str)
+	' loop gjennom alle tegn
+	For i = 1 To Len(txt)
+		tegn = Mid(txt,i,1)
+
+		if AscW(tegn) < 128 then
+			res = res + tegn
+		else if AscW(tegn) < 2048 then
+			utegn = Chr((int(AscW(tegn) / 64) or 192) )
+			res = res + utegn
+			'               c          63=3F/0011 1111
+			vtegn = Chr((AscW(tegn) and 63) or 128)
+			res = res + vtegn
+		else if AscW(tegn) < 65536 then
+			utegn = Chr((int(AscW(tegn) / 4096) or 224) )
+			res = res + utegn
+			vtegn = Chr((int(AscW(tegn) / 64) or 128) )
+			res = res + vtegn
+			wtegn = Chr((AscW(tegn) and 63) or 128)
+			res = res + wtegn
+		else if AscW(tegn) < 2097152 then	'/* 2^21 */
+			'putchar (0xF0 | c>>18);
+			'putchar (0x80 | c>>12 & 0x3F);
+			'putchar (0x80 | c>>6 & 0x3F);
+			'putchar (0x80 | c & 0x3F);
+		end if
+		end if
+		end if
+		end if
+
+	Next
+	' return res
+	utf8 = res
+
+End function
 
 
 listKoderForEnValgtKodeliste
