@@ -3,8 +3,9 @@ option explicit
 !INC Local Scripts.EAConstants-VBScript
 
 ' script:			listSKOSfraKodeliste
-' description:		Skriver til egne SKOS-filer under samme sti som .eap-fila ligger.
-' date  :			2017-06-29,07-07
+' description:		Skriver en kodeliste til egne SKOS-filer under samme sti som .eap-fila ligger.
+' author:			Kent
+' date:				2017-06-29,07-07,09-08
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -28,7 +29,7 @@ sub listKoderForEnValgtKodeliste()
 	if not theElement is nothing  then 
 		if theElement.Type="Class" and ( LCASE(theElement.Stereotype) = "codelist" or LCASE(theElement.Stereotype) = "enumeration") or theElement.Type="Enumeration"then
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
-					dim message
+			dim message
 			dim box
 			box = Msgbox ("List class : [«" & theElement.Stereotype &"» "& theElement.Name & "]. to SKOS/RDF/xml format."& vbCrLf & "Creates one file with all codes in the same folder as the .eap-file,"& vbCrLf & " and a subfolder with one file for each code in the list.",1)
 			select case box
@@ -40,11 +41,11 @@ sub listKoderForEnValgtKodeliste()
 				namespace = getTaggedValue(theElement, "codeList")
 				if namespace <> "" then
 					nsp = Mid(namespace,Len(namespace)-Len(theElement.Name)+1,Len(theElement.Name))
-		'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+					'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
 					if nsp = theElement.Name then
-		'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+						'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
 						namespace = Mid(namespace,1,Len(namespace)-Len(nsp)-1)
-		'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+						'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
 					end if
 				end if
 				if namespace = "" then
@@ -59,14 +60,14 @@ sub listKoderForEnValgtKodeliste()
 		else
 		  'Other than CodeList selected in the tree
 		  MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
-			"Please select a  CodeList class in the Project Browser and try once more." )
+			"Please select a CodeList class in the Project Browser and try once more." )
 		end if
 		'Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
 		Repository.EnsureOutputVisible "Script"
 	else
 		'No CodeList selected in the tree
 		MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
-	  "Please select a  CodeList class in the Project Browser and try again." )
+	  "Please select a CodeList class in the Project Browser and try again." )
 	end if
 end sub
 
@@ -80,9 +81,10 @@ sub listCodelistCodes(el,namespace)
 	'Repository.WriteOutput "Script", "Codelist Name: " & el.Name,0
 	
 	Set objFSO=CreateObject("Scripting.FileSystemObject")
-	outFile = getNCNameX(el.Name)&".skos.xml"
+	outFile = getNCNameX(el.Name)&".rdf"
 	Repository.WriteOutput "Script", Now & " outFile: " & outFile, 0
-	Set objFile = objFSO.CreateTextFile(outFile,True,True)
+	Set objFile = objFSO.CreateTextFile(outFile,True,False)
+	'  får ut 16-bits unicode ved å sette True som siste flagg i kallet over.
 	if not objFSO.FolderExists(el.Name) then
 		objFSO.CreateFolder el.Name
 	end if
@@ -94,15 +96,15 @@ sub listCodelistCodes(el,namespace)
 	objFile.Write"<rdf:RDF" & vbCrLf
     objFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
 	objFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
-	objFile.Write"  xml:base="""&namespace&"/"">" & vbCrLf
+	objFile.Write"  xml:base="""&utf8(namespace)&"/"">" & vbCrLf
 
 
-    objFile.Write"  <skos:ConceptScheme rdf:about="""&el.Name&""">" & vbCrLf
+    objFile.Write"  <skos:ConceptScheme rdf:about="""&utf8(el.Name)&""">" & vbCrLf
 	presentasjonsnavn = getTaggedValue(el,"SOSI_presentasjonsnavn") 
 	if presentasjonsnavn = "" then presentasjonsnavn = el.Name
-    objFile.Write"    <skos:prefLabel xml:lang=""no"">"&presentasjonsnavn&"</skos:prefLabel>" & vbCrLf
+    objFile.Write"    <skos:prefLabel xml:lang=""no"">"&utf8(presentasjonsnavn)&"</skos:prefLabel>" & vbCrLf
     'objFile.Write"    <skos:prefLabel xml:lang=""en"">"&getTaggedValue(el,"definition")&"</skos:prefLabel>" & vbCrLf
-    objFile.Write"    <skos:definition xml:lang=""no"">"&getCleanDefinitionText(el)&"</skos:definition>" & vbCrLf
+    objFile.Write"    <skos:definition xml:lang=""no"">"&utf8(getCleanDefinitionText(el))&"</skos:definition>" & vbCrLf
     'objFile.Write"    <skos:definition xml:lang=""en"">"&getTaggedValue(el,"definition")&"</skos:definition>" & vbCrLf
     objFile.Write"  </skos:ConceptScheme>" & vbCrLf
 
@@ -130,13 +132,13 @@ end sub
 Sub listSKOSfraKode(attr, codelist, namespace)
 
 	dim presentasjonsnavn
- 	objFile.Write"  <skos:Concept rdf:about="""&codelist&"/"&attr.Name&""">" & vbCrLf
- 	objFile.Write"    <skos:inScheme rdf:resource="""&codelist&"""/>" & vbCrLf
+ 	objFile.Write"  <skos:Concept rdf:about="""&utf8(codelist)&"/"&utf8(attr.Name)&""">" & vbCrLf
+ 	objFile.Write"    <skos:inScheme rdf:resource="""&utf8(codelist)&"""/>" & vbCrLf
 	presentasjonsnavn = getTaggedValue(attr,"SOSI_presentasjonsnavn") 
 	if presentasjonsnavn = "" then presentasjonsnavn = attr.Name
-	objFile.Write"    <skos:prefLabel xml:lang=""no"">"&presentasjonsnavn&"</skos:prefLabel>" & vbCrLf
+	objFile.Write"    <skos:prefLabel xml:lang=""no"">"&utf8(presentasjonsnavn)&"</skos:prefLabel>" & vbCrLf
         '<skos:prefLabel xml:lang=""en""">"&getTaggedValue(el,"SOSI_presentasjonsnavn")&"</skos:prefLabel>
-    objFile.Write"    <skos:definition xml:lang=""no"">"&getCleanDefinitionText(attr)&"</skos:definition>" & vbCrLf
+    objFile.Write"    <skos:definition xml:lang=""no"">"&utf8(getCleanDefinitionText(attr))&"</skos:definition>" & vbCrLf
         '<skos:definition xml:lang="en">Measured in terrain</skos:definition>
     objFile.Write"  </skos:Concept>" & vbCrLf
 
@@ -145,24 +147,24 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 		
 	' write each code to a to separate filer in a subfolder
 	Set codeFSO=CreateObject("Scripting.FileSystemObject")
-	outCodeFile = codeList&"\"&getNCNameX(attr.Name)&".skos.xml"
-	Set objCodeFile = codeFSO.CreateTextFile(outCodeFile,True,True)
-
+	outCodeFile = codeList&"\"&getNCNameX(attr.Name)&".rdf"
+	Set objCodeFile = codeFSO.CreateTextFile(outCodeFile,True,False)
+	'  får ut 16-bits unicode ved å sette True som siste flagg i kallet over.
 	objCodeFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
 	objCodeFile.Write"<rdf:RDF" & vbCrLf
     objCodeFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
 	objCodeFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
-	objCodeFile.Write"  xml:base="""&namespace&"/"&codelist&"/"&""">" & vbCrLf
+	objCodeFile.Write"  xml:base="""&utf8(namespace)&"/"&utf8(codelist)&"/"&""">" & vbCrLf
 
- 	objCodeFile.Write"  <skos:Concept rdf:about="""&attr.Name&""">" & vbCrLf
- 	objCodeFile.Write"    <skos:inScheme rdf:resource="""&namespace&"/"&codelist&"""/>" & vbCrLf
+ 	objCodeFile.Write"  <skos:Concept rdf:about="""&utf8(attr.Name)&""">" & vbCrLf
+ 	objCodeFile.Write"    <skos:inScheme rdf:resource="""&utf8(namespace)&"/"&utf8(codelist)&"""/>" & vbCrLf
 
-	objCodeFile.Write"    <skos:prefLabel xml:lang=""no"">"&presentasjonsnavn&"</skos:prefLabel>" & vbCrLf
-    objCodeFile.Write"    <skos:definition xml:lang=""no"">"&getCleanDefinitionText(attr)&"</skos:definition>" & vbCrLf
+	objCodeFile.Write"    <skos:prefLabel xml:lang=""no"">"&utf8(presentasjonsnavn)&"</skos:prefLabel>" & vbCrLf
+    objCodeFile.Write"    <skos:definition xml:lang=""no"">"&utf8(getCleanDefinitionText(attr))&"</skos:definition>" & vbCrLf
 	if codelist = "Kommunenummer" then
 		dim fy
 		fy = Mid(attr.Name,1,2)
-		objCodeFile.Write"    <skos:broader rdf:resource="""&namespace&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
+		objCodeFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
 	end if
 	objCodeFile.Write"  </skos:Concept>" & vbCrLf
 	objCodeFile.Write"</rdf:RDF>" & vbCrLf
@@ -306,5 +308,103 @@ function getNCNameX(str)
 		getNCNameX = res
 
 End function
+
+
+function utf8(str)
+	' make string utf-8
+	Dim txt, res, tegn, utegn, vtegn, wtegn, i
+	
+    res = ""
+	txt = Trim(str)
+	' loop gjennom alle tegn
+	For i = 1 To Len(txt)
+		tegn = Mid(txt,i,1)
+
+		'if      (c <    0x80) {  *out++=  c;                bits= -6; }
+        'else if (c <   0x800) {  *out++= ((c >>  6) & 0x1F) | 0xC0;  bits=  0; }
+        'else if (c < 0x10000) {  *out++= ((c >> 12) & 0x0F) | 0xE0;  bits=  6; }
+        'else                  {  *out++= ((c >> 18) & 0x07) | 0xF0;  bits= 12; }
+
+		if AscW(tegn) < 128 then
+			res = res + tegn
+		else if AscW(tegn) < 2048 then
+			'u = AscW(tegn)
+			'Repository.WriteOutput "Script", "tegn: " & AscW(tegn) & " " & Chr(AscW(tegn) / 64) & " " & int(u / 64),0
+			'            c   229=E5/1110 0101
+			'            c   192=C0/1100 0000  64=40/0100 0000
+			utegn = Chr((int(AscW(tegn) / 64) or 192) )
+			res = res + utegn
+			'               c          63=3F/0011 1111
+			vtegn = Chr((AscW(tegn) and 63) or 128)
+			res = res + vtegn
+			'            C3A5=å   195/1100 0011   165/1010 0101
+			'Repository.WriteOutput "Script", "utf8: " & tegn & " -> " & utegn & " + " & vtegn,0
+			'Repository.WriteOutput "Script", "int : " & AscW(tegn) & " -> " & Asc(utegn) & " + " & Asc(vtegn),0
+		else if AscW(tegn) < 65536 then
+			utegn = Chr((int(AscW(tegn) / 4096) or 224) )
+			res = res + utegn
+			vtegn = Chr((int(AscW(tegn) / 64) or 128) )
+			res = res + vtegn
+			wtegn = Chr((AscW(tegn) and 63) or 128)
+			res = res + wtegn
+			'putchar (0xE0 | c>>12);
+			'putchar (0x80 | c>>6 & 0x3F);
+			'putchar (0x80 | c & 0x3F);
+		else if AscW(tegn) < 2097152 then	'/* 2^21 */
+			'putchar (0xF0 | c>>18);
+			'putchar (0x80 | c>>12 & 0x3F);
+			'putchar (0x80 | c>>6 & 0x3F);
+			'putchar (0x80 | c & 0x3F);
+		end if
+		end if
+		end if
+		end if
+
+	Next
+	' return res
+	utf8 = res
+
+End function
+
+'Private Declare Function WideCharToMultiByte Lib "kernel32" ( _
+'    ByVal CodePage As Long, _
+'    ByVal dwFlags As Long, _
+'    ByVal lpWideCharStr As Long, _
+'    ByVal cchWideChar As Long, _
+'    ByVal lpMultiByteStr As Long, _
+'    ByVal cbMultiByte As Long, _
+'    ByVal lpDefaultChar As Long, _
+'    ByVal lpUsedDefaultChar As Long) As Long
+'    
+'' CodePage constant for UTF-8
+'Private Const CP_UTF8 = 65001''''''
+'
+'''' Return byte array with VBA "Unicode" string encoded in UTF-8
+'Public Function Utf8BytesFromString(strInput As String) As Byte()
+'    Dim nBytes As Long
+'    Dim abBuffer() As Byte
+'    ' Get length in bytes *including* terminating null
+'    nBytes = WideCharToMultiByte(CP_UTF8, 0&, ByVal StrPtr(strInput), -1, vbNull, 0&, 0&, 0&)
+'    ' We don't want the terminating null in our byte array, so ask for `nBytes-1` bytes
+'    ReDim abBuffer(nBytes - 2)  ' NB ReDim with one less byte than you need
+'    nBytes = WideCharToMultiByte(CP_UTF8, 0&, ByVal StrPtr(strInput), -1, ByVal VarPtr(abBuffer(0)), nBytes - 1, 0&, 0&)
+'    Utf8BytesFromString = abBuffer
+'End Function
+
+'CStringA ConvertUnicodeToUTF8(const CStringW& uni)
+'{
+'    if (uni.IsEmpty()) return ""; // nothing to do
+'    CStringA utf8;
+'    int cc=0;
+'    // get length (cc) of the new multibyte string excluding the \0 terminator first
+'    if ((cc = WideCharToMultiByte(CP_UTF8, 0, uni, -1, NULL, 0, 0, 0) - 1) > 0)
+'    { 
+'        // convert
+'        char *buf = utf8.GetBuffer(cc);
+'        if (buf) WideCharToMultiByte(CP_UTF8, 0, uni, -1, buf, cc, 0, 0);
+'        utf8.ReleaseBuffer();
+'    }
+'    return utf8;
+'}
 
 listKoderForEnValgtKodeliste
