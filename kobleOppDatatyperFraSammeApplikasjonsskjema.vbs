@@ -2,13 +2,18 @@ option explicit
 
 !INC Local Scripts.EAConstants-VBScript
 
-' Script Name: kobleOppDatatyperFraSammeApplikasjonsskjema (reconnectDatatypes)
+' Script Name:
 ' Author: Tor Kjetil Nilsen, Arkitektum AS
 ' Purpose: Validate use of incorrect or disconnected types
 ' Date: 2015-12-30
-' 2016-03-04 Rette opp av Kent, (ClassifierId->ElementId, og rekursering fra topp-pakka hvis ikke funnet i samme pakke)
+'
+' Rette opp av Kent 2016-03-04  (ClassifierId->ElementId, og rekursering fra topp-pakka hvis ikke funnet i samme pakke)
 ' Nytt selvforklarende navn: kobleOppDatatyperFraSammeApplikasjonsskjema
 ' 2016-09-10 Lagt inn meldingsboks for å forklare hva skriptet gjør og gi brukeren mulighet for å avbryte!
+' 2017-09-14 Feilretting og informasjonsmeldinger om oppkobling til klasser utenfor pakka.
+'            Kan også koble fri alle geometri- og basistyper som er oppkoblet? TBD
+'            Kan slette all typeinfo fra kodelistekoder TBD.
+' Purpose: Rett opp navn på basisdatatyper og koble opp datatyper til egenskaper.
 
 sub OnProjectBrowserScript()
 
@@ -26,11 +31,19 @@ sub OnProjectBrowserScript()
 			'mess = 	"Changes misspelled base datatype names and reconnects broken links to datatypes defined in the same package or below. Version 2016-09-10." & vbCrLf
 			'mess = mess + "NOTE! This script will change the content of element: "& vbCrLf & "[«" & thePackage.element.Stereotype & "» " & thePackage.Name & "]."
 			mess = 	"Retter opp feilskrevne basisdatatyper og kobler opp brutte linker til datatypeklasser med samme navn som finnes i pakka eller i underpakker." & vbCrLf
-			mess = mess + "ADVARSEL! Dette skriptet vil  kunne endre alle elementer i pakka: "& vbCrLf & "[«" & thePackage.element.Stereotype & "» " & thePackage.Name & "]."
+			mess = mess + "ADVARSEL! Dette skriptet vil kunne endre mange egenskaper i alle klasser i pakka: "& vbCrLf & "[«" & thePackage.element.Stereotype & "» " & thePackage.Name & "]."
+			mess = mess + " "& vbCrLf
+			mess = mess + "Trykk OK kun dersom du er helt sikker på at du vil kjøre dette skriptet!"& vbCrLf
 
-			box = Msgbox (mess, vbOKCancel,"Script kobleOppDatatyperFraSammeApplikasjonsskjema 2016-09-10.")
+			box = Msgbox (mess, vbOKCancel,"Script kobleOppDatatyperFraSammeApplikasjonsskjema 2017-09-14.")
 			select case box
 			case vbOK
+					' Show and clear the script output window
+					Repository.EnsureOutputVisible "Script"
+					Repository.ClearOutput "Script"
+					Repository.CreateOutputTab "Error"
+					Repository.ClearOutput "Error"
+
 					Repository.WriteOutput "Script", "Start fixing misspelled and unlinked datatypes in package: [" & thePackage.Name & "] " & Now,0
 					reconnectDatatypes(thePackage)
 					Repository.WriteOutput "Script", "End linking datatypes[" & thePackage.Name & "] " & Now,0
@@ -200,7 +213,11 @@ end with
 
 	dim el as EA.Element
 	for each el In p.elements
-		if el.Stereotype <> "codeList" and el.Stereotype <> "CodeList" and el.Stereotype <> "enumeration" then
+		if LCase(el.Stereotype) = "codelist" or LCase(el.Stereotype) = "enumeration" or el.Type = "Enumeration" then
+			' if tbddddddd
+				' disse skal ikke ha typenavn eller oppkobling, begge typer slettes: TBD
+			' end if
+		else
 			dim att as EA.Attribute
 			for each att in el.Attributes
 				if att.ClassifierID = 0 then
@@ -208,50 +225,64 @@ end with
 						if att.Type <> BasicTypes.Item(LCase(att.Type)) then
 							Repository.WriteOutput "Script", "[FIXED] Class [" & el.Name & "]\Attribute [" & att.Name & "] has known type [" & att.Type & "] but wrong case. Changed to correct case [" & BasicTypes.Item(LCase(att.Type)) & "].",0
 							att.Type = BasicTypes.Item(LCase(att.Type))
+							'att.ClassifierID = 0
 							att.Update()
 						end if
 					elseif Len(att.Type) = 0 then
 						Repository.WriteOutput "Script", "[ERROR] Class [" & el.Name & "]\Attribute [" & att.Name & "] has no type.",0
 					elseif stringTypes.IndexOf(LCase(att.Type),0) <> -1 then
-						Repository.WriteOutput "Script", "[FIXEDc] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [CharacterString].",0
+						Repository.WriteOutput "Script", "[FIXED] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [CharacterString].",0
 						att.Type = "CharacterString"
+						'att.ClassifierID = 0
 						att.Update()
 					elseif intTypes.IndexOf(LCase(att.Type),0) <> -1 then
-						Repository.WriteOutput "Script", "[FIXEDi] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Integer].",0
+						Repository.WriteOutput "Script", "[FIXED] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Integer].",0
 						att.Type = "Integer"
+						'att.ClassifierID = 0
 						att.Update()
 					elseif realTypes.IndexOf(LCase(att.Type),0) <> -1 then
-						Repository.WriteOutput "Script", "[FIXEDr] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Real].",0
+						Repository.WriteOutput "Script", "[FIXED] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Real].",0
 						att.Type = "Real"
+						'att.ClassifierID = 0
 						att.Update()
 					elseif boolTypes.IndexOf(LCase(att.Type),0) <> -1 then
-						Repository.WriteOutput "Script", "[FIXEDb] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Boolean].",0
+						Repository.WriteOutput "Script", "[FIXED] Class [" & el.Name & "]\Attribute [" & att.Name & "] with unknown type [" & att.Type & "]. Changed to type [Boolean].",0
 						att.Type = "Boolean"
+						'att.ClassifierID = 0
 						att.Update()
 					else
 						dim classifierid
-						classifierid = SearchTypeInSamePackage(att.Type, p)
+						classifierid = SearchTypeInPackage(att.Type, p)
+							'Repository.WriteOutput "Script", "[Debug1] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is not connected to any class. classifierid =" & classifierid, 0				
 						if classifierid <> 0 then
-							Repository.WriteOutput "Script", "[FIXED_] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is now reconnected to class [" & att.Type & "].",0
+							'Repository.WriteOutput "Script", "[Debug3] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is connected to class [" & Repository.GetElementByID(classifierid).Name & "] in package::[" & Repository.GetPackageByID(Repository.GetElementByID(classifierid).PackageID).Name & "].",0				
+							Repository.WriteOutput "Script", "[FIXED] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is now reconnected to class [" & att.Type & "].",0
 							att.ClassifierID = classifierid
 							att.Update()
-' Kent
 						else
-						  ' start å lete i underpakker av denne
-						  ' start å lete fra toppen (NB: hva med flere underpakker med samme klasse i?)
+						  ' start å lete i underpakker av den valgte pakka
+						  ' start å lete fra toppen (NB: hva med flere underpakker med samme klassenavn i?)
 						  dim q as EA.Package
 						  set q = Repository.GetTreeSelectedObject()
+						  'Repository.WriteOutput "Script", "[Debug4] Class [" & el.Name & "] with ElementID [" & el.ElementID & "] \Attribute [" & att.Name & "] with type [" & att.Type & " ] and AttributeID [" & att.AttributeID & "] is not connected to any class.",0				
 						  classifierid = SearchTypeInSubPackages(att.Type, q)
 						  if classifierid <> 0 then
-							  Repository.WriteOutput "Script", "[FIKSA_] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is now reconnected to class in a different subpackage::[" & att.Type & "].",0
+							'Repository.WriteOutput "Script", "[Debug5] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is connected to class [" & Repository.GetElementByID(classifierid).Name & "] in package::[" & Repository.GetPackageByID(Repository.GetElementByID(classifierid).PackageID).Name & "].",0				
+							  Repository.WriteOutput "Script", "[FIKSA] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is now reconnected to class in a different subpackage::[" & Repository.GetPackageByID(Repository.GetElementByID(classifierid).PackageID).Name & "].",0
 							  att.ClassifierID = classifierid
 							  att.Update()
+							  el.Update()
+							  p.Update()
 						  else
-							  Repository.WriteOutput "Script", "[ERROR_] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is not connected to class [" & att.Type & "]. Please reconnect manually to correct class.",0
+							  Repository.WriteOutput "Script", "[ERROR] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is not connected to class [" & att.Type & "]. Please reconnect manually to correct class.",0
 						  end if
 						end if
-' /Kent
 					end if
+				else
+					if att.Type <> Repository.GetElementByID(att.ClassifierID).Name then
+						Repository.WriteOutput "Script", "[FEIL] Difference in type names! Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is connected to class [" & Repository.GetElementByID(att.ClassifierID).Name & "] in package::[" & Repository.GetPackageByID(Repository.GetElementByID(att.ClassifierID).PackageID).Name & "].",0				
+					end if
+					'Repository.WriteOutput "Script", "[INFO] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is connected to class [" & Repository.GetElementByID(att.ClassifierID).Name & "] in package::[" & Repository.GetPackageByID(Repository.GetElementByID(att.ClassifierID).PackageID).Name & "].",0				
 				end if
 			next
 		end if
@@ -263,36 +294,44 @@ end with
 	next
 end sub
 
-function SearchTypeInSamePackage(classifierType , p)
-	SearchTypeInSamePackage = 0
-	dim el as EA.Element
-	for each el In p.elements
-		if el.Name = classifierType then
-			SearchTypeInSamePackage = el.ElementId
+function SearchTypeInPackage(classifierType , myp)
+	SearchTypeInPackage = 0
+	dim myel as EA.Element
+	'Repository.WriteOutput "Script", "[Debug1A] Search (sub)Package name [" & myp.Name & "] and PackageID [" & myp.PackageID & "] for datatype named [" & classifierType & "] .",0				
+	for each myel In myp.elements
+		'Repository.WriteOutput "Script", "[Debug1B] Searching name [" & myel.Name & "] for datatype named [" & classifierType & "] .",0				
+		if myel.Name = classifierType then
+			'Repository.WriteOutput "Script", "[Debug1C] Found name [" & myel.Name & "] with elementID [" & myel.ElementId & "] .",0				
+			SearchTypeInPackage = myel.ElementId
 			exit function
 		end if
 	next
 end function
 
-function SearchTypeInSubPackages(classifierType, q)
-	dim classifierid
-	classifierid = 0
+function SearchTypeInSubPackages(classifierType, myq)
+	dim myclassifierid
+	myclassifierid = 0
 	SearchTypeInSubPackages = 0
+	'Repository.WriteOutput "Script", "[Debug2] Search (sub)Package name [" & myq.Name & "]                                     for datatype named [" & classifierType & "] .",0				
+	'Repository.WriteOutput "Script", "[Debug2] Search (sub)Package name [" & myq.Name & "] and PackageID [" & myq.PackageID & "] for datatype named [" & classifierType & "] .",0				
+	'Repository.WriteOutput "Script", "[Debug2A] Search (sub)Package.elements.count [" & myq.Elements.count & "] for datatype named [" & classifierType & "] .",0				
 	'for each subQ in q.packages
-	dim el as EA.Element
-	for each el In q.elements
-		if el.Name = classifierType then
-			SearchTypeInSubPackages = el.ElementId
+	dim myel as EA.Element
+	for each myel In myq.elements
+		'Repository.WriteOutput "Script", "[Debug2B] Searching name [" & myel.Name & "] for datatype named [" & classifierType & "] .",0				
+		if myel.Name = classifierType then
+			'Repository.WriteOutput "Script", "[Debug2C] Found name [" & myel.Name & "] with elementID [" & myel.ElementId & "] .",0				
+			SearchTypeInSubPackages = myel.ElementId
 			' first found
 			exit function
 		end if
 	next
 ' tester eventuelle underpakker:
 	dim subQ as EA.Package
-	for each subQ in q.packages
-	    classifierid = SearchTypeInSubPackages(classifierType, subQ)
-        if classifierid <> 0 then
-            SearchTypeInSubPackages = classifierid
+	for each subQ in myq.packages
+	    myclassifierid = SearchTypeInSubPackages(classifierType, subQ)
+        if myclassifierid <> 0 then
+            SearchTypeInSubPackages = myclassifierid
 			exit function
 		end if
 	next
