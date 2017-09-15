@@ -5,7 +5,7 @@ option explicit
 ' script:			listSKOSfraKodeliste
 ' description:		Skriver en kodeliste til egne SKOS-filer under samme sti som .eap-fila ligger.
 ' author:			Kent
-' date:				2017-06-29,07-07,09-08
+' date:				2017-06-29,07-07,09-08,09-14
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -111,12 +111,8 @@ sub listCodelistCodes(el,namespace)
 
 	dim attr as EA.Attribute
 	for each attr in el.Attributes
-		'Repository.WriteOutput "Script", "Debug:: [" & attr.Name & "] - " & getNCName(attr.Name) & " ",0
-		if attr.Name = getNCNameX(attr.Name) then
-			call listSKOSfraKode(attr,el.Name,namespace)
-		else
-			Repository.WriteOutput "Script", "Error trying to make http-URI out of this code: [" & attr.Name & "] - not a valid NCName!",0
-		end if
+		'Repository.WriteOutput "Script", "Debug: attr.Name ["&attr.Name&"]",0
+		call listSKOSfraKode(attr,el.Name,namespace)
 	next
 	'Repository.WriteOutput "Script", "</rdf:RDF>",0
 	objFile.Write"</rdf:RDF>" & vbCrLf
@@ -131,9 +127,22 @@ end sub
 
 Sub listSKOSfraKode(attr, codelist, namespace)
 
-	dim presentasjonsnavn
- 	objFile.Write"  <skos:Concept rdf:about="""&utf8(codelist)&"/"&utf8(attr.Name)&""">" & vbCrLf
- 	objFile.Write"    <skos:inScheme rdf:resource="""&utf8(codelist)&"""/>" & vbCrLf
+	dim presentasjonsnavn, uricode
+	if attr.Default <> "" then
+		uricode = underscore(attr.Default)
+		if attr.Default <> getNCNameX(attr.Default) then
+			Repository.WriteOutput "Script", "Trying to make legal http-URI out of initial value for this code: [" & attr.Name & " = " & attr.Default & "] -> [" & uricode & "]",0
+		end if
+	else
+		uricode = underscore(attr.Name)
+		if attr.Name <> getNCNameX(attr.Name) then
+			Repository.WriteOutput "Script", "Trying to make legal http-URI out of this code: [" & attr.Name & "] -> ["& uricode &"]",0
+		end if
+	end if
+
+	'objFile.Write"  <skos:Concept rdf:about="""&utf8(codelist)&"/"&utf8(attr.Name)&""">" & vbCrLf
+	objFile.Write"  <skos:Concept rdf:about="""&utf8(codelist)&"/"&utf8(uricode)&""">" & vbCrLf
+	objFile.Write"    <skos:inScheme rdf:resource="""&utf8(codelist)&"""/>" & vbCrLf
 	presentasjonsnavn = getTaggedValue(attr,"SOSI_presentasjonsnavn") 
 	if presentasjonsnavn = "" then presentasjonsnavn = attr.Name
 	objFile.Write"    <skos:prefLabel xml:lang=""no"">"&utf8(presentasjonsnavn)&"</skos:prefLabel>" & vbCrLf
@@ -147,7 +156,8 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 		
 	' write each code to a to separate filer in a subfolder
 	Set codeFSO=CreateObject("Scripting.FileSystemObject")
-	outCodeFile = codeList&"\"&getNCNameX(attr.Name)&".rdf"
+	outCodeFile = codeList & "\" & uricode & ".rdf"
+	'Repository.WriteOutput "Script", "Debug: outCodeFile ["&outCodeFile&"]",0
 	Set objCodeFile = codeFSO.CreateTextFile(outCodeFile,True,False)
 	'  får ut 16-bits unicode ved å sette True som siste flagg i kallet over.
 	objCodeFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
@@ -156,7 +166,7 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	objCodeFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
 	objCodeFile.Write"  xml:base="""&utf8(namespace)&"/"&utf8(codelist)&"/"&""">" & vbCrLf
 
- 	objCodeFile.Write"  <skos:Concept rdf:about="""&utf8(attr.Name)&""">" & vbCrLf
+ 	objCodeFile.Write"  <skos:Concept rdf:about="""&utf8(uricode)&""">" & vbCrLf
  	objCodeFile.Write"    <skos:inScheme rdf:resource="""&utf8(namespace)&"/"&utf8(codelist)&"""/>" & vbCrLf
 
 	objCodeFile.Write"    <skos:prefLabel xml:lang=""no"">"&utf8(presentasjonsnavn)&"</skos:prefLabel>" & vbCrLf
@@ -365,6 +375,56 @@ function utf8(str)
 	utf8 = res
 
 End function
+
+
+function underscore(name)
+		' make name legal NCName by replacing each bad character with a "_", typically used for codelist with proper names.)
+
+    Dim txt, res, tegn, i, u
+    u=0
+	txt = Trim(name)
+	' loop gjennom alle tegn
+	For i = 1 To Len(txt)
+		' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
+		' (tatt med flere fnuttetyper, men hva med "."?)
+		tegn = Mid(txt,i,1)
+		if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
+			'Repository.WriteOutput "Script", "Bad1: " & tegn,0
+			u=1
+		Else
+			if tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
+				'Repository.WriteOutput "Script", "Bad2: " & tegn,0
+				u=1
+			Else
+				If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
+					'Repository.WriteOutput "Script", "Bad3: " & tegn,0
+					u=1
+				else
+					'Repository.WriteOutput "Script", "Good: " & tegn,0
+					If u = 1 Then
+						res = res + "_"
+						'res = res + UCase(tegn)
+						u=0
+						'else
+					End If
+					res = res + tegn
+				End If
+		    End If
+		End If
+	Next
+	tegn = Mid(res,1,1)
+	'if Ucase(res) = "CON" or Ucase(res) = "PRN" or Ucase(res) = "AUX" or Ucase(res) = "NUL" or tegn = "-" or tegn = "0" or tegn = "1" or tegn = "2" or tegn = "3" or tegn = "4" or tegn = "5" or tegn = "6" or tegn = "7" or tegn = "8" or tegn = "9" Then
+	if Ucase(res) = "CON" or Ucase(res) = "PRN" or Ucase(res) = "AUX" or Ucase(res) = "NUL" Then
+		res = "_" + res
+'	if Ucase(res) = "COM1" then  res = "_" + res
+'COM1, COM2, COM3, COM4, COM5, COM6, COM7, COM8, COM9.
+'LPT1, LPT2, LPT3, LPT4, LPT5, LPT6, LPT7, LPT8, LPT9
+		Repository.WriteOutput "Script", "Trying to make legal filename out of this code by prefixing an underscore : [" & res &"]",0
+	end if
+	underscore = res
+
+End function
+
 
 'Private Declare Function WideCharToMultiByte Lib "kernel32" ( _
 '    ByVal CodePage As Long, _
