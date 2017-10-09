@@ -7,12 +7,13 @@ option explicit
 ' Purpose: Validate use of incorrect or disconnected types
 ' Date: 2015-12-30
 '
-' Rette opp av Kent 2016-03-04  (ClassifierId->ElementId, og rekursering fra topp-pakka hvis ikke funnet i samme pakke)
-' Nytt selvforklarende navn: kobleOppDatatyperFraSammeApplikasjonsskjema
+' 2016-03-04 Rette opp av Kent   (ClassifierId->ElementId, og rekursering fra topp-pakka hvis ikke funnet i samme pakke)
+'            Nytt selvforklarende navn: kobleOppDatatyperFraSammeApplikasjonsskjema
 ' 2016-09-10 Lagt inn meldingsboks for å forklare hva skriptet gjør og gi brukeren mulighet for å avbryte!
 ' 2017-09-14 Feilretting og informasjonsmeldinger om oppkobling til klasser utenfor pakka.
 '            Kan også koble fri alle geometri- og basistyper som er oppkoblet? TBD
 '            Kan slette all typeinfo fra kodelistekoder TBD.
+' 2017-09-22 Feilretting av at en datatype kobles opp mot kun en egenskap om gangen(?)
 ' Purpose: Rett opp navn på basisdatatyper og koble opp datatyper til egenskaper.
 
 sub OnProjectBrowserScript()
@@ -273,8 +274,16 @@ end with
 							  att.Update()
 							  el.Update()
 							  p.Update()
+							  ' oppdaterer også datatypeklassen og pakka den ligger i:
+							  Dim datatypeklasse as EA.Element
+							  Dim datatypepakke as EA.Package
+							  Set datatypeklasse = Repository.GetElementByID(classifierid)
+							  datatypeklasse.Update()
+							  Set datatypepakke = Repository.GetPackageByID(datatypeklasse.PackageID)
+							  datatypeklasse.Update()
 						  else
-							  Repository.WriteOutput "Script", "[ERROR] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is not connected to class [" & att.Type & "]. Please reconnect manually to correct class.",0
+							  'Repository.WriteOutput "Script", "[ERROR] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is not connected to class [" & att.Type & "]. Please reconnect manually to correct class.",0
+							  Repository.WriteOutput "Script", "[ERROR] Class [" & el.Name & "]\Attribute [" & att.Name & "] with type [" & att.Type & "] is not connected to any class. Please reconnect manually to correct class.",0
 						  end if
 						end if
 					end if
