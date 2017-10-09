@@ -3,6 +3,7 @@ option explicit
 !INC Local Scripts.EAConstants-VBScript
 
 ' skriptnavn:         slettUtoverrettaRealiseringerFraKlasse
+' beskrivelse         Sletter alle utoverretta realiseringer fra en valgt klasse.
 
 sub fixClass(el)
 	Repository.WriteOutput "Script", Now & " «" & el.Stereotype & "» " & el.Name &  " ElementID: " & el.ElementID, 0
@@ -53,11 +54,12 @@ sub oppdaterValgtKlasse()
 	if not theElement is nothing  then
 		if (theElement.ObjectType = otElement) then
 			dim box, mess
-			mess = 	"Removes all outwards directed Realizations. Script version 2017-05-26." & vbCrLf
-			mess = mess + "NOTE! Oppryddingsskript som kun skal kjøres på klasser i SOSI-produktspesifikasjoner." & vbCrLf
-			mess = mess + "NOTE! This script will change the content of element: "& vbCrLf & "[«" & theElement.Stereotype & "» " & theElement.Name & "]."
+			'mess = 	"Removes all outwards directed Realizations. Script version 2017-05-26." & vbCrLf
+			mess = 	"Fjerner alle utoverretta realiseringer fra en valgt klasse." & vbCrLf
+			mess = mess + "Merknad: Oppryddingsskript som er laget kun for å kjøres på klasser med fellesegenskaper i SOSI-produktspesifikasjoner." & vbCrLf
+			mess = mess + "Advarsel! Dette skriptet vil kunne endre på innholdet i valgt element: "& vbCrLf & "[«" & theElement.Stereotype & "» " & theElement.Name & "]."
 
-			box = Msgbox (mess, vbOKCancel)
+			box = Msgbox (mess, vbOKCancel,"Script slettUtoverrettaRealiseringerFraKlasse 2017-05-26.")
 			select case box
 			case vbOK
 				if theElement.Type="Class" then
