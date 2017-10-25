@@ -6,10 +6,12 @@ option explicit
 ' Script Name: 	leggInnSOSIformat50Tagger (AddMissingTags)
 ' Author: 		Magnus Karge / Kent Jonsrud
 ' Purpose: 		To add missing tags on model elements
+'               Kun for SOSI-format versjon 5.0
 '               (application schemas, feature types & attributes, data types & attributes,code lists, enumerations)
 '				for genetrating GML-ApplicationSchema as defined in the Norwegian standard "SOSI regler for UML-modellering"
-' Date: 		2016-08-24     Original:11.09.2015   + Moddet av Kent 2016-03-09/08-24: Legger nå inn forslag til verdi i alle taggene!
-' Date: 		2016-11-30     Tilpasset SOSI 5.0 reglene:
+' Date: 		2016-08-24     Original:11.09.2015   + Moddet av Kent 2016-03-09/08-24: Legger nï¿½ inn forslag til verdi i alle taggene!
+' Date: 		2016-11-30     Tilpasset forslag til SOSI 5.0 regler:
+' Date: 		2017-11-xx     Tilpasset vedtatte SOSI 5.0 regler:
 dim debug
 debug = false
 'set debug = true to get more information during execution
@@ -39,9 +41,9 @@ sub OnProjectBrowserScript()
 			'mess = 	"Script: leggInnSOSIformat50Tagger" & vbCrLf
 			mess =    	  "Generates tags needed for creating SOSI format version 5.0 from model elements." & vbCrLf
 			mess = mess + "This script should not be run before correcting all conseptual errors found by the script SOSI model validation! "& vbCrLf
-			mess = mess + "NOTE! Please be shure to have a backup as this script may add the missing tagged values to most element types in the package: "& vbCrLf & "[«" & thePackage.element.Stereotype & "» " & thePackage.Name & "]."
+			mess = mess + "NOTE! Please be shure to have a backup as this script may add the missing tagged values to most element types in the package: "& vbCrLf & "[Â«" & thePackage.element.Stereotype & "Â» " & thePackage.Name & "]."
 
-			box = Msgbox (mess, vbOKCancel,"SOSI 5.0 Script: leggInnSOSIformat50Tagger version: 2016-11-30")
+			box = Msgbox (mess, vbOKCancel,"SOSI 5.0 Script: leggInnSOSIformat50Tagger version: 2017-10-25")
 			select case box
 			case vbOK
 				if LCase(thePackage.element.Stereotype) = "applicationschema" then
@@ -49,7 +51,7 @@ sub OnProjectBrowserScript()
 					FindElementsWithMissingTagsInPackage(thePackage)
 				Else
 					'Other than package selected in the tree
-					MsgBox( "This script requires a package with stereotype «ApplicationSchema» to be selected in the Project Browser." & vbCrLf & _
+					MsgBox( "This script requires a package with stereotype ï¿½ApplicationSchemaï¿½ to be selected in the Project Browser." & vbCrLf & _
 					"Please select this and try once more." )
 				end If
 				Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
@@ -107,10 +109,10 @@ sub FindElementsWithMissingTagsInPackage(package)
 				' TODO: Klipp inn engelsk fra notefeltet dersom du finner --Definition --
 				'Call TVSetElementTaggedValue("ApplicationSchema",package.element, "designation","""""@en")
 				' TODO: Klipp inn det engelske navnet fra Alias-feltet dersom dette finnes
-				' Er denne også praktisk å ha med her nå?
+				' Er denne ogsï¿½ praktisk ï¿½ ha med her nï¿½?
 				'Call TVSetElementTaggedValue("ApplicationSchema",package.element, "xsdEncodingRule","sosi")
 				'
-				'TODO: sette korrekt case på pakkestereotypen?
+				'TODO: sette korrekt case pï¿½ pakkestereotypen?
 				'TODO: package.element.stereotype = "ApplicationSchema"
 				'TODO: package.element.stereotype.Update()
 				'
@@ -146,7 +148,7 @@ sub FindElementsWithMissingTagsInPackage(package)
 					'one function call for each of the required tags
 					'Call TVSetElementTaggedValue(currentElement, "SOSI_navn")
 					'Call TVSetElementTaggedValue(currentElement, "isCollection")
-					' Følgende er ikke påkrevet!
+					' Fï¿½lgende er ikke pï¿½krevet!
 					'Call TVSetElementTaggedValue("FeatureType", currentElement, "byValuePropertyType", "false")
 					'Call TVSetElementTaggedValue("FeatureType", currentElement, "noPropertyType", "true")
 				end if
@@ -155,7 +157,7 @@ sub FindElementsWithMissingTagsInPackage(package)
 					'Call TVSetElementTaggedValue("CodeList", currentElement, "SOSI_navn", UCASE(currentElement.Name))
 					'Call TVSetElementTaggedValue(currentElement, "SOSI_datatype")
 					'Call TVSetElementTaggedValue("CodeList", currentElement, "SOSI_lengde", "")
-					' Følgende er ikke påkrevet!
+					' Fï¿½lgende er ikke pï¿½krevet!
 					Call TVSetElementTaggedValue("CodeList", currentElement, "asDictionary", "false")
 					if ASpackage <> "" then
 						Call TVSetElementTaggedValue("CodeList", currentElement, "codeList", ASpackage + "/" + currentElement.Name + "-DraftName")
@@ -178,7 +180,7 @@ sub FindElementsWithMissingTagsInPackage(package)
 						set currentAttribute = currentElement.Attributes.GetAt ( attributesCounter )
 						'Session.Output( "  The current attribute is ["& currentAttribute.Name &"]" & "["& currentAttribute.Type &"]")
 						if LCase(currentAttribute.Type) = "integer" or LCase(currentAttribute.Type) = "real" or LCase(currentAttribute.Type) = "boolean" or LCase(currentAttribute.Type) = "characterstring" or LCase(currentAttribute.Type) = "datetime" or LCase(currentAttribute.Type) = "date" then
-							Call TVSetElementTaggedValue("["+currentElement.Name+"] attribute", currentAttribute, "SOSI_navn", UCASE(currentAttribute.Name))
+							Call TVSetElementTaggedValue("["+currentElement.Name+"] attribute", currentAttribute, "SOSI_navn", currentAttribute.Name)
 							'Call TVSetElementTaggedValue("attribute", currentAttribute, "SOSI_datatype", "T")
 							'Call TVSetElementTaggedValue("attribute", currentAttribute, "SOSI_lengde", "")
 						else
@@ -211,11 +213,11 @@ sub FindElementsWithMissingTagsInPackage(package)
 										Call TVSetElementTaggedValue("["+currentElement.Name+"] attribute", currentAttribute, "SOSI_navn", datatypeElementSOSInavn)
 									else
 										'SOSI_name not found in datatype, just generate new UPPERCASE name from attribute name
-										Call TVSetElementTaggedValue("["+currentElement.Name+"] attribute", currentAttribute, "SOSI_navn", UCASE(currentAttribute.Name))
+										Call TVSetElementTaggedValue("["+currentElement.Name+"] attribute", currentAttribute, "SOSI_navn", currentAttribute.Name)
 									end if
 								else
 									'datatype not connected, just generate new UPPERCASE name from attribute name
-									Call TVSetElementTaggedValue("["+currentElement.Name+"] attribute", currentAttribute, "SOSI_navn", UCASE(currentAttribute.Name))
+									Call TVSetElementTaggedValue("["+currentElement.Name+"] attribute", currentAttribute, "SOSI_navn", currentAttribute.Name)
 								end if
 							end if
 							end if
@@ -224,7 +226,7 @@ sub FindElementsWithMissingTagsInPackage(package)
 							end if
 							end if
 						end if
-						' Følgende er ikke påkrevet!
+						' Fï¿½lgende er ikke pï¿½krevet!
 					Next
 				'retrieve all associations for this element and traverse all roles:
 				dim connectors as EA.Collection
@@ -253,7 +255,7 @@ sub FindElementsWithMissingTagsInPackage(package)
 						' if element has SOSI_navn then get it TODO
 
 						'else set rolename in capitals
-						    Call TVSetElementTaggedValueRole("role", currentConnector.SupplierEnd, "SOSI_navn", UCASE(targetEndName))
+						    Call TVSetElementTaggedValueRole("role", currentConnector.SupplierEnd, "SOSI_navn", targetEndName)
 
 					end if
 					if currentElement.ElementID = targetElementID and not currentConnector.Type = "Realization" and not currentConnector.Type = "Generalization" then
@@ -262,7 +264,7 @@ sub FindElementsWithMissingTagsInPackage(package)
 						' if element has SOSI_navn then get it TODO
 
 						'else set rolename in capitals
-						    Call TVSetElementTaggedValueRole("role", currentConnector.ClientEnd, "SOSI_navn", UCASE(sourceEndName))
+						    Call TVSetElementTaggedValueRole("role", currentConnector.ClientEnd, "SOSI_navn", sourceEndName)
 
 					end if
 
@@ -405,7 +407,7 @@ function toNCName(namestring, blankbeforenumber)
 			    'Repository.WriteOutput "Script", "Bad2: " & tegn,0
 			    u=1
 		    Else
-		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
+		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "ï¿½" or tegn = "ï¿½" Then
 			      'Repository.WriteOutput "Script", "Bad3: " & tegn,0
 			      u=1
 		      else
