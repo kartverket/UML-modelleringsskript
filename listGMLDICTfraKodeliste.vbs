@@ -5,7 +5,7 @@ option explicit
 ' skriptnavn:       listGMLDICTfraKodeliste
 ' description:		Skriver en kodeliste til egen gml:Dictionary.xml fil. på samme sti som .eap-fila ligger.
 ' author:			Kent
-' date  :			2017-06-29, 07-07,09-08
+' date  :			2017-06-29, 07-07,09-08,11-09
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -39,7 +39,7 @@ sub listKoderForEnValgtKodeliste()
 				if namespace <> "" then
 					nsp = Mid(namespace,Len(namespace)-Len(theElement.Name)+1,Len(theElement.Name))
 					'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
-					if nsp = theElement.Name then
+					if nsp = theElement.Name and nsp <> namespace then
 						'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
 						namespace = Mid(namespace,1,Len(namespace)-Len(nsp)-1)
 						'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
@@ -50,6 +50,9 @@ sub listKoderForEnValgtKodeliste()
 				end if
 
 				namespace = InputBox("Please select the codespace name for the codelist.", "namespace", namespace)
+				if Mid(namespace,Len(namespace),1) = "/" then
+					namespace = Mid(namespace,1,Len(namespace)-1)
+				end if
 				call listCodelistCodes(theElement,namespace)
 			case VBcancel
 
@@ -114,15 +117,17 @@ Sub listDICTfraKode(attr, codelist, namespace)
 	
 	
 	objFile.Write"  <dictionaryEntry>" & vbCrLf
-    objFile.Write"    <Definition gml:id="""&utf8(getNCNameX(attr.Name))&""">" & vbCrLf
-    objFile.Write"      <description>"&utf8(getCleanDefinitionText(attr))&"</description>" & vbCrLf
     if attr.Default <> "" then
+		objFile.Write"    <Definition gml:id="""&utf8(codelist)&"."&utf8(getNCNameX(attr.Default))&""">" & vbCrLf
+		objFile.Write"      <description>"&utf8(getCleanDefinitionText(attr))&"</description>" & vbCrLf
 		objFile.Write"      <identifier codeSpace="""&utf8(namespace)&"/"&utf8(codelist)&""">"&utf8(attr.Default)&"</identifier>" & vbCrLf
 		if presentasjonsnavn <> "" then
 			objFile.Write"      <name>"&utf8(presentasjonsnavn)&"</name>" & vbCrLf
 		end if
   		objFile.Write"      <name>"&utf8(attr.Name)&"</name>" & vbCrLf
 	else
+		objFile.Write"    <Definition gml:id="""&utf8(codelist)&"."&utf8(getNCNameX(attr.Name))&""">" & vbCrLf
+		objFile.Write"      <description>"&utf8(getCleanDefinitionText(attr))&"</description>" & vbCrLf
 		objFile.Write"      <identifier codeSpace="""&utf8(namespace)&"/"&utf8(codelist)&""">"&utf8(attr.Name)&"</identifier>" & vbCrLf
 		if presentasjonsnavn <> "" then
 			objFile.Write"      <name>"&utf8(presentasjonsnavn)&"</name>" & vbCrLf
@@ -233,11 +238,11 @@ function getNCNameX(str)
     u=0
 		txt = Trim(str)
 		'res = LCase( Mid(txt,1,1) )
-		if Mid(txt,1,1) < ":" then
-			res = "_" + Mid(txt,1,1)
-		else
+		'if Mid(txt,1,1) < ":" then
+		'	res = "_" + Mid(txt,1,1)
+		'else
 			res = Mid(txt,1,1)
-		end if
+		'end if
 			'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
 
 		' loop gjennom alle tegn
