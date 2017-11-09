@@ -5,7 +5,7 @@ option explicit
 ' script:			listSKOSfraKodeliste
 ' description:		Skriver en kodeliste til egne SKOS-filer under samme sti som .eap-fila ligger.
 ' author:			Kent
-' date:				2017-06-29,07-07,09-08,09-14
+' date:				2017-06-29,07-07,09-08,09-14,11-09
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -39,13 +39,14 @@ sub listKoderForEnValgtKodeliste()
 				dim namespace, nsp
 				'namespace = "http://skjema.geonorge.no/SOSI/produktspesifikasjon/Stedsnavn/5.0/"
 				namespace = getTaggedValue(theElement, "codeList")
-				if namespace <> "" then
+		 		Session.Output("Debug: ------------ Start namespace: [" &namespace& "]. "&Len(namespace)&"  "&Len(theElement.Name)+1&"")
+				if namespace <> "" and namespace <> theElement.Name and Len(namespace) > Len(theElement.Name)+1 then
 					nsp = Mid(namespace,Len(namespace)-Len(theElement.Name)+1,Len(theElement.Name))
-					'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
-					if nsp = theElement.Name then
-						'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+					Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+					if nsp = theElement.Name and nsp <> namespace then
+						Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
 						namespace = Mid(namespace,1,Len(namespace)-Len(nsp)-1)
-						'Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+						Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
 					end if
 				end if
 				if namespace = "" then
@@ -53,6 +54,9 @@ sub listKoderForEnValgtKodeliste()
 				end if
 
 				namespace = InputBox("Please select the namespace name for the codelist.", "namespace", namespace)
+				if Mid(namespace,Len(namespace),1) = "/" then
+					namespace = Mid(namespace,1,Len(namespace)-1)
+				end if
 				call listCodelistCodes(theElement,namespace)
 			case VBcancel
 
@@ -127,7 +131,7 @@ end sub
 
 Sub listSKOSfraKode(attr, codelist, namespace)
 
-	dim presentasjonsnavn, uricode
+	dim presentasjonsnavn, uricode, fy
 	if attr.Default <> "" then
 		uricode = underscore(attr.Default)
 		if attr.Default <> getNCNameX(attr.Default) then
@@ -149,6 +153,10 @@ Sub listSKOSfraKode(attr, codelist, namespace)
         '<skos:prefLabel xml:lang=""en""">"&getTaggedValue(el,"SOSI_presentasjonsnavn")&"</skos:prefLabel>
     objFile.Write"    <skos:definition xml:lang=""no"">"&utf8(getCleanDefinitionText(attr))&"</skos:definition>" & vbCrLf
         '<skos:definition xml:lang="en">Measured in terrain</skos:definition>
+	if codelist = "Kommunenummer" then
+		fy = Mid(uricode,1,2)
+		objFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
+	end if
     objFile.Write"  </skos:Concept>" & vbCrLf
 
 		'<skos:broader rdf:resource="Målemetode/terrengmåltUspesifisertMåleinstrument"/>
@@ -172,9 +180,8 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	objCodeFile.Write"    <skos:prefLabel xml:lang=""no"">"&utf8(presentasjonsnavn)&"</skos:prefLabel>" & vbCrLf
     objCodeFile.Write"    <skos:definition xml:lang=""no"">"&utf8(getCleanDefinitionText(attr))&"</skos:definition>" & vbCrLf
 	if codelist = "Kommunenummer" then
-		dim fy
-		fy = Mid(attr.Name,1,2)
-		objCodeFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
+		fy = Mid(uricode,1,2)
+		'objCodeFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
 	end if
 	objCodeFile.Write"  </skos:Concept>" & vbCrLf
 	objCodeFile.Write"</rdf:RDF>" & vbCrLf
