@@ -5,7 +5,7 @@ option explicit
 ' script:			listSKOSfraKodeliste
 ' description:		Skriver en kodeliste til egne SKOS-filer under samme sti som .eap-fila ligger.
 ' author:			Kent
-' date:				2017-06-29,07-07,09-08,09-14,11-09
+' date:				2017-06-29,07-07,09-08,09-14,11-09,12-05, 2918-02-20
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -97,6 +97,7 @@ sub listCodelistCodes(el,namespace)
 	Repository.WriteOutput "Script", "With namespace: " & namespace,0
 
 	objFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
+	objFile.Write"<?xml-stylesheet type='text/xsl' href='./CodelistDictionary-skosrdfxml.xsl'?>" & vbCrLf
 	objFile.Write"<rdf:RDF" & vbCrLf
     objFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
 	objFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
@@ -116,7 +117,27 @@ sub listCodelistCodes(el,namespace)
 	dim attr as EA.Attribute
 	for each attr in el.Attributes
 		'Repository.WriteOutput "Script", "Debug: attr.Name ["&attr.Name&"]",0
-		call listSKOSfraKode(attr,el.Name,namespace)
+		if el.Name = "Kommunenummer" or el.Name = "Fylkesnummer" then
+			Repository.WriteOutput "Script", Now & "  " & attr.Name & "." & attr.Notes, 0
+			if InStr(LCASE(attr.Notes),"utgått") then 
+				Repository.WriteOutput "Script", Now & " utgått: " & attr.Name & "." & attr.Notes, 0
+	'			call listSKOSfraKode(attr,el.Name,namespace)
+			else
+			if Int(attr.Name) > 2099 and Int(attr.Name) < 2400 then 
+				Repository.WriteOutput "Script", Now & " svalb.: " & attr.Name & "." & attr.Notes, 0
+	'			call listSKOSfraKode(attr,el.Name,namespace)
+			else
+			if Int(attr.Name) > 20 and Int(attr.Name) < 24 then 
+				Repository.WriteOutput "Script", Now & " Svalb.: " & attr.Name & "." & attr.Notes, 0
+	'			call listSKOSfraKode(attr,el.Name,namespace)
+			else
+				call listSKOSfraKode(attr,el.Name,namespace)
+			end if
+			end if
+			end if
+		else
+			call listSKOSfraKode(attr,el.Name,namespace)
+		end if
 	next
 	'Repository.WriteOutput "Script", "</rdf:RDF>",0
 	objFile.Write"</rdf:RDF>" & vbCrLf
@@ -131,11 +152,17 @@ end sub
 
 Sub listSKOSfraKode(attr, codelist, namespace)
 
-	dim presentasjonsnavn, uricode, fy
+	dim presentasjonsnavn, uricode, fy, tegn
 	if attr.Default <> "" then
-		uricode = underscore(attr.Default)
-		if attr.Default <> getNCNameX(attr.Default) then
-			Repository.WriteOutput "Script", "Trying to make legal http-URI out of initial value for this code: [" & attr.Name & " = " & attr.Default & "] -> [" & uricode & "]",0
+		'filter mot å legge meningsløse tallkoder (i initialverdier) inn i filer laget for semantiske søk
+		tegn = Mid(attr.Default,1,1)
+		if tegn = "0" or tegn = "1" or tegn = "2" or tegn = "3" or tegn = "4" or tegn = "5" or tegn = "6" or tegn = "7" or tegn = "8" or tegn = "9" Then
+			uricode = underscore(attr.Name)
+		else
+			uricode = underscore(attr.Default)
+			if attr.Default <> getNCNameX(attr.Default) then
+				Repository.WriteOutput "Script", "Trying to make legal http-URI out of initial value for this code: [" & attr.Name & " = " & attr.Default & "] -> [" & uricode & "]",0
+			end if
 		end if
 	else
 		uricode = underscore(attr.Name)
@@ -181,7 +208,7 @@ Sub listSKOSfraKode(attr, codelist, namespace)
     objCodeFile.Write"    <skos:definition xml:lang=""no"">"&utf8(getCleanDefinitionText(attr))&"</skos:definition>" & vbCrLf
 	if codelist = "Kommunenummer" then
 		fy = Mid(uricode,1,2)
-		'objCodeFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
+		objCodeFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
 	end if
 	objCodeFile.Write"  </skos:Concept>" & vbCrLf
 	objCodeFile.Write"</rdf:RDF>" & vbCrLf
@@ -296,7 +323,7 @@ function getNCNameX(str)
 		' loop gjennom alle tegn
 		For i = 2 To Len(txt)
 		  ' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
-		  ' (tatt med flere fnuttetyper, men hva med "."?)
+		  ' (tatt med flere fnuttetyper, men hva med "."?) (‘'«»’)
 		  tegn = Mid(txt,i,1)
 		  if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
 			  'Repository.WriteOutput "Script", "Bad1: " & tegn,0
@@ -329,7 +356,7 @@ End function
 
 function utf8(str)
 	' make string utf-8
-	Dim txt, res, tegn, utegn, vtegn, wtegn, i
+	Dim txt, res, tegn, utegn, vtegn, wtegn, xtegn, i
 	
     res = ""
 	txt = Trim(str)
@@ -364,14 +391,22 @@ function utf8(str)
 			res = res + vtegn
 			wtegn = Chr((AscW(tegn) and 63) or 128)
 			res = res + wtegn
-			'putchar (0xE0 | c>>12);
-			'putchar (0x80 | c>>6 & 0x3F);
-			'putchar (0x80 | c & 0x3F);
+			'putchar (0xE0 | c>>12);  E0=224, 2^12=4096
+			'putchar (0x80 | c>>6 & 0x3F);  80=128, 2^6=64
+			'putchar (0x80 | c & 0x3F);  80=128
 		else if AscW(tegn) < 2097152 then	'/* 2^21 */
-			'putchar (0xF0 | c>>18);
-			'putchar (0x80 | c>>12 & 0x3F);
-			'putchar (0x80 | c>>6 & 0x3F);
-			'putchar (0x80 | c & 0x3F);
+			utegn = Chr((int(AscW(tegn) / 262144) or 240) )
+			res = res + utegn
+			vtegn = Chr((int(AscW(tegn) / 4096) or 128) )
+			res = res + vtegn
+			wtegn = Chr((int(AscW(tegn) / 64) or 128) )
+			res = res + wtegn
+			xtegn = Chr((AscW(tegn) and 63) or 128)
+			res = res + xtegn
+			'putchar (0xF0 | c>>18);  F0=240, 2^18=262144
+			'putchar (0x80 | c>>12 & 0x3F); 80=128, 2^12=4096
+			'putchar (0x80 | c>>6 & 0x3F);  80=128, 2^6=64
+			'putchar (0x80 | c & 0x3F);  80=128, 3F=63
 		end if
 		end if
 		end if
