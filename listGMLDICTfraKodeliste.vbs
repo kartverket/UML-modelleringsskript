@@ -3,9 +3,9 @@ option explicit
 !INC Local Scripts.EAConstants-VBScript
 
 ' skriptnavn:       listGMLDICTfraKodeliste
-' description:		Skriver en kodeliste til egen gml:Dictionary.xml fil. på samme sti som .eap-fila ligger.
+' description:		Skriver kodeliste til gml:Dictionary.xml fil. på samme sti som .eap-fila ligger.
 ' author:			Kent
-' date  :			2017-06-29, 07-07,09-08,11-09
+' date  :			2017-06-29, 07-07,09-08,11-09,12-05, 2018-02-20
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -97,8 +97,27 @@ sub listCodelistCodes(el,namespace)
 	dim attr as EA.Attribute
 	for each attr in el.Attributes
 		'Repository.WriteOutput "Script", Now & " " & el.Name & "." & attr.Name, 0
-
-		call listDICTfraKode(attr,el.Name,namespace)
+		if el.Name = "Kommunenummer" or el.Name = "Fylkesnummer" then
+			Repository.WriteOutput "Script", Now & "  " & attr.Name & "." & attr.Notes, 0
+			if InStr(LCASE(attr.Notes),"utgått") then 
+				Repository.WriteOutput "Script", Now & " utgått: " & attr.Name & "." & attr.Notes, 0
+				call listDICTfraKode(attr,el.Name,namespace)
+			else
+			if Int(attr.Name) > 2099 and Int(attr.Name) < 2400 then 
+				Repository.WriteOutput "Script", Now & " svalb.: " & attr.Name & "." & attr.Notes, 0
+				call listDICTfraKode(attr,el.Name,namespace)
+			else
+			if Int(attr.Name) > 20 and Int(attr.Name) < 24 then 
+				Repository.WriteOutput "Script", Now & " Svalb.: " & attr.Name & "." & attr.Notes, 0
+	'			call listDICTfraKode(attr,el.Name,namespace)
+			else
+				call listDICTfraKode(attr,el.Name,namespace)
+			end if
+			end if
+			end if
+		else
+			call listDICTfraKode(attr,el.Name,namespace)
+		end if
 	next
 	objFile.Write"</Dictionary>" & vbCrLf
 	objFile.Close
@@ -119,7 +138,11 @@ Sub listDICTfraKode(attr, codelist, namespace)
 	objFile.Write"  <dictionaryEntry>" & vbCrLf
     if attr.Default <> "" then
 		objFile.Write"    <Definition gml:id="""&utf8(codelist)&"."&utf8(getNCNameX(attr.Default))&""">" & vbCrLf
-		objFile.Write"      <description>"&utf8(getCleanDefinitionText(attr))&"</description>" & vbCrLf
+		if attr.Notes <> "" then
+			objFile.Write"      <description>"&utf8(getCleanDefinitionText(attr))&"</description>" & vbCrLf
+		else
+			objFile.Write"      <description>"&utf8(attr.Name)&"</description>" & vbCrLf
+		end if
 		objFile.Write"      <identifier codeSpace="""&utf8(namespace)&"/"&utf8(codelist)&""">"&utf8(attr.Default)&"</identifier>" & vbCrLf
 		if presentasjonsnavn <> "" then
 			objFile.Write"      <name>"&utf8(presentasjonsnavn)&"</name>" & vbCrLf
@@ -304,11 +327,22 @@ function utf8(str)
 			res = res + vtegn
 			wtegn = Chr((AscW(tegn) and 63) or 128)
 			res = res + wtegn
+			'putchar (0xE0 | c>>12);  E0=224, 2^12=4096
+			'putchar (0x80 | c>>6 & 0x3F);  80=128, 2^6=64
+			'putchar (0x80 | c & 0x3F);  80=128
 		else if AscW(tegn) < 2097152 then	'/* 2^21 */
-			'putchar (0xF0 | c>>18);
-			'putchar (0x80 | c>>12 & 0x3F);
-			'putchar (0x80 | c>>6 & 0x3F);
-			'putchar (0x80 | c & 0x3F);
+			utegn = Chr((int(AscW(tegn) / 262144) or 240) )
+			res = res + utegn
+			vtegn = Chr((int(AscW(tegn) / 4096) or 128) )
+			res = res + vtegn
+			wtegn = Chr((int(AscW(tegn) / 64) or 128) )
+			res = res + wtegn
+			xtegn = Chr((AscW(tegn) and 63) or 128)
+			res = res + xtegn
+			'putchar (0xF0 | c>>18);  F0=240, 2^18=262144
+			'putchar (0x80 | c>>12 & 0x3F); 80=128, 2^12=4096
+			'putchar (0x80 | c>>6 & 0x3F);  80=128, 2^6=64
+			'putchar (0x80 | c & 0x3F);  80=128, 3F=63
 		end if
 		end if
 		end if
