@@ -5,7 +5,7 @@ option explicit
 ' script:		listSOSIKontrollfiler
 ' purpose:		Generate files for SOSI validator. Lager filer for SOSI-Kontroll fra SOSI-5.0 modeller.
 ' author:		Kent
-' version:		2018-02-28
+' version:		2018-03-01
 
 '	Skriver til fire filer i egen folder:
 '		Liste med navnene på filer som skal inkluderes
@@ -18,6 +18,7 @@ option explicit
 		DIM objFile
 		DIM utvFile
 		DIM eleFile
+		DIM DefTypes
 		DIM def
 		DIM obj
 		DIM utv
@@ -28,7 +29,7 @@ option explicit
 sub listFeatureTypesForEnValgtPakke()
 	' Show and clear the script output window
 	Repository.EnsureOutputVisible "Script"
-
+	DIM i
 	Dim theElement as EA.Element
 	Set theElement = Repository.GetTreeSelectedObject()
 	if not theElement is nothing  then
@@ -37,7 +38,7 @@ sub listFeatureTypesForEnValgtPakke()
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
 					dim message
 			dim box
-			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2018-02-28" & vbCrLf & "Starter listing til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
+			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2018-03-01" & vbCrLf & "Starter listing til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
 			select case box
 			case vbOK
 				dim kortnavn
@@ -68,11 +69,18 @@ sub listFeatureTypesForEnValgtPakke()
 				Set obj = sosFSO.CreateTextFile(objFile,True,False)
 				Set utv = sosFSO.CreateTextFile(utvFile,True,False)
 				Set ele = sosFSO.CreateTextFile(eleFile,True,False)
+				'obj.Write".HODE"  & vbCrLf
+				'obj.Write"..TEGNSETT UTF-8"  & vbCrLf & vbCrLf
 				obj.Write"! *   " & utf8(kortnavn) & "   Objektdefinisjoner generert fra SOSI UML modell   " & now & "   *!"  & vbCrLf & vbCrLf
+				'utv.Write".HODE"  & vbCrLf
+				'utv.Write"..TEGNSETT UTF-8"  & vbCrLf & vbCrLf
 				utv.Write"! *   " & utf8(kortnavn) & "   Utvalgsdefinisjoner generert fra SOSI UML modell   " & now & "   *!"  & vbCrLf & vbCrLf
+				'ele.Write".HODE"  & vbCrLf
+				'ele.Write"..TEGNSETT UTF-8"  & vbCrLf & vbCrLf
 				ele.Write"! *   " & utf8(kortnavn) & "   Elementdefinisjoner generert fra SOSI UML modell   " & now & "   *!"  & vbCrLf & vbCrLf
 				'call setBasicSOSITypes()
 				'create global sosinametypelist
+				Set DefTypes = CreateObject("System.Collections.ArrayList")
 
 
 				call listFeatureTypes(theElement,kortnavn)
@@ -92,11 +100,16 @@ sub listFeatureTypesForEnValgtPakke()
 				def.Write "[ObjektDefinisjoner]" & vbCrLf
 				def.Write "kap50\" & kortnavn & "_o.50" & vbCrLf
 				def.Write "STD\Flateavgrensning_o.50" & vbCrLf & vbCrLf
-				'Til slutt språkelementdefinisjoner for alle enkeltelementene med basistyper: (...MÅLEMETODE T40"
-				'while sosinametypelist not empty
-					'ele.Write vbCrLf & ".DEF !" & utf8(currentElement.Name) & vbCrLf
-					'ele.Write sosinametypelist(listentry) & vbCrLf
-				'wend
+				'Til slutt språkelementdefinisjoner for alle enkeltelementer, med basistype: (...MÅLEMETODE T40")
+
+				ele.Write vbCrLf & ".DEF" & vbCrLf & "..OBJTYPE T32" & vbCrLf
+
+				for i = 0 To DefTypes.Count - 1
+					'Repository.WriteOutput "Script", " DefTypes: " & DefTypes(i) & " index: " & i, 0
+					ele.Write vbCrLf & ".DEF" & vbCrLf
+					ele.Write DefTypes(i) & vbCrLf 
+				next
+
 				def.Close
 				obj.Close
 				utv.Close
@@ -141,7 +154,7 @@ sub listFeatureTypes(pkg,kortnavn)
 			if debug then Repository.WriteOutput "Script", kortnavn &";"&pkg.Name &";"&currentElement.Name &";"&getDefinitionText(currentElement),0
 
 			if currentElement.ParentID <> 0 then
-				Repository.WriteOutput "Script", " ParentID,ParentName :" & currentElement.ParentID & " - " & Repository.GetElementByID(currentElement.ParentID).Name,0
+				if debug then Repository.WriteOutput "Script", " ParentID,ParentName :" & currentElement.ParentID & " - " & Repository.GetElementByID(currentElement.ParentID).Name,0
 			end if
 			utv.Write".GRUPPE-UTVALG " & utf8(currentElement.Name) & vbCrLf
 			utv.Write"..VELG ""..OBJTYPE"" = " & utf8(currentElement.Name) & vbCrLf
@@ -152,11 +165,9 @@ sub listFeatureTypes(pkg,kortnavn)
 			if getSosiGeometrityper(currentElement) <> "" then
 				obj.Write"..GEOMETRITYPE " & getSosiGeometrityper(currentElement) & vbCrLf
 			else
-				obj.Write"..GEOMETRITYPE PUNKT,SVERM,KURVE,FLATE" & vbCrLf
+				obj.Write"..GEOMETRITYPE PUNKT,SVERM,KURVE,FLATE,OBJEKT" & vbCrLf
 			end if
-			'obj.Write"..GEOMETRITYPE " & vbCrLf
-			' restriksjon? -> ..AVGRENSES_AV KantUtsnitt,TakoverbyggKant,FiktivBygningsavgrensning
-			' supertype? -> ..INKLUDER denne
+			' restriksjon? -> ..AVGRENSES_AV KantUtsnitt,TakoverbyggKant,FiktivBygningsavgrensning(,Flateavgrensning?)
 			for each conn in currentElement.Connectors
 				if conn.Type = "Generalization" then
 					if currentElement.ElementID = conn.ClientID then
@@ -167,12 +178,10 @@ sub listFeatureTypes(pkg,kortnavn)
 				end if
 			next
 
-
-
 			'obj.Write"..PRODUKTSPEK " & utf8(kortnavn) & " " & utf8(getPackageTaggedValue(pkg,"SOSI_versjon")) & vbCrLf
 			obj.Write"..EGENSKAP """" * ""..OBJTYPE""    T32  1  1  = (" & utf8(currentElement.Name) & ")" & vbCrLf
 
-			ele.Write vbCrLf & ".DEF !" & utf8(currentElement.Name) & vbCrLf
+			ele.Write vbCrLf & "! " & utf8(currentElement.Name) & vbCrLf
 
 			prikkniv = ".."
 			call listDatatypes(currentElement,prikkniv)
@@ -197,138 +206,162 @@ sub listDatatypes(element,prikkniv)
 	dim datatype as EA.Element
 	dim conn as EA.Collection
 	dim connEnd as EA.ConnectorEnd
-' 	set elements = pkg.Elements 
-	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID
-'	for i = 0 to elements.Count - 1 
-'		dim currentElement as EA.Element 
-'		set currentElement = elements.GetAt( i ) 
+	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef
 				
-		if element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "featuretype" then
+	if element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "featuretype" then
 
-			dim attr as EA.Attribute
-			for each attr in element.Attributes
-				sosinavn = ""
-				if attr.ClassifierID <> 0 then 
-					sosinavn = getTaggedValue(attr,"SOSI_navn")
-					if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] SOSI_navn [" & getTaggedValue(attr,"SOSI_navn") & "].",0
-				else
-					if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] no ClassifierID.",0
+		dim attr as EA.Attribute
+		for each attr in element.Attributes
+			sosinavn = ""
+				sosinavn = getTaggedValue(attr,"SOSI_navn")
+			if attr.ClassifierID <> 0 then 
+				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] SOSI_navn [" & getTaggedValue(attr,"SOSI_navn") & "].",0
+			else
+				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] no ClassifierID.",0
+			end if
+			if getSosiGeometritype(attr) = "" then
+				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] not geometry.",0
+				sosimin = "0"
+				sosimax = "N"
+				sosierlik = "><"
+				if attr.LowerBound = "1" then
+					sosimin = "1"
 				end if
-				if getSosiGeometritype(attr) = "" then
-					if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] not geometry.",0
-					sosimin = "0"
-					sosimax = "N"
-					sosierlik = "><"
-					if attr.LowerBound = "1" then
-						sosimin = "1"
-					end if
-					if attr.UpperBound = "1" then
-						sosimax = "1"
-					end if
-					sositype = UCase(getTaggedValue(attr,"SOSI_type")) 
-					if sositype = "" then
-						sositype = "*"
-						sositype = getBasicSOSIType(attr.Type)
-					end if
-					sosilengde = getTaggedValue(attr,"SOSI_lengde")
-					if sositype <> "*" and sosilengde <> "" then
-						sositype = sositype & sosilengde
-					end if
-					koder = ""
-					'Initialverdi+frozen på basistyper?
-					'Kodelisteegenskap
-					if attr.ClassifierID <> 0 then
-						set datatype = Repository.GetElementByID(attr.ClassifierID)
-						if sosinavn = "" then
-							sosinavn = getTaggedValue(datatype,"SOSI_navn")
-						end if
-						if sosinavn = "" then
-							sosinavn = attr.Name
-						end if
-						if sositype = "*" and getTaggedValue(datatype,"SOSI_type") <> "" then
-							' Er denne riktig dersom gamle kodelister har egne sosityper eller er alle kodelister av type T? (samme med sosilengde?) TBD
-							sositype = getTaggedValue(datatype,"SOSI_type")
-						end if
-						if datatype.Type = "Class" and LCase(datatype.Stereotype) = "codelist" or LCase(datatype.Stereotype) = "enumeration" then
-							'Repository.WriteOutput "Script", "Debug: Repository.GetElementByID(attr.ClassifierID).Name [" & Repository.GetElementByID(attr.ClassifierID).Name & "] kodelistens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(attr.ClassifierID),"SOSI_navn") & "].",0
-							Repository.WriteOutput "Script", "Debug: kodeliste.Name [" & datatype.Name & "] kodelistens SOSI_navn [" & getTaggedValue(datatype,"SOSI_navn") & "].",0
-							if sositype = "*" then
-								sositype = "T"
-							end if
-							koder = getKoder(datatype)
-							if koder <> "" then
-								sosierlik = "="
-							end if
-						end if
-					else
-						'basistype
-						'if sositype = "*" then
-						'	sositype = "T"
-						'end if
-						
-					end if
-					obj.Write"..EGENSKAP """ & utf8(attr.Name) & """ " & utf8(attr.Type) & " """ & prikkniv & utf8(sosinavn) & """ " & utf8(sositype) & " " & sosimin & " " & sosimax & "  " & sosierlik & " (" & koder & ")" & vbCrLf
-				
-					ele.Write prikkniv & utf8(sosinavn) & " " & utf8(sositype) & vbCrLf
-					'Putt i liste over enkeltelementer med basistype som skal listes opp separate til slutt: TBD
-
-					'Brukerdefinert datatype?
-					if attr.ClassifierID <> 0 then
-						if datatype.Type = "Class" and LCase(datatype.Stereotype) = "datatype" or LCase(datatype.Stereotype) = "union" then
-							Repository.WriteOutput "Script", "Debug: datatype.Name [" & datatype.Name & "] datatypens SOSI_navn [" & getTaggedValue(datatype,"SOSI_navn") & "].",0
-							'             set datatype = Repository.GetElementByID(attr.ClassifierID)
-							prikkniv1 = prikkniv & "."
-							call listDatatypes(datatype,prikkniv1)
-						end if
-					end if
-					'Kompaktifisering????
-					'Liste over kjente elementer med kompaktifisering???
-					if sositype <> "*" then
-						'add to list if not in list already
-						'if notinlist yhen
-						' add2list
-						'end if
-					end if
-
+				if attr.UpperBound = "1" then
+					sosimax = "1"
 				end if
-			
-			next
-			
-			for each conn in element.Connectors
-				if conn.Type = "Generalization" or conn.Type = "Realisation" or conn.Type = "NoteLink" then
-
-				else
-					'Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
-					'Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
-					Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.SupplierID).Name & "].",0
-					Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.ClientID).Name & "].",0
-					if conn.ClientID = element.ElementID then
-						set datatype = Repository.GetElementByID(conn.SupplierID)
-						umlnavn = conn.SupplierEnd.Role
-						sosinavn = getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_navn")
-					else
-						set datatype = Repository.GetElementByID(conn.ClientID)
-						umlnavn = conn.ClientEnd.Role
-						sosinavn = getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_navn")
+				sositype = UCase(getTaggedValue(attr,"SOSI_type")) 
+				if sositype = "" then
+					sositype = "*"
+					sositype = getBasicSOSIType(attr.Type)
+				end if
+				sosilengde = getTaggedValue(attr,"SOSI_lengde")
+				if sositype <> "*" and sosilengde <> "" then
+					sositype = sositype & sosilengde
+				end if
+				koder = ""
+				'Initialverdi+frozen på basistyper?
+				'Kodelisteegenskap
+				if attr.ClassifierID <> 0 then
+					set datatype = Repository.GetElementByID(attr.ClassifierID)
+					if sosinavn = "" then
+						sosinavn = getTaggedValue(datatype,"SOSI_navn")
 					end if
 					if sosinavn = "" then
-						sosinavn = umlnavn
+						sosinavn = attr.Name
 					end if
-					sositype = "REF"
-					sosimin = "0"
-					sosimax = "N"
-					sosierlik = "><"
-					koder = ""
-					obj.Write"..EGENSKAP """ & utf8(umlnavn) & """ " & utf8(datatype.Name) & " """ & prikkniv & utf8(sosinavn) & """ " & utf8(sositype) & " " & sosimin & " " & sosimax & "  " & sosierlik & " (" & koder & ")" & vbCrLf
+					if sositype = "*" and getTaggedValue(datatype,"SOSI_type") <> "" then
+						' Er denne riktig dersom gamle kodelister har egne sosityper eller er alle kodelister av type T? (samme med sosilengde?) TBD
+						sositype = getTaggedValue(datatype,"SOSI_type")
+					end if
+					if datatype.Type = "Class" and LCase(datatype.Stereotype) = "codelist" or LCase(datatype.Stereotype) = "enumeration" then
+						'Repository.WriteOutput "Script", "Debug: Repository.GetElementByID(attr.ClassifierID).Name [" & Repository.GetElementByID(attr.ClassifierID).Name & "] kodelistens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(attr.ClassifierID),"SOSI_navn") & "].",0
+						if debug then Repository.WriteOutput "Script", "Debug: kodeliste.Name [" & datatype.Name & "] kodelistens SOSI_navn [" & getTaggedValue(datatype,"SOSI_navn") & "].",0
+						if sositype = "*" then
+							sositype = "T"
+						end if
+						koder = getKoder(datatype)
+						if koder <> "" then
+							sosierlik = "="
+						end if
+					end if
+				else
+					'ukjent basistype ?
+					if sositype = "*" then
+						sositype = "T666"
+					end if
+					
 				end if
+				obj.Write"..EGENSKAP """ & utf8(attr.Name) & """ " & utf8(attr.Type) & " """ & prikkniv & utf8(sosinavn) & """ " & utf8(sositype) & " " & sosimin & " " & sosimax & "  " & sosierlik & " (" & utf8(koder) & ")" & vbCrLf
+			
+				if prikkniv <> ".." or sositype = "*" then 
+					'if  prikkniv = ".." and ! sositypeWritten(sositype) then
+						if  prikkniv = ".." and sositype = "*" then 
+							ele.Write vbCrLf & ".DEF" & vbCrLf
+							' sositypeWritten.Add(sositype)
+						end if
+						ele.Write prikkniv & utf8(sosinavn) & " " & utf8(sositype) & vbCrLf
+					'end if
+				end if
+				'Putt i liste over enkeltelementer med basistype som skal listes opp separate til slutt: TBD
+				if attr.ClassifierID <> 0 then
+					'Brukerdefinert datatype
+					if datatype.Type = "Class" and LCase(datatype.Stereotype) = "datatype" or LCase(datatype.Stereotype) = "union" then
+						if debug then Repository.WriteOutput "Script", "Debug: datatype.Name [" & datatype.Name & "] datatypens SOSI_navn [" & getTaggedValue(datatype,"SOSI_navn") & "].",0
+						'             set datatype = Repository.GetElementByID(attr.ClassifierID)
+						prikkniv1 = prikkniv & "."
+						call listDatatypes(datatype,prikkniv1)
+					end if
+				end if
+				'Kompaktifisering????
+				'Liste over kjente elementer med kompaktifisering???
+				
+				sosidef = prikkniv & sosinavn & " " & sositype
+				if sositype <> "*" then 
+					if DefTypes.IndexOf(sosidef,0) = -1 then	
+						' 	ikke i lista, legges inn
+						DefTypes.Add sosidef
+					end if
+				end if
+			end if
+		
+		next
+			
+		for each conn in element.Connectors
+			if conn.Type = "Generalization" or conn.Type = "Realisation" or conn.Type = "NoteLink" then
 
-			next
+			else
+				'Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
+				'Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
+				if debug then Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.SupplierID).Name & "].",0
+				if debug then Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.ClientID).Name & "].",0
+				sositype = "REF"
+				sosimin = "0"
+				sosimax = "N"
+				sosierlik = "><"
+				koder = ""
+				if conn.ClientID = element.ElementID then
+					set datatype = Repository.GetElementByID(conn.SupplierID)
+					umlnavn = conn.SupplierEnd.Role
+					sosinavn = getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_navn")
+					if conn.SupplierEnd.Cardinality <> "" then
+						if Mid(conn.SupplierEnd.Cardinality,1,1) <> "*" then
+							sosimin = Mid(conn.SupplierEnd.Cardinality,1,1)
+						end if
+						if Mid(conn.SupplierEnd.Cardinality,Len(conn.SupplierEnd.Cardinality),1) <> "*" then
+							sosimax = Mid(conn.SupplierEnd.Cardinality,Len(conn.SupplierEnd.Cardinality),1)
+						end if
+					end if
+				else
+					set datatype = Repository.GetElementByID(conn.ClientID)
+					umlnavn = conn.ClientEnd.Role
+					sosinavn = getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_navn")
+					if conn.ClientEnd.Cardinality <> "" then
+						if Mid(conn.ClientEnd.Cardinality,1,1) <> "*" then
+							sosimin = Mid(conn.ClientEnd.Cardinality,1,1)
+						end if
+						if Mid(conn.ClientEnd.Cardinality,Len(conn.ClientEnd.Cardinality),1) <> "*" then
+							sosimax = Mid(conn.ClientEnd.Cardinality,Len(conn.ClientEnd.Cardinality),1)
+						end if
+					end if
+				end if
+				if sosinavn = "" then
+					sosinavn = umlnavn
+				end if
+				obj.Write"..EGENSKAP """ & utf8(umlnavn) & """ " & utf8(datatype.Name) & " """ & prikkniv & utf8(sosinavn) & """ " & utf8(sositype) & " " & sosimin & " " & sosimax & "  " & sosierlik & " (" & koder & ")" & vbCrLf
 
-		end if
+				sosidef = prikkniv & sosinavn & " REF"
+				'if sositype <> "*" then 
+					if DefTypes.IndexOf(sosidef,0) = -1 then	
+						' 	ikke i lista, legges inn
+						DefTypes.Add sosidef
+					end if
+				'end if
+			end if
 
+		next
 
-
-'	next
+	end if
 
 end sub
 
@@ -531,6 +564,9 @@ end function
 function utf8(str)
 	' make string utf-8
 	Dim txt, res, tegn, utegn, vtegn, wtegn, xtegn, i
+	
+	utf8 = str
+	exit function
 	
     res = ""
 	txt = Trim(str)
