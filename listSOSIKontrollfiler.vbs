@@ -345,18 +345,42 @@ sub listDatatypes(element,prikkniv)
 						end if
 					end if
 				end if
-				if sosinavn = "" then
-					sosinavn = umlnavn
-				end if
-				obj.Write"..EGENSKAP """ & utf8(umlnavn) & """ " & utf8(datatype.Name) & " """ & prikkniv & utf8(sosinavn) & """ " & utf8(sositype) & " " & sosimin & " " & sosimax & "  " & sosierlik & " (" & koder & ")" & vbCrLf
-
-				sosidef = prikkniv & sosinavn & " REF"
-				'if sositype <> "*" then 
-					if DefTypes.IndexOf(sosidef,0) = -1 then	
-						' 	ikke i lista, legges inn
-						DefTypes.Add sosidef
+				if umlnavn <> "" then
+					if sosinavn = "" then
+						sosinavn = umlnavn
 					end if
-				'end if
+					obj.Write"..EGENSKAP """ & utf8(umlnavn) & """ " & utf8(datatype.Name) & " """ & prikkniv & utf8(sosinavn) & """ " & utf8(sositype) & " " & sosimin & " " & sosimax & "  " & sosierlik & " (" & koder & ")" & vbCrLf
+
+					sosidef = prikkniv & sosinavn & " REF"
+					'if sositype <> "*" then 
+						if DefTypes.IndexOf(sosidef,0) = -1 then	
+							' 	ikke i lista, legges inn
+							DefTypes.Add sosidef
+						end if
+					'end if
+					
+					'if composition2datatype then
+						'Brukerdefinert datatype
+						if datatype.Type = "Class" and LCase(datatype.Stereotype) = "datatype" or LCase(datatype.Stereotype) = "union" then
+							if debug then Repository.WriteOutput "Script", "Debug: datatype.Name [" & datatype.Name & "] datatypens SOSI_navn [" & getTaggedValue(datatype,"SOSI_navn") & "].",0
+							'             set datatype = Repository.GetElementByID(attr.ClassifierID)
+							sositype = "*"
+							if prikkniv <> ".." or sositype = "*" then 
+								'if  prikkniv = ".." and ! sositypeWritten(sositype) then
+									if  prikkniv = ".." and sositype = "*" then 
+										ele.Write vbCrLf & ".DEF" & vbCrLf
+										' sositypeWritten.Add(sositype)
+									end if
+									ele.Write prikkniv & utf8(sosinavn) & " " & utf8(sositype) & vbCrLf
+								'end if
+							end if
+							
+							prikkniv1 = prikkniv & "."
+							call listDatatypes(datatype,prikkniv1)
+						end if
+				end if
+
+				
 			end if
 
 		next
