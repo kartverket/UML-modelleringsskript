@@ -9,9 +9,9 @@ option explicit
 '               Kun for SOSI-format versjon 5.0
 '               (application schemas, feature types & attributes, data types & attributes,code lists, enumerations)
 '				for genetrating GML-ApplicationSchema as defined in the Norwegian standard "SOSI regler for UML-modellering"
-' Date: 		2016-08-24     Original:11.09.2015   + Moddet av Kent 2016-03-09/08-24: Legger n� inn forslag til verdi i alle taggene!
+' Date: 		2016-08-24     Original:11.09.2015   + Moddet av Kent 2016-03-09/08-24: Legger nå inn forslag til verdi i alle taggene!
 ' Date: 		2016-11-30     Tilpasset forslag til SOSI 5.0 regler:
-' Date: 		2017-11-xx     Tilpasset vedtatte SOSI 5.0 regler:
+' Date: 		2018-02-22     Tilpasset vedtatte SOSI 5.0 regler, henter SOSI_navn rett inn fra datatypen dersom denne finnes.
 dim debug
 debug = false
 'set debug = true to get more information during execution
@@ -40,10 +40,10 @@ sub OnProjectBrowserScript()
 			dim box, mess
 			'mess = 	"Script: leggInnSOSIformat50Tagger" & vbCrLf
 			mess =    	  "Generates tags needed for creating SOSI format version 5.0 from model elements." & vbCrLf
-			mess = mess + "This script should not be run before correcting all conseptual errors found by the script SOSI model validation! "& vbCrLf
-			mess = mess + "NOTE! Please be shure to have a backup as this script may add the missing tagged values to most element types in the package: "& vbCrLf & "[«" & thePackage.element.Stereotype & "» " & thePackage.Name & "]."
+			mess = mess + "This script should NOT be run before correcting all conseptual errors found by the script SOSI model validation! "& vbCrLf
+			mess = mess + "NOTE! Please be shure to have a backup as this script will add the missing tagged values to many element types in the package: "& vbCrLf & "[«" & thePackage.element.Stereotype & "» " & thePackage.Name & "]."
 
-			box = Msgbox (mess, vbOKCancel,"SOSI 5.0 Script: leggInnSOSIformat50Tagger version: 2017-10-25")
+			box = Msgbox (mess, vbOKCancel,"SOSI 5.0 Script: leggInnSOSIformat50Tagger version: 2018-02-22")
 			select case box
 			case vbOK
 				if LCase(thePackage.element.Stereotype) = "applicationschema" then
@@ -51,7 +51,7 @@ sub OnProjectBrowserScript()
 					FindElementsWithMissingTagsInPackage(thePackage)
 				Else
 					'Other than package selected in the tree
-					MsgBox( "This script requires a package with stereotype �ApplicationSchema� to be selected in the Project Browser." & vbCrLf & _
+					MsgBox( "This script requires a package with stereotype «ApplicationSchema» to be selected in the Project Browser." & vbCrLf & _
 					"Please select this and try once more." )
 				end If
 				Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
@@ -226,7 +226,7 @@ sub FindElementsWithMissingTagsInPackage(package)
 							end if
 							end if
 						end if
-						' F�lgende er ikke p�krevet!
+						' Følgende er ikke påkrevet!
 					Next
 				'retrieve all associations for this element and traverse all roles:
 				dim connectors as EA.Collection
