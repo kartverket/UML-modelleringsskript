@@ -3,17 +3,11 @@ option explicit
 !INC Local Scripts.EAConstants-VBScript
 
 ' script:		listGMLExample
-' purpose:		Generates one GML example object from each feature type the model
-' version:		2018-09-11
-' TBD:          roles, supertypes of datatypes, dateformat, (inheritance)loopdetection,,,,detect and set localId=gml:id/namespace=..?,cleanup
+' purpose:		Generates one GML example object from each feature type in the model
+' version:		2018-09-11, 09-12
+' TBD:          utf8 for samiske tegn, roles, supertypes of datatypes, links to supertypes, (inheritance)loopdetection,,,,detect and set localId=gml:id/namespace=..?,cleanup
 
 
-
-'	Skriver til fire filer i egen folder:
-'		Liste med navnene på filer som skal inkluderes
-'		Objekttypedefinisjoner inkludert nøstet innhold i alle datatyper, ikke arvede (?)
-'		Objektutvalg som kobler objekttypenavnet til utvalgsgruppen
-'		Elementbeskrivelser som angir datatype og lengde for enkeltelementene
 		DIM sosFSO
 		DIM sosFolder
 		DIM defFile
@@ -40,7 +34,7 @@ sub listGMLExampleForPackage()
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
 					dim message
 			dim box
-			box = Msgbox ("Script listGMLExample" & vbCrLf & vbCrLf & "Scriptversion 2018-09-11" & vbCrLf & "Listing to GML example for package : [" & theElement.Name & "].",1)
+			box = Msgbox ("Script listGMLExample" & vbCrLf & vbCrLf & "Scriptversion 2018-09-12" & vbCrLf & "Listing to GML example for package : [" & theElement.Name & "].",1)
 			select case box
 			case vbOK
 				dim kortnavn, namespace, xsdfile
@@ -49,13 +43,20 @@ sub listGMLExampleForPackage()
 				Repository.CreateOutputTab "Error"
 				Repository.ClearOutput "Error"
 				kortnavn = getPackageTaggedValue(theElement,"SOSI_kortnavn")
-				namespace = getPackageTaggedValue(theElement,"targetNamespace")
-				xsdfile = getPackageTaggedValue(theElement,"xsdDocument")
 				if kortnavn = "" then
 					kortnavn = theElement.Name
-					Repository.WriteOutput "Script", "Pakken mangler tagged value SOSI_kortnavn! Kjører midlertidig videre med pakkenavnet som forslag til kortnavn: " & vbCrLf & kortnavn, 0
+				'	Repository.WriteOutput "Script", "Pakken mangler tagged value SOSI_kortnavn! Kjører midlertidig videre med pakkenavnet som forslag til kortnavn: " & vbCrLf & kortnavn, 0
+				end if
+
+				namespace = getPackageTaggedValue(theElement,"targetNamespace")
+				if namespace = "" then
+					namespace = kortnavn
 				end if
 				
+				xsdfile = getPackageTaggedValue(theElement,"xsdDocument")
+				if xsdfile = "" then
+					xsdfile = kortnavn & ".xsd"
+				end if
 				'SessionOutput("test3: SOSI_kortnavn: " & vbCrLf & utf8(kortnavn) )
 				SessionOutput("<?xml version=""1.0"" encoding=""utf-8""?>")
 				SessionOutput("<wfs:FeatureCollection")
@@ -70,7 +71,43 @@ sub listGMLExampleForPackage()
 				SessionOutput("                     http://www.opengis.net/wfs/2.0")
 				SessionOutput("                     http://schemas.opengis.net/wfs/2.0/wfs.xsd""")
 				'SessionOutput("  timeStamp=""" & now & """")
-				SessionOutput("  timeStamp=""" & Year(Date) & "-" & Month(Date) & "-" & Day(Date) & "T" & Hour(Time) & ":" & Minute(Time) & ":" & Second(Time) & "Z""")
+				'SessionOutput("  timeStamp=""" & Year(Date) & "-" & FormatNumber(Month(Date),0,-1,0,0) & "-" & Day(Date) & "T" & Hour(Time) & ":" & Minute(Time) & ":" & Second(Time) & "Z""")
+				'SessionOutput("  timeStamp=""" & Year(Date) & "-" & LPad(Month(Date),"0",2) & "-" & Day(Date) & "T" & Hour(Time) & ":" & Minute(Time) & ":" & Second(Time) & "Z""")
+				dim m,d,t,min,sek,tm,td,tt,tmin,tsek
+				m = Month(Date)
+				if m < 10 then
+					tm = "0" & FormatNumber(m,0,0,0,0)
+				else
+					tm = FormatNumber(m,0,0,0,0)
+				end if
+				d = Day(Date)
+				if d < 10 then
+					td = "0" & FormatNumber(d,0,0,0,0)
+				else
+					td = FormatNumber(d,0,0,0,0)
+				end if
+				t = Hour(Time)
+				if t < 10 then
+					tt = "0" & FormatNumber(t,0,0,0,0)
+				else
+					tt = FormatNumber(t,0,0,0,0)
+				end if
+				if t = 0 then tt = "00"
+				min = Minute(Time)
+				if min < 10 then
+					tmin = "0" & FormatNumber(min,0,0,0,0)
+				else
+					tmin = FormatNumber(min,0,0,0,0)
+				end if
+				if min = 0 then tmin = "00"
+				sek = Second(Time)
+				if sek < 10 then
+					tsek = "0" & FormatNumber(sek,0,0,0,0)
+				else
+					tsek = FormatNumber(sek,0,0,0,0)
+				end if
+				if sek = 0 then tsek = "00"
+				SessionOutput("  timeStamp=""" & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z""")
 				SessionOutput("  numberMatched=""unknown""")
 				SessionOutput("  numberReturned=""0"">")
 				'SessionOutput("  >")
@@ -241,13 +278,14 @@ sub listDatatypes(element,indent)
 
 			if getSosiGeometritype(attr) = "" then
 				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] not geometry.",0
-				if attr.ClassifierID <> 0 then
+				if attr.ClassifierID <> 0 and getBasicSOSIType(attr.Type) = "*" then
 					set datatype = Repository.GetElementByID(attr.ClassifierID)
 					'see if the datatype has a supertype, if so then write all its elements first - TBD
 					
 					if datatype.Name = element.Name and datatype.ParentID = element.ParentID then
 					'if datatype.ClassifierID = element.ClassifierID then
 						Repository.WriteOutput "Script", "Error - circular self reference: datatype.Name [" & datatype.Name & "] from attribute name [" & element.Name & "." & attr.Name & "].",0
+						exit sub
 					else
 						if datatype.Type = "Enumeration" or LCase(datatype.Stereotype) = "codelist" or LCase(datatype.Stereotype) = "enumeration" then
 							'list first code in the list
@@ -284,11 +322,56 @@ sub listDatatypes(element,indent)
 			if conn.Type = "Generalization" or conn.Type = "Realisation" or conn.Type = "NoteLink" then
 
 			else
-			if false then
 				'Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
 				'Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
 				if debug then Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.SupplierID).Name & "].",0
 				if debug then Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.ClientID).Name & "].",0
+
+				if conn.ClientID = element.ElementID then
+					set datatype = Repository.GetElementByID(conn.SupplierID)
+					umlnavn = conn.SupplierEnd.Role
+					if conn.ClientEnd.Aggregation = 2 then
+						'composition+mandatory->nest as datatype inline?
+						SessionOutput(indent & "<" & umlnavn & ">")
+						indent0 = indent & "  "
+						SessionOutput(indent0 & "<" & datatype.Name & ">")
+						indent1 = indent0 & "  "
+						call listDatatypes(datatype,indent1)
+						SessionOutput(indent0 & "</" & datatype.Name & ">")
+						SessionOutput(indent & "</" & umlnavn & ">")
+					else
+						if conn.SupplierEnd.Navigable = "Navigable" then
+							'navigable->make xlink? 
+							SessionOutput(indent & "<" & umlnavn & " xlink:href=""#" & datatype.Name & ".1""/>")
+						end if
+					end if
+				else
+					set datatype = Repository.GetElementByID(conn.ClientID)
+					umlnavn = conn.ClientEnd.Role
+					if conn.SupplierEnd.Aggregation = 2 then
+						'composition+mandatory->nest as datatype inline?
+						SessionOutput(indent & "<" & umlnavn & ">")
+						indent0 = indent & "  "
+						SessionOutput(indent0 & "<" & datatype.Name & ">")
+						indent1 = indent0 & "  "
+						call listDatatypes(datatype,indent1)
+						SessionOutput(indent0 & "</" & datatype.Name & ">")
+						SessionOutput(indent & "</" & umlnavn & ">")
+					else
+						if conn.ClientEnd.Navigable = "Navigable" then
+							'navigable->make xlink? 
+							SessionOutput(indent & "<" & umlnavn & " xlink:href=""#" & datatype.Name & ".1""/>")
+						end if
+					end if
+				end if
+
+
+
+
+
+
+
+			if false then
 				sositype = "REF"
 				sosimin = "0"
 				sosimax = "N"
@@ -352,6 +435,7 @@ sub listDatatypes(element,indent)
 							prikkniv1 = prikkniv & "."
 							if datatype.Name = element.Name then
 								Repository.WriteOutput "Script", "Error - circular self reference: datatype.Name [" & datatype.Name & "] from role name [" & element.Name & "." & umlnavn & "].",0
+								exit sub
 							else
 								call listDatatypes(datatype,prikkniv1)
 							end if
