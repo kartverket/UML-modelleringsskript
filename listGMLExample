@@ -3,15 +3,17 @@ option explicit
 !INC Local Scripts.EAConstants-VBScript
 
 ' script:		listGMLExample
-' purpose:		Generates one GML example object from each feature type in the model
-' version:		2018-09-11, 09-12, 09-14
-' TBD:          utf8 for sami characters, (inheritance)loopdetection,,,,detect and set localId=gml:id/namespace=..?,cleanup
+' purpose:		Generates GML example objects from feature types in the model
+' version:		2018-09-11, 09-12, 09-14, 09-16(single class)
+' TBD:          utf8 for sami characters, 
+' TBD:			association [..*] pointing to supertype should make one xlink to each subtype,
+' TBD:			(inheritance)loopdetection,,,,detect and set localId=gml:id/namespace=..?,cleanup
 
 
-		DIM debug, kortnavn, pnteller, cuteller, suteller, soteller, obteller
+		DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller
 		debug = false
 
-sub listGMLExampleForPackage()
+sub listGMLExample()
 	' Show and clear the script output window
 	Repository.EnsureOutputVisible "Script"
 
@@ -20,13 +22,14 @@ sub listGMLExampleForPackage()
 	if not theElement is nothing  then
 		'if theElement.Type="Package" and UCASE(theElement.Stereotype) = "APPLICATIONSCHEMA" then
 		if Repository.GetTreeSelectedItemType() = otPackage then
+		if UCASE(theElement.Element.Stereotype) = "APPLICATIONSCHEMA" then
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
-					dim message
-			dim box
-			box = Msgbox ("Script listGMLExample" & vbCrLf & vbCrLf & "Scriptversion 2018-09-12" & vbCrLf & "Listing to GML example for package : [" & theElement.Name & "].",1)
-			select case box
-			case vbOK
-				dim namespace, xsdfile
+					dim message, indent
+		'	dim box
+		'	box = Msgbox ("Script listGMLExample" & vbCrLf & vbCrLf & "Scriptversion 2018-09-16" & vbCrLf & "Listing to GML example for package : [" & theElement.Name & "].",1)
+		'	select case box
+		'	case vbOK
+				dim xsdfile
 				'tømmer System Output for lettere å fange opp hele gml-fila
 				Repository.ClearOutput "Script"
 				Repository.CreateOutputTab "Error"
@@ -108,21 +111,43 @@ sub listGMLExampleForPackage()
 
 				
 
-			case VBcancel
+		'	case VBcancel
 
-			end select
-	
-
-		Else
-		  'Other than CodeList selected in the tree
-		  MsgBox( "This script requires a package to be selected in the Project Browser." & vbCrLf & _
+		'	end select
+		else			'No «ApplicationSchema» Package or a «FeatureType» Class selected in the tree
+			MsgBox( "This script requires a «ApplicationSchema» Package to be selected in the Project Browser." & vbCrLf & _
 			"Please select a package in the Project Browser and try again." )
-		end If
+	
+		end if
+		Else
+			if Repository.GetTreeSelectedItemType() = otElement then
+			if theElement.Type="Class" and UCASE(theElement.Stereotype) = "FEATURETYPE" then
+				if debug then Repository.WriteOutput "Script", "Debug: theElement.Name [«" & theElement.Stereotype & "» " & theElement.Name & "] currentElement.Type [" & theElement.Type & "] currentElement.Abstract [" & theElement.Abstract & "].",0
+
+				Repository.ClearOutput "Script"
+				Repository.CreateOutputTab "Error"
+				Repository.ClearOutput "Error"
+				namespace = "http://some.server.no/namespace"
+				kortnavn = "shortNamespace"
+				SessionOutput("  <wfs:member>")
+				SessionOutput("    <" & theElement.Name & " gml:id="""& theElement.Name & ".1"">")
+				indent = "      "
+				call listDatatypes(theElement.Name,theElement,indent)
+				SessionOutput("    </" & theElement.Name & ">")
+				SessionOutput("  </wfs:member>")
+			else
+				'Other than «ApplicationSchema» Package or a «FeatureType» Class selected in the tree
+				MsgBox( "This script requires a «FeatureType» Class to be selected in the Project Browser." & vbCrLf & _
+				"Please select a «ApplicationSchema» Package or a «FeatureType» Class in the Project Browser and try again." )
+			end if
+			else
+				'Other than «ApplicationSchema» Package or a «FeatureType» Class selected in the tree
+				MsgBox( "Element type selected: " & theElement.Type & vbCrLf & _
+				"This script requires a «ApplicationSchema» Package or a «FeatureType» Class to be selected in the Project Browser." & vbCrLf & _
+				"Please select a «ApplicationSchema» Package or a «FeatureType» Class in the Project Browser and try again." )
+			end If
+		end if
 		'Repository.WriteOutput "Script", Now & " Finished, check the Error and Types tabs", 0
-	else
-		'No CodeList selected in the tree
-		MsgBox( "This script requires a package to be selected in the Project Browser." & vbCrLf & _
-	  "Please select a package in the Project Browser and try again." )
 	end if
 end sub
 
@@ -225,8 +250,14 @@ sub listDatatypes(ftname,element,indent)
 					else
 						if datatype.Type = "Enumeration" or LCase(datatype.Stereotype) = "codelist" or LCase(datatype.Stereotype) = "enumeration" then
 							'list first code in the list
+							
+							'variant gml:CodeType
 							SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
+
+							'variant gml:ReferenceType
+						'	SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & namespace & "/" & attr.Type & "/" & listCodeType(datatype) & """/>")
 							'SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & listReferenceType(attr.Type) & """/>")
+							
 							'listCodeType(attr)
 						else
 							SessionOutput(indent & "<" & attr.Name & ">")
@@ -679,4 +710,4 @@ sub SessionOutput(text)
 	Session.Output(text)
 end sub
 
-listGMLExampleForPackage
+listGMLExample
