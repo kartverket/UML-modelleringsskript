@@ -5,9 +5,13 @@ option explicit
 ' script:		listGMLExample
 ' purpose:		Generates GML example objects from feature types in the model
 ' version:		2018-09-11, 09-12, 09-14, 09-16(single class)
-' TBD:          utf8 for sami characters, 
-' TBD:			association [..*] pointing to supertype should make one xlink to each subtype,
-' TBD:			(inheritance)loopdetection,,,,detect and set localId=gml:id/namespace=..?,cleanup
+' author: 		Kent Jonsrud
+' TBD:          utf8 (for codes with sami characters)
+' TBD:          two xml elements where max multiplicity > 1 ?
+' TBD:			association [..*] pointing to supertype should make one xlink to each subtype
+' TBD:			better placeholder value for <Identifier><namespace>
+' TBD:			(inheritance)loopdetection
+' TBD:			cleanup
 
 
 		DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller
@@ -129,6 +133,11 @@ sub listGMLExample()
 				Repository.ClearOutput "Error"
 				namespace = "http://some.server.no/namespace"
 				kortnavn = "shortNamespace"
+				pnteller=0
+				cuteller=0
+				suteller=0
+				soteller=0
+				obteller=0
 				SessionOutput("  <wfs:member>")
 				SessionOutput("    <" & theElement.Name & " gml:id="""& theElement.Name & ".1"">")
 				indent = "      "
@@ -424,65 +433,6 @@ sub listGeometryType(elementName, geomtype, indent)
 		end if
 end sub
 
-function getSupertypes(ftname,elementID, indent)
-	dim super as EA.Element
-	dim conn as EA.Collection
-	dim supername, supernames
-	set super = Repository.GetElementByID(elementID)
-	for each conn in super.Connectors
-		if conn.Type = "Generalization" then
-			if super.ElementID = conn.ClientID then
-				if debug then Repository.WriteOutput "Script", "Debug: getSupertypes super.Name [" & super.Name & "]  supername [" & supername & "].",0
-				if debug then Repository.WriteOutput "Script", "Debug: supersupertype [" & Repository.GetElementByID(conn.SupplierID).Name & "].",0
-				supername = getSupertypes(ftname, conn.SupplierID, indent)
-			end if
-		end if
-	next
-	if debug then Repository.WriteOutput "Script", "Debug: getSupertypes super.Name [" & super.Name & "]  supername [" & supername & "].",0
-	getSupertypes = supername & " "  & super.Name
-	call listDataTypes(ftname, super, indent)
-end function
-
-function getKoder(element)
-		dim kode, koder
-		koder = ""
-		dim attr as EA.Attribute
-		for each attr in element.Attributes
-			'if debug then Repository.WriteOutput "Script", "Debug: code.Name [" & attr.Name & "] SOSI_navn [" & getTaggedValue(attr,"SOSI_navn") & "].",0
-			kode = utf8(attr.Name)
-			if getTaggedValue(attr,"SOSI_verdi") <> "" then
-				kode = utf8(getTaggedValue(attr,"SOSI_verdi"))
-			end if
-			if attr.Default <> "" then
-				kode = utf8(attr.Default)
-			end if
-			
-			koder = koder & "," & kode
-		next
-		if Len(koder) < 2 then
-			getKoder = ""
-		else
-			getKoder = Mid(koder,2,Len(koder))
-		end if
-end function
-
-function getSosiGeometrityper(element)
-		dim typer
-		typer = ""
-		dim attr as EA.Attribute
-		for each attr in element.Attributes
-			if getSosiGeometritype(attr) <> "" then
-				typer = typer & "," & getSosiGeometritype(attr)
-			end if
-		next
-		if Len(typer) < 2 then
-			getSosiGeometrityper = ""
-		else
-			getSosiGeometrityper = Mid(typer,2,Len(typer))
-		end if
-end function
-
-
 function getSosiGeometritype(element)
 
 		getSosiGeometritype = ""
@@ -539,83 +489,6 @@ function getConnectorEndTaggedValue(connectorEnd,taggedValueName)
 		next
 	end if 
 end function 
-
-function getNCNameX(str)
-	' make name legal SOSI-Kontrolfil (NC+ingen punktum)
-	Dim txt, res, tegn, i, u
-    u=0
-		txt = Trim(str)
-		'res = LCase( Mid(txt,1,1) )
-		res = Mid(txt,1,1)
-			'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
-
-		' loop gjennom alle tegn
-		For i = 2 To Len(txt)
-		  ' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
-		  ' (tatt med flere fnuttetyper, men hva med "."?) (‘'«»’)
-		  tegn = Mid(txt,i,1)
-		  if tegn = "." Then
-			  'Repository.WriteOutput "Script", "Bad0 in SOSI-kontrollfil: " & tegn,0
-			  u=1
-		  Else
-		  if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
-			  'Repository.WriteOutput "Script", "Bad1: " & tegn,0
-			  u=1
-		  Else
-		    if tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
-			    'Repository.WriteOutput "Script", "Bad2: " & tegn,0
-			    u=1
-		    Else
-		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
-			      'Repository.WriteOutput "Script", "Bad3: " & tegn,0
-			      u=1
-		      else
-			      'Repository.WriteOutput "Script", "Good: " & tegn,0
-			      If u = 1 Then
-		          res = res + UCase(tegn)
-		          u=0
-			      else
-		          res = res + tegn
-		        End If
-		      End If
-		    End If
-		  End If
-		  End If
-		Next
-		' return res
-		getNCNameX = res
-
-End function
-
-function getDefinitionText(currentElement)
-
-    Dim txt, res, tegn, i, u
-    u=0
-	getDefinitionText = ""
-		txt = Trim(currentElement.Notes)
-		res = ""
-		' loop gjennom alle tegn
-		For i = 1 To Len(txt)
-		  tegn = Mid(txt,i,1)
-		  If tegn = ";" Then
-			  res = res + " "
-		  Else 
-			If tegn = """" Then
-			  res = res + "'"
-			Else
-			  If tegn < " " Then
-			    res = res + " "
-			  Else
-			    res = res + Mid(txt,i,1)
-			  End If
-			End If
-		  End If
-		  
-		Next
-		
-	getDefinitionText = res
-
-end function
 
 function getBasicSOSIType(umltype)
 	getBasicSOSIType = "*"
