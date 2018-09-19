@@ -5,7 +5,7 @@ option explicit
 ' skriptnavn:       listGMLDICTfraKodeliste
 ' description:		Skriver kodeliste til gml:Dictionary.xml fil. på samme sti som .eap-fila ligger.
 ' author:			Kent
-' date  :			2017-06-29, 07-07,09-08,11-09,12-05, 2018-02-20
+' date  :			2017-06-29, 07-07,09-08,11-09,12-05, 2018-02-20, 2018-09-19
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -145,7 +145,7 @@ Sub listDICTfraKode(attr, codelist, namespace)
 		end if
 		objFile.Write"      <identifier codeSpace="""&utf8(namespace)&"/"&utf8(codelist)&""">"&utf8(attr.Default)&"</identifier>" & vbCrLf
 		if presentasjonsnavn <> "" then
-			objFile.Write"      <name>"&utf8(presentasjonsnavn)&"</name>" & vbCrLf
+			objFile.Write"      <name>SOSI_presentasjonsnavn:"&utf8(presentasjonsnavn)&"</name>" & vbCrLf
 		end if
   		objFile.Write"      <name>"&utf8(attr.Name)&"</name>" & vbCrLf
 	else
@@ -153,9 +153,14 @@ Sub listDICTfraKode(attr, codelist, namespace)
 		objFile.Write"      <description>"&utf8(getCleanDefinitionText(attr))&"</description>" & vbCrLf
 		objFile.Write"      <identifier codeSpace="""&utf8(namespace)&"/"&utf8(codelist)&""">"&utf8(attr.Name)&"</identifier>" & vbCrLf
 		if presentasjonsnavn <> "" then
-			objFile.Write"      <name>"&utf8(presentasjonsnavn)&"</name>" & vbCrLf
+			objFile.Write"      <name>SOSI_presentasjonsnavn:"&utf8(presentasjonsnavn)&"</name>" & vbCrLf
 		end if
  	end if
+	if getTaggedValue(attr,"SOSI_verdi") <> "" then
+		'Repository.WriteOutput "Script", "debug: tempt:"&tempt&"",0
+		'Repository.WriteOutput "Script", "debug: SOSI_verdi:"&utf8(getTaggedValue(attr,"SOSI_verdi"))&"",0
+		objFile.Write"      <name>SOSI_verdi:"&utf8(getTaggedValue(attr,"SOSI_verdi"))&"</name>" & vbCrLf
+	end if
  
 
 	objFile.Write"    </Definition>" & vbCrLf
