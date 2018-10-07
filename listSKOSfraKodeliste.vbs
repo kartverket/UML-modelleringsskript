@@ -6,13 +6,17 @@ option explicit
 ' description:		Skriver en kodeliste til egne SKOS-filer under samme sti som .eap-fila ligger.
 ' author:			Kent
 ' date:				2017-06-29,07-07,09-08,09-14,11-09,12-05, 2918-02-20
+' date:				2018-10-05 html5
 	DIM objFSO
 	DIM outFile
 	DIM objFile
+	DIM htmFile
 
 	DIM codeFSO
 	DIM outCodeFile
 	DIM objCodeFile
+	DIM htmlFSO
+	DIM outHtmlFile
 
 sub listKoderForEnValgtKodeliste()
 	' Show and clear the script output window
@@ -146,7 +150,7 @@ sub listCodelistCodes(el,namespace)
 
 	' Release the file system object
     Set objFSO= Nothing
-	Repository.WriteOutput "Script", "SKOS/RDF/xml-file: "&outFile&" written",0
+	Repository.WriteOutput "Script", "html5/SKOS/RDF/xml-file: "&outFile&" written",0
 	
 end sub
 
@@ -216,8 +220,33 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	objCodeFile.Close
 
     Set codeFSO= Nothing
-		
-	
+
+	Set htmlFSO=CreateObject("Scripting.FileSystemObject")
+	outHtmlFile = codeList & "\" & uricode
+	'Repository.WriteOutput "Script", Now & " outHtmlFile: " & outHtmlFile, 0
+	Set htmFile = objFSO.CreateTextFile(outHtmlFile,True,False)
+	htmFile.Write"<!DOCTYPE html>" & vbCrLf
+	htmFile.Write"<html lang=""no"">" & vbCrLf
+	htmFile.Write"	<head>" & vbCrLf
+	htmFile.Write"	  <meta charset=""utf-8""/>" & vbCrLf
+	htmFile.Write"	  <title>" & utf8(codelist) & " " & utf8(uricode) & "</title>" & vbCrLf
+	htmFile.Write"	</head>" & vbCrLf
+	htmFile.Write"	<body>" & vbCrLf
+	htmFile.Write"    <p>xml:base=" & utf8(namespace) & "/" & utf8(codelist) & "</p>" & vbCrLf
+	htmFile.Write"    <p>http-URI=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "</p>" & vbCrLf
+	htmFile.Write"    <p>code name=" & utf8(uricode) & "</p>" & vbCrLf
+	htmFile.Write"    <p>presentation name=" & utf8(presentasjonsnavn) & "</p>" & vbCrLf
+	htmFile.Write"    <p>code description=" & (getCleanDefinitionText(attr)) & "</p>" & vbCrLf
+	if getTaggedValue(attr,"SOSI_verdi") <> "" then
+		htmFile.Write"    <p>SOSI_verdi=" & utf8(getTaggedValue(attr,"SOSI_verdi")) & "</p>" & vbCrLf
+	end if
+	htmFile.Write"  </body>" & vbCrLf
+	htmFile.Write"</html>" & vbCrLf
+
+	htmFile.Close
+
+    Set htmlFSO= Nothing
+
 End Sub
 
 function getTaggedValue(element,taggedValueName)
