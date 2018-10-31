@@ -4,7 +4,7 @@ option explicit
 
 ' script:		listGMLExample
 ' purpose:		Generates GML example objects from feature types in the model
-' version:		2018-09-11, 09-12, 09-14, 09-16(single class)
+' version:		2018-09-11, 09-12, 09-14, 09-16(single class), 10-04 utf8
 ' author: 		Kent Jonsrud
 ' TBD:          utf8 (for codes with sami characters)
 ' TBD:          two xml elements where max multiplicity > 1 ?
@@ -56,14 +56,14 @@ sub listGMLExample()
 				'SessionOutput("test3: SOSI_kortnavn: " & vbCrLf & utf8(kortnavn) )
 				SessionOutput("<?xml version=""1.0"" encoding=""utf-8""?>")
 				SessionOutput("<wfs:FeatureCollection")
-				SessionOutput("  xmlns=""" & namespace & """")
+				SessionOutput("  xmlns=""" & utf8(namespace) & """")
 				SessionOutput("  xmlns:wfs=""http://www.opengis.net/wfs/2.0""")
 				SessionOutput("  xmlns:gml=""http://www.opengis.net/gml/3.2""")
 				SessionOutput("  xmlns:xlink=""http://www.w3.org/1999/xlink""")
 				SessionOutput("  xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""")
-				SessionOutput("  xsi:schemaLocation=""" & namespace)
+				SessionOutput("  xsi:schemaLocation=""" & utf8(namespace))
 				'SessionOutput("                     """ & namespace & "." & kortnavn & ".xsd""")
-				SessionOutput("                     " & namespace & "/" & xsdfile)
+				SessionOutput("                     " & utf8(namespace) & "/" & utf8(xsdfile))
 				SessionOutput("                     http://www.opengis.net/wfs/2.0")
 				SessionOutput("                     http://schemas.opengis.net/wfs/2.0/wfs.xsd""")
 				'SessionOutput("  timeStamp=""" & now & """")
@@ -139,10 +139,10 @@ sub listGMLExample()
 				soteller=0
 				obteller=0
 				SessionOutput("  <wfs:member>")
-				SessionOutput("    <" & theElement.Name & " gml:id="""& theElement.Name & ".1"">")
+				SessionOutput("    <" & utf8(theElement.Name) & " gml:id="""& utf8(theElement.Name) & ".1"">")
 				indent = "      "
 				call listDatatypes(theElement.Name,theElement,indent)
-				SessionOutput("    </" & theElement.Name & ">")
+				SessionOutput("    </" & utf8(theElement.Name) & ">")
 				SessionOutput("  </wfs:member>")
 			else
 				'Other than «ApplicationSchema» Package or a «FeatureType» Class selected in the tree
@@ -179,7 +179,7 @@ sub listFeatureTypes(pkg)
 		if currentElement.Type = "Class" and LCase(currentElement.Stereotype) = "featuretype" and currentElement.Abstract = 0 then
 			
 			SessionOutput("  <wfs:member>")
-			SessionOutput("    <" & currentElement.Name & " gml:id="""& currentElement.Name & ".1"">")
+			SessionOutput("    <" & utf8(currentElement.Name) & " gml:id="""& utf8(currentElement.Name) & ".1"">")
 			pnteller=0
 			cuteller=0
 			suteller=0
@@ -198,7 +198,7 @@ sub listFeatureTypes(pkg)
 			'next
 
 			call listDatatypes(ftname,currentElement,indent)
-			SessionOutput("    </" & currentElement.Name & ">")
+			SessionOutput("    </" & utf8(currentElement.Name) & ">")
 			SessionOutput("  </wfs:member>")
 
 		end if
@@ -269,26 +269,26 @@ sub listDatatypes(ftname,element,indent)
 							
 							'listCodeType(attr)
 						else
-							SessionOutput(indent & "<" & attr.Name & ">")
+							SessionOutput(indent & "<" & utf8(attr.Name) & ">")
 							indent0 = indent & "  "
-							SessionOutput(indent0 & "<" & datatype.Name & ">")
+							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
 							indent1 = indent0 & "  "
 							call listDatatypes(ftname, datatype,indent1)
-							SessionOutput(indent0 & "</" & datatype.Name & ">")
-							SessionOutput(indent & "</" & attr.Name & ">")
+							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+							SessionOutput(indent & "</" & utf8(attr.Name) & ">")
 						end if
 					end if
 				else
 					'base type
-					SessionOutput(indent & "<" & attr.Name & ">" & listBaseType(ftname, attr.Name,attr.Type) & "</" & attr.Name & ">")
+					SessionOutput(indent & "<" & utf8(attr.Name) & ">" & listBaseType(ftname, attr.Name,attr.Type) & "</" & utf8(attr.Name) & ">")
 
 				end if
 			else
 				'geometry type 
 				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] is geometry: " & getSosiGeometritype(attr) & ".",0
-				SessionOutput(indent & "<" & attr.Name & ">")
+				SessionOutput(indent & "<" & utf8(attr.Name) & ">")
 				call listGeometryType(ftname, attr.Type, indent & "  ")			
-				SessionOutput(indent & "</" & attr.Name & ">")
+				SessionOutput(indent & "</" & utf8(attr.Name) & ">")
 			end if
 
 			'SessionOutput(indent & "</" & attr.Name & ">")
@@ -308,17 +308,17 @@ sub listDatatypes(ftname,element,indent)
 					umlnavn = conn.SupplierEnd.Role
 					if conn.ClientEnd.Aggregation = 2 then
 						'composition+mandatory->nest as datatype inline?
-						SessionOutput(indent & "<" & umlnavn & ">")
+						SessionOutput(indent & "<" & utf8(umlnavn) & ">")
 						indent0 = indent & "  "
-						SessionOutput(indent0 & "<" & datatype.Name & ">")
+						SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
 						indent1 = indent0 & "  "
 						call listDatatypes(ftname, datatype,indent1)
-						SessionOutput(indent0 & "</" & datatype.Name & ">")
-						SessionOutput(indent & "</" & umlnavn & ">")
+						SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+						SessionOutput(indent & "</" & utf8(umlnavn) & ">")
 					else
 						if conn.SupplierEnd.Navigable = "Navigable" then
 							'navigable->make xlink? 
-							SessionOutput(indent & "<" & umlnavn & " xlink:href=""#" & datatype.Name & ".1""/>")
+							SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & ".1""/>")
 						end if
 					end if
 				else
@@ -326,17 +326,17 @@ sub listDatatypes(ftname,element,indent)
 					umlnavn = conn.ClientEnd.Role
 					if conn.SupplierEnd.Aggregation = 2 then
 						'composition+mandatory->nest as datatype inline?
-						SessionOutput(indent & "<" & umlnavn & ">")
+						SessionOutput(indent & "<" & utf8(umlnavn) & ">")
 						indent0 = indent & "  "
-						SessionOutput(indent0 & "<" & datatype.Name & ">")
+						SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
 						indent1 = indent0 & "  "
 						call listDatatypes(ftname, datatype,indent1)
-						SessionOutput(indent0 & "</" & datatype.Name & ">")
-						SessionOutput(indent & "</" & umlnavn & ">")
+						SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+						SessionOutput(indent & "</" & utf8(umlnavn) & ">")
 					else
 						if conn.ClientEnd.Navigable = "Navigable" then
 							'navigable->make xlink? 
-							SessionOutput(indent & "<" & umlnavn & " xlink:href=""#" & datatype.Name & ".1""/>")
+							SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & ".1""/>")
 						end if
 					end if
 				end if
@@ -373,7 +373,7 @@ function listBaseType(ftname,umlname, umltype)
 		listBaseType = "2018-09-11T21:08:00Z"
 	end if
 	if umltype = "Integer" then
-		listBaseType = "99"
+		listBaseType = "44"
 	end if
 	if umltype = "Real" then
 		listBaseType = "99.99"
