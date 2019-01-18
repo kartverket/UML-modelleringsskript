@@ -5,8 +5,7 @@ option explicit
 ' script:			listSKOSfraKodeliste
 ' description:		Skriver en kodeliste til egne SKOS-filer under samme sti som .eap-fila ligger.
 ' author:			Kent
-' date:				2017-06-29,07-07,09-08,09-14,11-09,12-05, 2918-02-20
-' date:				2018-10-05 html5
+' date:				2017-06-29,07-07,09-08,09-14,11-09,12-05, 2918-02-20, 2019-01-18
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -125,15 +124,15 @@ sub listCodelistCodes(el,namespace)
 			Repository.WriteOutput "Script", Now & "  " & attr.Name & "." & attr.Notes, 0
 			if InStr(LCASE(attr.Notes),"utgått") then 
 				Repository.WriteOutput "Script", Now & " utgått: " & attr.Name & "." & attr.Notes, 0
-	'			call listSKOSfraKode(attr,el.Name,namespace)
+				call listSKOSfraKode(attr,el.Name,namespace)
 			else
 			if Int(attr.Name) > 2099 and Int(attr.Name) < 2400 then 
 				Repository.WriteOutput "Script", Now & " svalb.: " & attr.Name & "." & attr.Notes, 0
-	'			call listSKOSfraKode(attr,el.Name,namespace)
+				call listSKOSfraKode(attr,el.Name,namespace)
 			else
 			if Int(attr.Name) > 20 and Int(attr.Name) < 24 then 
 				Repository.WriteOutput "Script", Now & " Svalb.: " & attr.Name & "." & attr.Notes, 0
-	'			call listSKOSfraKode(attr,el.Name,namespace)
+				call listSKOSfraKode(attr,el.Name,namespace)
 			else
 				call listSKOSfraKode(attr,el.Name,namespace)
 			end if
@@ -150,7 +149,7 @@ sub listCodelistCodes(el,namespace)
 
 	' Release the file system object
     Set objFSO= Nothing
-	Repository.WriteOutput "Script", "html5/SKOS/RDF/xml-file: "&outFile&" written",0
+	Repository.WriteOutput "Script", "SKOS/RDF/xml-file: "&outFile&" written",0
 	
 end sub
 
@@ -236,7 +235,8 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	htmFile.Write"    <p>http-URI=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "</p>" & vbCrLf
 	htmFile.Write"    <p>code name=" & utf8(uricode) & "</p>" & vbCrLf
 	htmFile.Write"    <p>presentation name=" & utf8(presentasjonsnavn) & "</p>" & vbCrLf
-	htmFile.Write"    <p>code description=" & (getCleanDefinitionText(attr)) & "</p>" & vbCrLf
+	'Repository.WriteOutput "Script", " before getCleanDefinitionText attr.Name: " & attr.Name, 0
+	htmFile.Write"    <p>code description=" & utf8(getCleanDefinitionText(attr)) & "</p>" & vbCrLf
 	if getTaggedValue(attr,"SOSI_verdi") <> "" then
 		htmFile.Write"    <p>SOSI_verdi=" & utf8(getTaggedValue(attr,"SOSI_verdi")) & "</p>" & vbCrLf
 	end if
@@ -281,6 +281,7 @@ function getCleanDefinitionText(currentElement)
 		' loop gjennom alle tegn
 		For i = 1 To Len(txt)
 		  tegn = Mid(txt,i,1)
+		  'Repository.WriteOutput "Script", "Bad clean?: " & tegn & " " & AscW(tegn),0
 		  If tegn = "<" Then
 				u = 1
 			   'res = res + " "
@@ -347,13 +348,14 @@ function getNCNameX(str)
 		txt = Trim(str)
 		'res = LCase( Mid(txt,1,1) )
 		res = Mid(txt,1,1)
-			'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
+		'	Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
 
 		' loop gjennom alle tegn
 		For i = 2 To Len(txt)
 		  ' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
 		  ' (tatt med flere fnuttetyper, men hva med "."?) (‘'«»’)
 		  tegn = Mid(txt,i,1)
+		  'Repository.WriteOutput "Script", "Bad?: " & tegn & " " & AscW(tegn),0
 		  if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
 			  'Repository.WriteOutput "Script", "Bad1: " & tegn,0
 			  u=1
