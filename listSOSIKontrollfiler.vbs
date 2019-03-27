@@ -5,8 +5,15 @@ option explicit
 ' script:		listSOSIKontrollfiler
 ' purpose:		Generate files for SOSI validator. Lager filer for SOSI-Kontroll fra SOSI-5.0 modeller.
 ' author:		Kent
-' version:		2018-03-01
-
+' version:		2018-03-01, 04.13
+' version:		2018-09-07 self associations and self datatypes are detected, not other types of circular usages or inheritance loops.
+' version:		2019-03-20 for egenskaper med defaultCodeSpace ansees kodelisten som eksternt forvaltet og tom(!), og stien til den eksterne lista legges rett i o-fila .
+'
+'
+'	Kjente svakheter:
+'	Hvis filene ikke dukker opp i en underkatalog under der .eap-fila ligger kan man lete på en tempsti ala:
+'	C:\Users\jonken\AppData\Roaming\Sparx Systems\EA\Temp\Elveg\kap50
+'
 '	Skriver til fire filer i egen folder:
 '		Liste med navnene på filer som skal inkluderes
 '		Objekttypedefinisjoner inkludert nøstet innhold i alle datatyper, ikke arvede (?)
@@ -38,19 +45,21 @@ sub listFeatureTypesForEnValgtPakke()
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
 					dim message
 			dim box
-			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2018-03-01" & vbCrLf & "Starter listing til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
+			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2019-03-20" & vbCrLf & "Starter listing av modell som følger SOSI 5.0-regler til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
 			select case box
 			case vbOK
 				dim kortnavn
-				kortnavn = getPackageTaggedValue(theElement,"SOSI_kortnavn")
-				if kortnavn = "" then
-					kortnavn = theElement.Name
-					Repository.WriteOutput "Script", "Pakken mangler tagged value SOSI_kortnavn! Kjører midlertidig videre med pakkenavnet som kortnavn: " & vbCrLf & kortnavn, 0
-				end if
-				kortnavn = InputBox("Velg produktets kortnavn.", "kortnavn", kortnavn)
+				'tømmer System Output for lettere å fange opp eventuelle feilmeldinger der
 				Repository.ClearOutput "Script"
 				Repository.CreateOutputTab "Error"
 				Repository.ClearOutput "Error"
+				kortnavn = getPackageTaggedValue(theElement,"SOSI_kortnavn")
+				if kortnavn = "" then
+					kortnavn = theElement.Name
+					Repository.WriteOutput "Script", "Pakken mangler tagged value SOSI_kortnavn! Kjører midlertidig videre med pakkenavnet som forslag til kortnavn: " & vbCrLf & kortnavn, 0
+				end if
+				kortnavn = InputBox("Velg produktets kortnavn.", "kortnavn", kortnavn)
+				Repository.WriteOutput "Script", Now & "Starter listing til SOSIKontrollfiler for pakke : [" & theElement.Name & "], valgt SOSI_kortnavn: " & vbCrLf & kortnavn, 0
 
 				Set sosFSO=CreateObject("Scripting.FileSystemObject")
 				if not sosFSO.FolderExists(kortnavn) then
@@ -64,7 +73,7 @@ sub listFeatureTypesForEnValgtPakke()
 				objFile = kortnavn & "\kap50\" & getNCNameX(kortnavn) & "_o.50"
 				utvFile = kortnavn & "\kap50\" & getNCNameX(kortnavn) & "_u.50"
 				eleFile = kortnavn & "\kap50\" & getNCNameX(kortnavn) & "_d.50"
-				Repository.WriteOutput "Script", Now & " sosFolder: " & kortnavn & " objFile: " & objFile & " utvFile: " & utvFile & " eleFile: " & eleFile, 0
+				'Repository.WriteOutput "Script", Now & " sosFolder: " & kortnavn & " objFile: " & objFile & " utvFile: " & utvFile & " eleFile: " & eleFile, 0
 				Set def = sosFSO.CreateTextFile(defFile,True,False)
 				Set obj = sosFSO.CreateTextFile(objFile,True,False)
 				Set utv = sosFSO.CreateTextFile(utvFile,True,False)
@@ -116,7 +125,7 @@ sub listFeatureTypesForEnValgtPakke()
 				ele.Close
 				' Release the file system object
 				Set sosFSO = Nothing
-				Repository.WriteOutput "Script", Now & " Filer skrevet til: " & kortnavn & ".",0
+				Repository.WriteOutput "Script", Now & " Filer skrevet til katalogen: " & kortnavn & ".",0
 
 			case VBcancel
 
@@ -144,7 +153,7 @@ sub listFeatureTypes(pkg,kortnavn)
 	dim datatype as EA.Element
 	dim conn as EA.Collection
  	set elements = pkg.Elements 
-	dim i, sosinavn, sositype, sosilengde, sosimin, sosimax, koder, prikkniv, sosierlik
+	dim i, sosinavn, sositype, sosilengde, sosimin, sosimax, koder, prikkniv, sosierlik, superlist
 	for i = 0 to elements.Count - 1 
 		dim currentElement as EA.Element 
 		set currentElement = elements.GetAt( i ) 
@@ -168,12 +177,15 @@ sub listFeatureTypes(pkg,kortnavn)
 				obj.Write"..GEOMETRITYPE PUNKT,SVERM,KURVE,FLATE,OBJEKT" & vbCrLf
 			end if
 			' restriksjon? -> ..AVGRENSES_AV KantUtsnitt,TakoverbyggKant,FiktivBygningsavgrensning(,Flateavgrensning?)
+			superlist = ""
 			for each conn in currentElement.Connectors
 				if conn.Type = "Generalization" then
 					if currentElement.ElementID = conn.ClientID then
-						set super = Repository.GetElementByID(conn.SupplierID)
-						obj.Write"..INKLUDER " & utf8(super.Name) & vbCrLf
-						' må vi nøste helt opp og ta med alle? (..INKLUDER Ngis KommMå)
+						' må nøste helt opp og ta med alle (..INKLUDER Ngis KommMå)
+						superlist = getSupertypes(conn.SupplierID)
+						obj.Write"..INKLUDER " & utf8(superlist) & vbCrLf
+						'set super = Repository.GetElementByID(conn.SupplierID)
+						'obj.Write"..INKLUDER " & utf8(super.Name) & vbCrLf
 					end if
 				end if
 			next
@@ -208,7 +220,7 @@ sub listDatatypes(element,prikkniv)
 	dim connEnd as EA.ConnectorEnd
 	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef
 				
-	if element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "featuretype" then
+	if element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype" then
 
 		dim attr as EA.Attribute
 		for each attr in element.Attributes
@@ -224,10 +236,10 @@ sub listDatatypes(element,prikkniv)
 				sosimin = "0"
 				sosimax = "N"
 				sosierlik = "><"
-				if attr.LowerBound = "1" then
+				if attr.LowerBound = "1" and LCase(element.Stereotype) <> "union" then
 					sosimin = "1"
 				end if
-				if attr.UpperBound = "1" then
+				if attr.UpperBound = "1" or LCase(element.Stereotype) = "union" then
 					sosimax = "1"
 				end if
 				sositype = UCase(getTaggedValue(attr,"SOSI_type")) 
@@ -260,7 +272,17 @@ sub listDatatypes(element,prikkniv)
 						if sositype = "*" then
 							sositype = "T"
 						end if
-						koder = getKoder(datatype)
+
+						'if getTaggedValue(attr,"defaultCodeSpace") = getTaggedValue(datatype,"codeList") then
+						'if getTaggedValue(attr,"defaultCodeSpace") <> "" then
+						'midlertidig!
+						if attr.Name = "kommunenummer" or attr.Name = "målemetode" or attr.Name = "målemetodeHøyde" then
+							'bygger først på at egenskapen peker til korrekt sti
+							koder = getTaggedValue(attr,"defaultCodeSpace")
+							sosierlik = "="
+						else				
+							koder = getKoder(datatype)
+						end if
 						if koder <> "" then
 							sosierlik = "="
 						end if
@@ -268,7 +290,7 @@ sub listDatatypes(element,prikkniv)
 				else
 					'ukjent basistype ?
 					if sositype = "*" then
-						sositype = "T666"
+						sositype = "FIX TYPE"
 					end if
 					
 				end if
@@ -290,7 +312,11 @@ sub listDatatypes(element,prikkniv)
 						if debug then Repository.WriteOutput "Script", "Debug: datatype.Name [" & datatype.Name & "] datatypens SOSI_navn [" & getTaggedValue(datatype,"SOSI_navn") & "].",0
 						'             set datatype = Repository.GetElementByID(attr.ClassifierID)
 						prikkniv1 = prikkniv & "."
-						call listDatatypes(datatype,prikkniv1)
+						if datatype.Name = element.Name then
+							Repository.WriteOutput "Script", "Error - circular self reference: datatype.Name [" & datatype.Name & "] from attribute name [" & element.Name & "." & attr.Name & "].",0
+						else
+							call listDatatypes(datatype,prikkniv1)
+						end if
 					end if
 				end if
 				'Kompaktifisering????
@@ -376,7 +402,13 @@ sub listDatatypes(element,prikkniv)
 							end if
 							
 							prikkniv1 = prikkniv & "."
-							call listDatatypes(datatype,prikkniv1)
+							if datatype.Name = element.Name then
+								Repository.WriteOutput "Script", "Error - circular self reference: datatype.Name [" & datatype.Name & "] from role name [" & element.Name & "." & umlnavn & "].",0
+							else
+								call listDatatypes(datatype,prikkniv1)
+							end if
+						else
+							' association may be to a feature type
 						end if
 				end if
 
@@ -389,27 +421,43 @@ sub listDatatypes(element,prikkniv)
 
 end sub
 
-function getKoder(element)
-		dim kode, koder
-		koder = ""
-		dim attr as EA.Attribute
-		for each attr in element.Attributes
-			'if debug then Repository.WriteOutput "Script", "Debug: code.Name [" & attr.Name & "] SOSI_navn [" & getTaggedValue(attr,"SOSI_navn") & "].",0
-			kode = utf8(attr.Name)
-			if getTaggedValue(attr,"SOSI_verdi") <> "" then
-				kode = utf8(getTaggedValue(attr,"SOSI_verdi"))
+function getSupertypes(elementID)
+	dim super as EA.Element
+	dim conn as EA.Collection
+	dim supername, supernames
+	set super = Repository.GetElementByID(elementID)
+	for each conn in super.Connectors
+		if conn.Type = "Generalization" then
+			if super.ElementID = conn.ClientID then
+				supername = getSupertypes(conn.SupplierID)
 			end if
-			if attr.Default <> "" then
-				kode = utf8(attr.Default)
-			end if
-			
-			koder = koder & "," & kode
-		next
-		if Len(koder) < 2 then
-			getKoder = ""
-		else
-			getKoder = Mid(koder,2,Len(koder))
 		end if
+	next
+	if debug then Repository.WriteOutput "Script", "Debug: super.Name [" & super.Name & "]  supername [" & supername & "].",0
+	getSupertypes = super.Name & " "  & supername
+end function
+
+function getKoder(element)
+	dim kode, koder
+	koder = ""
+	dim attr as EA.Attribute
+	for each attr in element.Attributes
+		'if debug then Repository.WriteOutput "Script", "Debug: code.Name [" & attr.Name & "] SOSI_navn [" & getTaggedValue(attr,"SOSI_navn") & "].",0
+		kode = utf8(attr.Name)
+		if getTaggedValue(attr,"SOSI_verdi") <> "" then
+			kode = utf8(getTaggedValue(attr,"SOSI_verdi"))
+		end if
+		if attr.Default <> "" then
+			kode = utf8(attr.Default)
+		end if
+		
+		koder = koder & "," & kode
+	next
+	if Len(koder) < 2 then
+		getKoder = ""
+	else
+		getKoder = Mid(koder,2,Len(koder))
+	end if
 end function
 
 function getSosiGeometrityper(element)
