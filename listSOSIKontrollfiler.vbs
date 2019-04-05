@@ -8,6 +8,7 @@ option explicit
 ' version:		2018-03-01, 04.13
 ' version:		2018-09-07 self associations and self datatypes are detected, not other types of circular usages or inheritance loops.
 ' version:		2019-03-20 for egenskaper med defaultCodeSpace ansees kodelisten som eksternt forvaltet og tom(!), og stien til den eksterne lista legges rett i o-fila .
+' version:		2019-04-03 retta feil vedr. SOSI_lengde og SOSI_datatype, datatyper arver fra sine supertyper
 '
 '
 '	Kjente svakheter:
@@ -45,7 +46,7 @@ sub listFeatureTypesForEnValgtPakke()
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
 					dim message
 			dim box
-			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2019-03-20" & vbCrLf & "Starter listing av modell som følger SOSI 5.0-regler til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
+			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2019-04-03" & vbCrLf & "Starter listing av modell som følger SOSI 5.0-regler til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
 			select case box
 			case vbOK
 				dim kortnavn
@@ -217,6 +218,7 @@ sub listDatatypes(element,prikkniv)
 	dim super as EA.Element
 	dim datatype as EA.Element
 	dim conn as EA.Collection
+	dim sconn as EA.Collection
 	dim connEnd as EA.ConnectorEnd
 	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef
 				
@@ -242,47 +244,57 @@ sub listDatatypes(element,prikkniv)
 				if attr.UpperBound = "1" or LCase(element.Stereotype) = "union" then
 					sosimax = "1"
 				end if
-				sositype = UCase(getTaggedValue(attr,"SOSI_type")) 
-				if sositype = "" then
+				sositype = UCase(getTaggedValue(attr,"SOSI_datatype")) 
+				'if sositype = "" then
+					' skal SOSI_datatype kunne overkjøre basistype? (Nei)
 					sositype = "*"
 					sositype = getBasicSOSIType(attr.Type)
-				end if
+				'end if
 				sosilengde = getTaggedValue(attr,"SOSI_lengde")
 				if sositype <> "*" and sosilengde <> "" then
-					sositype = sositype & sosilengde
+					if sositype = "T" or sositype = "H" or sositype = "D" then 
+						'ignorer lengdeangivelse på noen basistype, legger inn på andre. Hva med kodelistekoder som er T ??
+						sositype = sositype & sosilengde
+					end if
 				end if
 				koder = ""
 				'Initialverdi+frozen på basistyper?
 				'Kodelisteegenskap
 				if attr.ClassifierID <> 0 then
 					set datatype = Repository.GetElementByID(attr.ClassifierID)
+					'test om navnet etter egenskapen er det samme som navnet på den refererte klassen TODO
+					
 					if sosinavn = "" then
 						sosinavn = getTaggedValue(datatype,"SOSI_navn")
 					end if
 					if sosinavn = "" then
 						sosinavn = attr.Name
 					end if
-					if sositype = "*" and getTaggedValue(datatype,"SOSI_type") <> "" then
+					if sositype = "*" and getTaggedValue(datatype,"SOSI_datatype") <> "" then
 						' Er denne riktig dersom gamle kodelister har egne sosityper eller er alle kodelister av type T? (samme med sosilengde?) TBD
-						sositype = getTaggedValue(datatype,"SOSI_type")
+						'sositype = getTaggedValue(datatype,"SOSI_datatype")
 					end if
-					if datatype.Type = "Class" and LCase(datatype.Stereotype) = "codelist" or LCase(datatype.Stereotype) = "enumeration" then
+					if datatype.Type = "Enumeration" or ( datatype.Type = "Class" and LCase(datatype.Stereotype) = "codelist" or LCase(datatype.Stereotype) = "enumeration" ) then
 						'Repository.WriteOutput "Script", "Debug: Repository.GetElementByID(attr.ClassifierID).Name [" & Repository.GetElementByID(attr.ClassifierID).Name & "] kodelistens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(attr.ClassifierID),"SOSI_navn") & "].",0
 						if debug then Repository.WriteOutput "Script", "Debug: kodeliste.Name [" & datatype.Name & "] kodelistens SOSI_navn [" & getTaggedValue(datatype,"SOSI_navn") & "].",0
 						if sositype = "*" then
 							sositype = "T"
 						end if
 
-						'if getTaggedValue(attr,"defaultCodeSpace") = getTaggedValue(datatype,"codeList") then
-						'if getTaggedValue(attr,"defaultCodeSpace") <> "" then
-						'midlertidig!
-						if attr.Name = "kommunenummer" or attr.Name = "målemetode" or attr.Name = "målemetodeHøyde" then
-							'bygger først på at egenskapen peker til korrekt sti
-							koder = getTaggedValue(attr,"defaultCodeSpace")
-							sosierlik = "="
-						else				
-							koder = getKoder(datatype)
+						if getTaggedValue(attr,"defaultCodeSpace") <> getTaggedValue(datatype,"codeList") then
+			'				Repository.WriteOutput "Script", "Info: egenskapen [" & Element.Name & "." & attr.Name & "]  har kodelistesti [" & getTaggedValue(attr,"defaultCodeSpace") & "]  men datatypeklassen [" & datatype.Name & "] har ulik kodelistesti [" & getTaggedValue(datatype,"codeList") & "].",0
 						end if
+						'if getTaggedValue(datatype,"asDictionary") = "true" then
+							'midlertidig! kun for kommunenummer og målemetoder
+							if attr.Name = "kommunenummer" or attr.Name = "fylkesnummer" or attr.Name = "målemetode" or attr.Name = "målemetodeHøyde" then
+								'bygger først på at egenskapen peker til korrekt sti
+								koder = getTaggedValue(attr,"defaultCodeSpace")
+								sosierlik = "="
+							else				
+								' legg ut kodene som vanlig
+								koder = getKoder(datatype)
+							end if
+						'end if
 						if koder <> "" then
 							sosierlik = "="
 						end if
@@ -309,6 +321,23 @@ sub listDatatypes(element,prikkniv)
 				if attr.ClassifierID <> 0 then
 					'Brukerdefinert datatype
 					if datatype.Type = "Class" and LCase(datatype.Stereotype) = "datatype" or LCase(datatype.Stereotype) = "union" then
+						'set datatype = Repository.GetElementByID(attr.ClassifierID)
+						'
+						'rekurser og hent egenskaper og roller fra eventuelle supertyper til datatypen TODO
+						for each sconn in datatype.Connectors
+							if debug then Repository.WriteOutput "Script", "Debug: sconn.Type [" & sconn.Type & "] sconn.ClientID [" & sconn.ClientID & "] sconn.SupplierID [" & sconn.SupplierID & "].",0
+							if sconn.Type = "Generalization" then
+								if datatype.ElementID = sconn.ClientID then
+									if debug then Repository.WriteOutput "Script", "Debug: datatype har supertype [" & Repository.GetElementByID(sconn.SupplierID).Name & "].",0
+									set super = Repository.GetElementByID(sconn.SupplierID)
+									prikkniv1 = prikkniv & "."
+									call listDatatypes(super,prikkniv1)
+								end if
+							end if
+						next
+						
+						
+						
 						if debug then Repository.WriteOutput "Script", "Debug: datatype.Name [" & datatype.Name & "] datatypens SOSI_navn [" & getTaggedValue(datatype,"SOSI_navn") & "].",0
 						'             set datatype = Repository.GetElementByID(attr.ClassifierID)
 						prikkniv1 = prikkniv & "."
