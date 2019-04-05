@@ -4,7 +4,7 @@ option explicit
 
 ' script:		listSOSIKontrollfiler
 ' purpose:		Generate files for SOSI validator. Lager filer for SOSI-Kontroll fra SOSI-5.0 modeller.
-' author:		Kent
+' author:		Kent Jonsrud
 ' version:		2018-03-01, 04.13
 ' version:		2018-09-07 self associations and self datatypes are detected, not other types of circular usages or inheritance loops.
 ' version:		2019-03-20 for egenskaper med defaultCodeSpace ansees kodelisten som eksternt forvaltet og tom(!), og stien til den eksterne lista legges rett i o-fila .
