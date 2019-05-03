@@ -5,13 +5,14 @@ option explicit
 ' script:		listGMLExample
 ' purpose:		Generates GML example objects from feature types in the model
 ' version:		2018-09-11, 09-12, 09-14, 09-16(single class), 10-04 utf8
-' version:		2019-05-03 complete solid example
+' version:		2019-05-03 complete solid example, two xml elements where max multiplicity > 1
 ' author: 		Kent Jonsrud
 ' TBD:          utf8 (for codes with sami characters)
-' TBD:          two xml elements where max multiplicity > 1 ?
+' TBD:          decimal point character in numbers is "," in norwish(!)
 ' TBD:			association [..*] pointing to supertype should make one xlink to each subtype
 ' TBD:			better placeholder value for <Identifier><namespace>
-' TBD:			(inheritance)loopdetection
+' TBD:			(inheritance)(datatype)loopdetection (association is ok)
+' TBD:			standard (getFeatureById-) container for the single object selection
 ' TBD:			cleanup
 
 
@@ -263,7 +264,9 @@ sub listDatatypes(ftname,element,indent)
 							
 							'variant gml:CodeType
 							SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
-
+							if attr.UpperBound <> "1" then
+								SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
+							end if
 							'variant gml:ReferenceType
 						'	SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & namespace & "/" & attr.Type & "/" & listCodeType(datatype) & """/>")
 							'SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & listReferenceType(attr.Type) & """/>")
@@ -277,11 +280,25 @@ sub listDatatypes(ftname,element,indent)
 							call listDatatypes(ftname, datatype,indent1)
 							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
 							SessionOutput(indent & "</" & utf8(attr.Name) & ">")
+							if attr.UpperBound <> "1" then
+								SessionOutput(indent & "<" & utf8(attr.Name) & ">")
+								indent0 = indent & "  "
+								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+								indent1 = indent0 & "  "
+								call listDatatypes(ftname, datatype,indent1)
+								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+								SessionOutput(indent & "</" & utf8(attr.Name) & ">")
+							end if
+
 						end if
 					end if
 				else
 					'base type
 					SessionOutput(indent & "<" & utf8(attr.Name) & ">" & listBaseType(ftname, attr.Name,attr.Type) & "</" & utf8(attr.Name) & ">")
+					if attr.UpperBound <> "1" then
+						SessionOutput(indent & "<" & utf8(attr.Name) & ">" & listBaseType(ftname, attr.Name,attr.Type) & "</" & utf8(attr.Name) & ">")
+					end if
+
 
 				end if
 			else
@@ -290,6 +307,11 @@ sub listDatatypes(ftname,element,indent)
 				SessionOutput(indent & "<" & utf8(attr.Name) & ">")
 				call listGeometryType(ftname, attr.Type, indent & "  ")			
 				SessionOutput(indent & "</" & utf8(attr.Name) & ">")
+				if attr.UpperBound <> "1" then
+					SessionOutput(indent & "<" & utf8(attr.Name) & ">")
+					call listGeometryType(ftname, attr.Type, indent & "  ")			
+					SessionOutput(indent & "</" & utf8(attr.Name) & ">")
+				end if
 			end if
 
 			'SessionOutput(indent & "</" & attr.Name & ">")
@@ -316,10 +338,22 @@ sub listDatatypes(ftname,element,indent)
 						call listDatatypes(ftname, datatype,indent1)
 						SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
 						SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+						if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" then
+							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
+							indent0 = indent & "  "
+							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+							indent1 = indent0 & "  "
+							call listDatatypes(ftname, datatype,indent1)
+							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+						SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+						end if
 					else
 						if conn.SupplierEnd.Navigable = "Navigable" then
 							'navigable->make xlink? 
 							SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & ".1""/>")
+							if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" then
+								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & ".2""/>")
+							end if
 						end if
 					end if
 				else
@@ -334,10 +368,22 @@ sub listDatatypes(ftname,element,indent)
 						call listDatatypes(ftname, datatype,indent1)
 						SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
 						SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+						if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" then
+							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
+							indent0 = indent & "  "
+							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+							indent1 = indent0 & "  "
+							call listDatatypes(ftname, datatype,indent1)
+							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+						end if
 					else
 						if conn.ClientEnd.Navigable = "Navigable" then
 							'navigable->make xlink? 
 							SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & ".1""/>")
+							if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" then
+								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & ".2""/>")
+							end if
 						end if
 					end if
 				end if
