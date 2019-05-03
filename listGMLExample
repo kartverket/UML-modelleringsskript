@@ -5,6 +5,7 @@ option explicit
 ' script:		listGMLExample
 ' purpose:		Generates GML example objects from feature types in the model
 ' version:		2018-09-11, 09-12, 09-14, 09-16(single class), 10-04 utf8
+' version:		2019-05-03 complete solid example
 ' author: 		Kent Jonsrud
 ' TBD:          utf8 (for codes with sami characters)
 ' TBD:          two xml elements where max multiplicity > 1 ?
@@ -424,6 +425,9 @@ sub listGeometryType(elementName, geomtype, indent)
 		end if
 		if geomtype = "GM_Solid" or geomtype = "GM_CompositeSolid" then
 			'getSosiGeometritype = "NO GO"
+			dim height
+			height = 6.0
+			call generateSolidExample(elementName, indent, height)
 		end if
 		if geomtype = "GM_Object" or geomtype = "GM_Primitive" then
 				obteller = obteller + 1
@@ -447,6 +451,9 @@ function getSosiGeometritype(element)
 		end if
 		if element.Type = "Flate" or element.Type = "GM_Surface" or element.Type = "GM_CompositeSurface" then
 			getSosiGeometritype = "FLATE"
+		end if
+		if element.Type = "GM_Solid" or element.Type = "GM_CompositeSolid" then
+			getSosiGeometritype = "NO GO"
 		end if
 		if element.Type = "GM_Object" or element.Type = "GM_Primitive" then
 			getSosiGeometritype = "PUNKT,SVERM,KURVE,BUEP,KLOTOIDE,FLATE"
@@ -578,6 +585,150 @@ function utf8(str)
 	utf8 = res
 
 End function
+
+sub generateSolidExample(elementName, indent, height)
+
+'	start with a small surface with different elevations in each coordinate position, and with no interiors
+
+'	test whether the whole surface is in a single plane, and if so consider skipping the center point part(?)
+
+'	split the surface in subsurfaces where it is possible to generate a central point thet has direct vision to all its perimeter points(?)
+
+'	find the central point and the mean height
+
+'	construct the set of floor surface slices from the central point to every two consecutive points on the perimeter 
+
+'	erect a set of sheet piles from two and two perimeter points up the given height above the floor
+
+'	copy the reverse of the floor as a roof and add the given height to it
+
+'	.
+
+
+'	hardcode a totally random surface to start with
+'   srsName="urn:ogc:def:crs:EPSG::5972" srsDimension="3">
+'	568444.03 6661981.48 89.20
+'	568506.41 6662009.49 91.20
+'	568525.84 6661998.97 90.80
+'	568529.64 6662001.85 91.00
+'	568535.02 6662054.94 91.50
+'	568476.33 6662067.85 90.50
+'	568466.50 6662054.49 90.50
+'	568444.03 6661981.48 89.20
+	dim s1(7,2), c1(2), z1(2), h1, posNum, i
+	h1 = height
+	s1(0,0) = 568444.03
+	s1(0,1) = 6661981.48 
+	s1(0,2) = 89.20
+	s1(1,0) = 568506.41 
+	s1(1,1) = 6662009.49 
+	s1(1,2) = 91.20
+	s1(2,0) = 568525.84 
+	s1(2,1) = 6661998.97
+	s1(2,2) = 90.80
+	s1(3,0) = 568529.64 
+	s1(3,1) = 6662001.85 
+	s1(3,2) = 91.00
+	s1(4,0) = 568535.02 
+	s1(4,1) = 6662054.94 
+	s1(4,2) = 91.50
+	s1(5,0) = 568476.33 
+	s1(5,1) = 6662067.85 
+	s1(5,2) = 90.50
+	s1(6,0) = 568466.50 
+	s1(6,1) = 6662054.49 
+	s1(6,2) = 90.50
+	s1(7,0) = 568444.03 
+	s1(7,1) = 6661981.48 
+	s1(7,2) = 89.20
+	posNum = 8
+	z1(0) =0.0
+	z1(1) =0.0
+	z1(2) =0.0
+	
+'	calculate the central point and mean height
+
+	for i = 0 to posNum - 2
+		z1(0) = z1(0) + s1(i,0)
+		z1(1) = z1(1) + s1(i,1)
+		z1(2) = z1(2) + s1(i,2)
+	next
+	
+	c1(0) = Round( z1(0) / (posNum - 1),2)
+	c1(1) = Round( z1(1) / (posNum - 1),2)
+	c1(2) = Round( z1(2) / (posNum - 1),2)
+	
+'	start the xml structure of the gml:Solid
+	soteller = soteller + 1	
+    SessionOutput(indent & "<gml:Solid gml:id=""" & elementName & ".0612.202.27" & ".so." & soteller)
+    SessionOutput(indent & "  srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+    SessionOutput(indent & "  <gml:exterior>")
+    SessionOutput(indent & "    <gml:Shell gml:id=""" & elementName & ".0612.202.27" & ".so." & soteller & ".sh.1""")
+    SessionOutput(indent & "      srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+
+'	generate the floor tiles
+	
+	for i = 0 to posNum - 2
+	
+		suteller = suteller + 1	
+		SessionOutput(indent & "      <gml:surfaceMember>")
+		SessionOutput(indent & "        <gml:Polygon gml:id=""" & elementName & ".0612.202.27" & ".so."  & soteller & ".sh.1.su." & suteller & """>")
+		SessionOutput(indent & "          <gml:exterior>")
+		SessionOutput(indent & "            <gml:LinearRing>")
+		
+		SessionOutput(indent & "              <gml:posList>" & c1(0) & " " & c1(1) & " " & c1(2) & " " & s1(i+1,0) & " " & s1(i+1,1) & " " & s1(i+1,2) & " " & s1(i,0) & " " & s1(i,1) & " " & s1(i,2) & " " & c1(0) & " " & c1(1) & " " & c1(2) & "</gml:posList>")
+		
+		SessionOutput(indent & "            </gml:LinearRing>")
+		SessionOutput(indent & "          </gml:exterior>")
+		SessionOutput(indent & "        </gml:Polygon>")
+		SessionOutput(indent & "      </gml:surfaceMember>")
+
+	next
+
+'	erect the sheet piles
+
+	for i = 0 to posNum - 2
+	
+		suteller = suteller + 1	
+		SessionOutput(indent & "      <gml:surfaceMember>")
+		SessionOutput(indent & "        <gml:Polygon gml:id=""" & elementName & ".0612.202.27" & ".so."  & soteller & ".sh.1.su." & suteller & """>")
+		SessionOutput(indent & "          <gml:exterior>")
+		SessionOutput(indent & "            <gml:LinearRing>")
+		
+		SessionOutput(indent & "              <gml:posList>" & s1(i,0) & " " & s1(i,1) & " " & s1(i,2) & " " & s1(i+1,0) & " " & s1(i+1,1) & " " & s1(i+1,2) & " " & s1(i+1,0) & " " & s1(i+1,1) & " " & s1(i+1,2)+h1 & " " & s1(i,0) & " " & s1(i,1) & " " & s1(i,2)+h1 & " " & s1(i,0) & " " & s1(i,1) & " " & s1(i,2) & "</gml:posList>")
+		
+		SessionOutput(indent & "            </gml:LinearRing>")
+		SessionOutput(indent & "          </gml:exterior>")
+		SessionOutput(indent & "        </gml:Polygon>")
+		SessionOutput(indent & "      </gml:surfaceMember>")
+
+	next
+	
+'	generate the roof
+
+	for i = 0 to posNum - 2
+	
+		suteller = suteller + 1	
+		SessionOutput(indent & "      <gml:surfaceMember>")
+		SessionOutput(indent & "        <gml:Polygon gml:id=""" & elementName & ".0612.202.27" & ".so."  & soteller & ".sh.1.su." & suteller & """>")
+		SessionOutput(indent & "          <gml:exterior>")
+		SessionOutput(indent & "            <gml:LinearRing>")
+		
+		SessionOutput(indent & "              <gml:posList>" & c1(0) & " " & c1(1) & " " & c1(2)+h1 & " " & s1(i,0) & " " & s1(i,1) & " " & s1(i,2)+h1 & " " & s1(i+1,0) & " " & s1(i+1,1) & " " & s1(i+1,2)+h1 & " " & c1(0) & " " & c1(1) & " " & c1(2)+h1 & "</gml:posList>")
+		
+		SessionOutput(indent & "            </gml:LinearRing>")
+		SessionOutput(indent & "          </gml:exterior>")
+		SessionOutput(indent & "        </gml:Polygon>")
+		SessionOutput(indent & "      </gml:surfaceMember>")
+
+	next
+
+'	end the xml structure of the gml:Solid
+    SessionOutput(indent & "    </gml:Shell>")
+    SessionOutput(indent & "  </gml:exterior>")
+    SessionOutput(indent & "</gml:Solid>")
+
+end sub
 
 sub SessionOutput(text)
 	Session.Output(text)
