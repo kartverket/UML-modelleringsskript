@@ -7,16 +7,19 @@ option explicit
 ' author:			Kent
 ' date:				2017-06-29,07-07,09-08,09-14,11-09,12-05, 2918-02-20
 ' date:				2018-10-05 html5, 2018-12-18 feilretting (samisk tegn eng)
+' date:				2019-05-23 index.htm
 	DIM objFSO
 	DIM outFile
 	DIM objFile
 	DIM htmFile
+	DIM idxFile
 
 	DIM codeFSO
 	DIM outCodeFile
 	DIM objCodeFile
 	DIM htmlFSO
 	DIM outHtmlFile
+	DIM outIdxFile
 
 sub listKoderForEnValgtKodeliste()
 	' Show and clear the script output window
@@ -96,7 +99,8 @@ sub listCodelistCodes(el,namespace)
 	if not objFSO.FolderExists(el.Name) then
 		objFSO.CreateFolder el.Name
 	end if
-
+	Set idxFile = objFSO.CreateTextFile(el.Name & "\index.htm",True,False)
+	
 	Repository.WriteOutput "Script", "Writes Codelist Name: " & el.Name & " to file " & outfile& " and subfolder " & el.Name,0
 	Repository.WriteOutput "Script", "With namespace: " & namespace,0
 
@@ -107,6 +111,27 @@ sub listCodelistCodes(el,namespace)
 	objFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
 	objFile.Write"  xml:base="""&utf8(namespace)&"/"">" & vbCrLf
 
+	idxFile.Write"<!DOCTYPE html>" & vbCrLf
+	idxFile.Write"<html lang=""no"">" & vbCrLf
+	idxFile.Write"	<head>" & vbCrLf
+	idxFile.Write"	  <meta charset=""utf-8""/>" & vbCrLf
+	idxFile.Write"	  <title>" & utf8(el.Name) & "</title>" & vbCrLf
+	idxFile.Write"	</head>" & vbCrLf
+	idxFile.Write"	<body>" & vbCrLf
+	idxFile.Write"    <p>xml:base=" & utf8(namespace) & "</p>" & vbCrLf
+	idxFile.Write"    <p>http-URI=" & utf8(namespace) & "/" & utf8(el.Name) & "</p>" & vbCrLf
+	'idxFile.Write"    <p>kodens navn=" & utf8(uricode) & "</p>" & vbCrLf
+	if getTaggedValue(el,"SOSI_presentasjonsnavn") <> "" then
+		idxFile.Write"    <p>presentasjonsnavn=" & utf8(getTaggedValue(el,"SOSI_presentasjonsnavn")) & "</p>" & vbCrLf
+	end if
+	idxFile.Write"    <p>kodelistas definisjon=" & utf8(getCleanDefinitionText(el)) & "</p>" & vbCrLf
+	'htmFile.Write"    <p>code description=" & attr.Notes & "</p>" & vbCrLf
+	'if getTaggedValue(attr,"SOSI_verdi") <> "" then
+	'	idxFile.Write"    <p>SOSI_verdi=" & utf8(getTaggedValue(attr,"SOSI_verdi")) & "</p>" & vbCrLf
+	'end if
+	idxFile.Write"   <table border=""1"">" & vbCrLf
+	idxFile.Write"   <tbody align=""left"">" & vbCrLf
+	idxFile.Write"   <tr>" & vbCrLf
 
     objFile.Write"  <skos:ConceptScheme rdf:about="""&utf8(el.Name)&""">" & vbCrLf
 	presentasjonsnavn = getTaggedValue(el,"SOSI_presentasjonsnavn") 
@@ -146,7 +171,14 @@ sub listCodelistCodes(el,namespace)
 	'Repository.WriteOutput "Script", "</rdf:RDF>",0
 	objFile.Write"</rdf:RDF>" & vbCrLf
 	objFile.Close
-
+	
+	
+	idxFile.Write"  </tr>" & vbCrLf
+	idxFile.Write"  </tbody>" & vbCrLf
+	idxFile.Write"  </table>" & vbCrLf
+	idxFile.Write"  </body>" & vbCrLf
+	idxFile.Write"</html>" & vbCrLf
+	idxFile.Close
 
 	' Release the file system object
     Set objFSO= Nothing
@@ -248,6 +280,12 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 
     Set htmlFSO= Nothing
 
+	'add one line in index.htm <a href="land/nasjk.m4a" alt="nasjk.m4a">nÃ¥sjk</a>
+	'idxFile.Write"    <p>kode <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "/a>	" & utf8(uricode) & "</p> - <p>" & utf8(getCleanDefinitionText(attr)) & "</p>"& vbCrLf
+	'idxFile.Write"    <p>kode <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "/a>	" & utf8(presentasjonsnavn) & "</p> - <p>" & utf8(getCleanDefinitionText(attr)) & "</p>"& vbCrLf
+	idxFile.Write"    <td>kode <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & ">	" & utf8(presentasjonsnavn) & "</a></td><td>" & utf8(getCleanDefinitionText(attr)) & "</td></tr><tr>" & vbCrLf
+
+	
 End Sub
 
 function getTaggedValue(element,taggedValueName)
