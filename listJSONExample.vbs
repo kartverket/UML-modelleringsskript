@@ -4,8 +4,11 @@ option explicit
 
 ' script:		listJSONExample
 ' purpose:		Generates JSON example objects from types in the model
-' version:		2019-09-24
-
+' version:		2019-09-24 objekttyper og datatyper
+' version:		2019-09-25 kodelister
+' TODO:			tomme klasser (krever noe refaktorering)
+' TODO:			velge enkeltklasse
+' TODO:			opprydding
 
 		DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller, pversion
 		debug = false
@@ -114,15 +117,18 @@ sub listJSONExample()
 
 					SessionOutput("{")
 					SessionOutput("  ""Utvekslingsmodell"" : {")
-					SessionOutput("    ""kvalifisertNavn"" : """ & utf8(namespace) & "/" & utf8(theElement.Name) & """,")
+					SessionOutput("    ""kvalifisertNavn"" : """ & theElement.Element.FQName & """,")
+	'				SessionOutput("    ""kvalifisertNavn"" : """ & utf8(namespace) & "/" & utf8(theElement.Name) & """,")
 					SessionOutput("    ""identifikator"" : """ & utf8(namespace) & "/" & utf8(theElement.Name)  & """,")
 					SessionOutput("    ""elementIdentifikator"" : """ & utf8(namespace) & "/" & utf8(theElement.Name)  & """,")
 					SessionOutput("    ""dokumentasjon"" : """ & utf8(trimDefinitionText(theElement.Notes)) & """,")
 					SessionOutput("    ""navn"" : """ & utf8(theElement.Name) & """,")
 					SessionOutput("    ""versjonsnummer"" : """ & utf8(pversion) & """,")
+					SessionOutput("    ""modellelement"" : [ {")
 
 					call listFeatureTypes(theElement)
 
+					SessionOutput("  ] }")
 					SessionOutput("}")
 
 					
@@ -191,22 +197,26 @@ sub listFeatureTypes(pkg)
 				
 		if debug then Repository.WriteOutput "Script", "Debug: currentElement.Name [«" & currentElement.Stereotype & "» " & currentElement.Name & "] currentElement.Type [" & currentElement.Type & "] currentElement.Abstract [" & currentElement.Abstract & "].",0
 	'	if currentElement.Type = "Class" and LCase(currentElement.Stereotype) = "featuretype" and currentElement.Abstract = 0 then
-		if currentElement.Type = "Class" and LCase(currentElement.Stereotype) = "featuretype" or LCase(currentElement.Stereotype) = "datatype" then
+		if currentElement.Type = "Class" and LCase(currentElement.Stereotype) = "featuretype" or LCase(currentElement.Stereotype) = "datatype" or LCase(currentElement.Stereotype) = "union" then
 			
-			SessionOutput("    ""modellelement"" : [ {")
-			SessionOutput("      ""kvalifisertNavn"" : """ & utf8(namespace) & "/" & currentElement.Name & """,")
+	'		SessionOutput("      ""kvalifisertNavn"" : """ & utf8(namespace) & "/" & currentElement.Name & """,")
+			SessionOutput("      ""kvalifisertNavn"" : """ & currentElement.FQName & """,")
 			SessionOutput("      ""identifikator"" : """ & utf8(namespace) & "/" & currentElement.Name & """,")
 			SessionOutput("      ""elementIdentifikator"" : """ & utf8(namespace) & "/" & currentElement.Name & """,")
 			SessionOutput("      ""dokumentasjon"" : """ & utf8(trimDefinitionText(currentElement.Notes)) & """,")
 			SessionOutput("      ""navn"" : """ & currentElement.Name & """,")
 			SessionOutput("      ""begrep"" : {},")
+'	mapping:
 			if  LCase(currentElement.Stereotype) = "featuretype"  then
 				SessionOutput("      ""anvendtStereotype"" : ""objekttype"",")
 			end if
 			if  LCase(currentElement.Stereotype) = "datatype"  then
 				SessionOutput("      ""anvendtStereotype"" : ""datatype"",")
 			end if
-			SessionOutput("      ""egenskap"" : [ {,")
+			if  LCase(currentElement.Stereotype) = "union"  then
+				SessionOutput("      ""anvendtStereotype"" : ""datatype"",")
+			end if
+			SessionOutput("      ""egenskap"" : [ {")
 	'		SessionOutput("  <wfs:member>")
 	'		SessionOutput("    <" & utf8(currentElement.Name) & " gml:id="""& utf8(currentElement.Name) & ".1"">")
 			
@@ -216,7 +226,7 @@ sub listFeatureTypes(pkg)
 			for each conn in currentElement.Connectors
 				if conn.Type = "Generalization" then
 					if currentElement.ElementID = conn.ClientID then
-						superlist = getSupertypes(ftname,conn.SupplierID, indent)
+						superlist = getSupertypes(conn.SupplierID)
 					end if
 				end if
 			next
@@ -226,10 +236,56 @@ sub listFeatureTypes(pkg)
 			
 			SessionOutput("    } ],")
 			if superlist <> "" then
-				SessionOutput("    ""spesialiserer"" : """ & utf8(namespace) & "/" & superlist & """,")
+				SessionOutput("    ""spesialiserer"" : [""" & utf8(namespace) & "/" & superlist & """]")
 			else
-				SessionOutput("    ""spesialiserer"" : """",")
+				SessionOutput("    ""spesialiserer"" : []")
 			end if
+			if i = elements.Count - 1 then
+				SessionOutput("  }")
+			else
+				SessionOutput("  }, {")
+			end if
+	'		SessionOutput("    </" & utf8(currentElement.Name) & ">")
+	'		SessionOutput("  </wfs:member>")
+
+		end if
+		
+		if currentElement.Type = "Enumeration" or currentElement.Type = "Class" and LCase(currentElement.Stereotype) = "codelist" or LCase(currentElement.Stereotype) = "enumeration" then
+			
+	'		SessionOutput("    ""modellelement"" : [ {")
+			SessionOutput("      ""kvalifisertNavn"" : """ & currentElement.FQName & """,")
+	'		SessionOutput("      ""kvalifisertNavn"" : """ & utf8(namespace) & "/" & currentElement.Name & """,")
+			SessionOutput("      ""identifikator"" : """ & utf8(namespace) & "/" & currentElement.Name & """,")
+			SessionOutput("      ""elementIdentifikator"" : """ & utf8(namespace) & "/" & currentElement.Name & """,")
+			SessionOutput("      ""dokumentasjon"" : """ & utf8(trimDefinitionText(currentElement.Notes)) & """,")
+			SessionOutput("      ""navn"" : """ & currentElement.Name & """,")
+			SessionOutput("      ""begrep"" : {},")
+'	mapping:
+			SessionOutput("      ""anvendtStereotype"" : ""kodeliste"",")
+			SessionOutput("      ""kodenavn"" : [ {")
+	'		SessionOutput("  <wfs:member>")
+	'		SessionOutput("    <" & utf8(currentElement.Name) & " gml:id="""& utf8(currentElement.Name) & ".1"">")
+			
+			ftname = currentElement.Name
+			superlist = ""
+			indent = "      "
+			for each conn in currentElement.Connectors
+				if conn.Type = "Generalization" then
+					if currentElement.ElementID = conn.ClientID then
+						superlist = getSupertypes(conn.SupplierID)
+					end if
+				end if
+			next
+
+			call listKodeliste(ftname,currentElement,indent)
+			
+			
+			SessionOutput("    } ]")
+	'		if superlist <> "" then
+	'			SessionOutput("    ""spesialiserer"" : [""" & utf8(namespace) & "/" & superlist & """]")
+	'		else
+	'			SessionOutput("    ""spesialiserer"" : []")
+	'		end if
 			if i = elements.Count - 1 then
 				SessionOutput("  }")
 			else
@@ -281,9 +337,10 @@ sub listDatatypes(ftname,element,indent)
 		i = 0
 		dim attr as EA.Attribute
 		for each attr in element.Attributes
-			i = 1 + 1
+			i = i + 1
 			'SessionOutput(indent & "<" & attr.Name & ">")
-			SessionOutput("        ""kvalifisertNavn"" : """ & utf8(namespace) & "/" & ftname & "/" & attr.Name & """,")
+			SessionOutput("        ""kvalifisertNavn"" : """ & element.FQName &  "." & attr.Name & """,")
+	'		SessionOutput("        ""kvalifisertNavn"" : """ & utf8(namespace) & "/" & ftname & "/" & attr.Name & """,")
 			SessionOutput("        ""identifikator"" : """ & utf8(namespace) & "/" & ftname & "/" & attr.Name & """,")
 			SessionOutput("        ""elementIdentifikator"" : """ & utf8(namespace) & "/" & ftname & "/" & attr.Name & """,")
 			SessionOutput("        ""dokumentasjon"" : """ & utf8(trimDefinitionText(attr.Notes)) & """,")
@@ -298,8 +355,10 @@ sub listDatatypes(ftname,element,indent)
 			SessionOutput("        ""navigerbar"" : true,")
 	'		SessionOutput("        ""type"" : """ & utf8(namespace) & "/" & attr.Type & """")
 			SessionOutput("        ""type"" : """ & utf8(mapBaseType(namespace, attr.Type)) & """")
+
+			'Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] attr nr. " & i & " attr.Count " & element.Attributes.Count,0
 			if i = element.Attributes.Count then
-				SessionOutput("      },")
+	'			SessionOutput("      } ]")
 			else
 				SessionOutput("      }, {")
 			end if
@@ -480,6 +539,63 @@ sub listDatatypes(ftname,element,indent)
 	end if
 
 end sub
+
+
+sub listKodeliste(ftname,element,indent)
+	dim presentasjonsnavn
+ 	dim elements as EA.Collection 
+	dim super as EA.Element
+	dim datatype as EA.Element
+	dim conn as EA.Collection
+	dim connEnd as EA.ConnectorEnd
+	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef, selfref
+	dim indent0, indent1, superlist
+	
+		if debug then Repository.WriteOutput "Script", "Debug: --------listDatatypes element.Name [" & element.Name & "] element.ElementID [" & element.ElementID & "].",0
+
+		i = 0
+		dim attr as EA.Attribute
+		for each attr in element.Attributes
+			i = i + 1
+			'SessionOutput(indent & "<" & attr.Name & ">")
+	'		SessionOutput("        ""kvalifisertNavn"" : """ & utf8(namespace) & "/" & ftname & "/" & utf8(element.Name) & "/" & attr.Name & """,")
+			SessionOutput("        ""kvalifisertNavn"" : """ & element.FQName &  "." & attr.Name & """,")
+	'		SessionOutput("        ""kvalifisertNavn"" : """ & utf8(namespace) & "/" & ftname & "/"& attr.Name & """,")
+			SessionOutput("        ""identifikator"" : """ & utf8(namespace) & "/" & ftname & "/" & attr.Name & """,")
+			SessionOutput("        ""elementIdentifikator"" : """ & utf8(namespace) & "/" & ftname & "/" & attr.Name & """,")
+			SessionOutput("        ""dokumentasjon"" : """ & utf8(trimDefinitionText(attr.Notes)) & """,")
+			SessionOutput("        ""navn"" : """ & attr.Name & """,")
+			SessionOutput("        ""begrep"" : {},")
+			SessionOutput("        ""anvendtStereotype"" : ""kodenavn""")
+			'Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] attr nr. " & i & " attr.Count " & element.Attributes.Count,0
+			if i = element.Attributes.Count then
+	'			SessionOutput("      } ]")
+			else
+				SessionOutput("      }, {")
+			end if
+			
+		next
+
+
+end sub
+
+
+function getSupertypes(elementID)
+	dim super as EA.Element
+	dim conn as EA.Collection
+	dim supername, supernames
+	set super = Repository.GetElementByID(elementID)
+'	for each conn in super.Connectors
+'		if conn.Type = "Generalization" then
+'			if super.ElementID = conn.ClientID then
+'				supername = getSupertypes(conn.SupplierID)
+'			end if
+'		end if
+'	next
+	if debug then Repository.WriteOutput "Script", "Debug: super.Name [" & super.Name & "]  supername [" & supername & "].",0
+'	getSupertypes = super.Name & " "  & supername
+	getSupertypes = super.Name
+end function
 
 
 function listBaseType(ftname,umlname, umltype)
