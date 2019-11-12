@@ -5,16 +5,32 @@ option explicit
 ' script:		listGMLExample
 ' purpose:		Generates GML example objects from feature types in the model
 ' version:		2018-09-11, 09-12, 09-14, 09-16(single class), 10-04 utf8
-' version:		2019-05-03 complete solid example, two xml elements where max multiplicity > 1
+' version:		2019-05-04 complete solid example, two xml elements where max multiplicity > 1
+' version:		2019-05-31 Union fixed
+' version:		2019-06-13 fixed minor flaws after testruns on all UML-patterns
+' version:		2019-07-31 utelater eksempel av elementer med tagged value xsdEncodingRule = notEncoded
 ' author: 		Kent Jonsrud
-' TBD:          utf8 (for codes with sami characters)
-' TBD:          decimal point character in numbers is "," in norwish(!)
+'
+' 				candidates for manual improvement:
+' 				inherited roles now point to the supertype, but should point to (all) subtypes
+' 				multiple codelist codes and enumeration codes should have first and second code, now it has first code twice
+'				x-to-many: should (maybe) make and point to a second object instance on the many-side?
+' TBD:			
+' TBD:			
+' TBD:			
+' TBD:          utf8 (for all codes with any sami characters) does not survive the clipboard
+' TBD:          utf8 on model names in the gml:Solid-part
+' TBD:			elaborate on the CompositeXxx and MultiXxx
+' TBD:			Union ok?
+' TBD:			On attributes with multiplicity and codelist codes the second instance should be the second code in the list(?)
+' TBD:			On attributes with externally managed codelist codes read the actual codes from the http-URI on the attribute
 ' TBD:			association [..*] pointing to supertype should make one xlink to each subtype
 ' TBD:			better placeholder value for <Identifier><namespace>
 ' TBD:			(inheritance)(datatype)loopdetection (association is ok)
 ' TBD:			standard (getFeatureById-) container for the single object selection
-' TBD:			cleanup
+' TBD:			documentation and cleanup
 
+' TBN:          decimal point character for numbers need to be set to "." in the regional settings
 
 		DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller
 		debug = false
@@ -28,129 +44,139 @@ sub listGMLExample()
 	if not theElement is nothing  then
 		'if theElement.Type="Package" and UCASE(theElement.Stereotype) = "APPLICATIONSCHEMA" then
 		if Repository.GetTreeSelectedItemType() = otPackage then
-		if UCASE(theElement.Element.Stereotype) = "APPLICATIONSCHEMA" then
-			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
-					dim message, indent
-		'	dim box
-		'	box = Msgbox ("Script listGMLExample" & vbCrLf & vbCrLf & "Scriptversion 2018-09-16" & vbCrLf & "Listing to GML example for package : [" & theElement.Name & "].",1)
-		'	select case box
-		'	case vbOK
-				dim xsdfile
-				'tømmer System Output for lettere å fange opp hele gml-fila
-				Repository.ClearOutput "Script"
-				Repository.CreateOutputTab "Error"
-				Repository.ClearOutput "Error"
-				kortnavn = getPackageTaggedValue(theElement,"SOSI_kortnavn")
-				if kortnavn = "" then
-					kortnavn = theElement.Name
-				'	Repository.WriteOutput "Script", "Pakken mangler tagged value SOSI_kortnavn! Kjører midlertidig videre med pakkenavnet som forslag til kortnavn: " & vbCrLf & kortnavn, 0
-				end if
+			if UCASE(theElement.Element.Stereotype) = "APPLICATIONSCHEMA" then
+				'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
+						dim message, indent
+			'	dim box
+			'	box = Msgbox ("Script listGMLExample" & vbCrLf & vbCrLf & "Scriptversion 2018-09-16" & vbCrLf & "Listing to GML example for package : [" & theElement.Name & "].",1)
+			'	select case box
+			'	case vbOK
+					dim xsdfile
+					'tømmer System Output for lettere å fange opp hele gml-fila
+					Repository.ClearOutput "Script"
+					Repository.CreateOutputTab "Error"
+					Repository.ClearOutput "Error"
+					kortnavn = getPackageTaggedValue(theElement,"SOSI_kortnavn")
+					if kortnavn = "" then
+						kortnavn = theElement.Name
+					'	Repository.WriteOutput "Script", "Pakken mangler tagged value SOSI_kortnavn! Kjører midlertidig videre med pakkenavnet som forslag til kortnavn: " & vbCrLf & kortnavn, 0
+					end if
 
-				namespace = getPackageTaggedValue(theElement,"targetNamespace")
-				if namespace = "" then
-					namespace = kortnavn
-				end if
-				
-				xsdfile = getPackageTaggedValue(theElement,"xsdDocument")
-				if xsdfile = "" then
-					xsdfile = kortnavn & ".xsd"
-				end if
-				'SessionOutput("test3: SOSI_kortnavn: " & vbCrLf & utf8(kortnavn) )
-				SessionOutput("<?xml version=""1.0"" encoding=""utf-8""?>")
-				SessionOutput("<wfs:FeatureCollection")
-				SessionOutput("  xmlns=""" & utf8(namespace) & """")
-				SessionOutput("  xmlns:wfs=""http://www.opengis.net/wfs/2.0""")
-				SessionOutput("  xmlns:gml=""http://www.opengis.net/gml/3.2""")
-				SessionOutput("  xmlns:xlink=""http://www.w3.org/1999/xlink""")
-				SessionOutput("  xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""")
-				SessionOutput("  xsi:schemaLocation=""" & utf8(namespace))
-				'SessionOutput("                     """ & namespace & "." & kortnavn & ".xsd""")
-				SessionOutput("                     " & utf8(namespace) & "/" & utf8(xsdfile))
-				SessionOutput("                     http://www.opengis.net/wfs/2.0")
-				SessionOutput("                     http://schemas.opengis.net/wfs/2.0/wfs.xsd""")
-				'SessionOutput("  timeStamp=""" & now & """")
-				'SessionOutput("  timeStamp=""" & Year(Date) & "-" & FormatNumber(Month(Date),0,-1,0,0) & "-" & Day(Date) & "T" & Hour(Time) & ":" & Minute(Time) & ":" & Second(Time) & "Z""")
-				'SessionOutput("  timeStamp=""" & Year(Date) & "-" & LPad(Month(Date),"0",2) & "-" & Day(Date) & "T" & Hour(Time) & ":" & Minute(Time) & ":" & Second(Time) & "Z""")
-				dim m,d,t,min,sek,tm,td,tt,tmin,tsek
-				m = Month(Date)
-				if m < 10 then
-					tm = "0" & FormatNumber(m,0,0,0,0)
-				else
-					tm = FormatNumber(m,0,0,0,0)
-				end if
-				d = Day(Date)
-				if d < 10 then
-					td = "0" & FormatNumber(d,0,0,0,0)
-				else
-					td = FormatNumber(d,0,0,0,0)
-				end if
-				t = Hour(Time)
-				if t < 10 then
-					tt = "0" & FormatNumber(t,0,0,0,0)
-				else
-					tt = FormatNumber(t,0,0,0,0)
-				end if
-				if t = 0 then tt = "00"
-				min = Minute(Time)
-				if min < 10 then
-					tmin = "0" & FormatNumber(min,0,0,0,0)
-				else
-					tmin = FormatNumber(min,0,0,0,0)
-				end if
-				if min = 0 then tmin = "00"
-				sek = Second(Time)
-				if sek < 10 then
-					tsek = "0" & FormatNumber(sek,0,0,0,0)
-				else
-					tsek = FormatNumber(sek,0,0,0,0)
-				end if
-				if sek = 0 then tsek = "00"
-				SessionOutput("  timeStamp=""" & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z""")
-				SessionOutput("  numberMatched=""unknown""")
-				SessionOutput("  numberReturned=""0"">")
-				'SessionOutput("  >")
-				'SessionOutput("  <wfs:member>")
+					namespace = getPackageTaggedValue(theElement,"targetNamespace")
+					if namespace = "" then
+						namespace = kortnavn
+					end if
+					
+					xsdfile = getPackageTaggedValue(theElement,"xsdDocument")
+					if xsdfile = "" then
+						xsdfile = kortnavn & ".xsd"
+					end if
+					'SessionOutput("test3: SOSI_kortnavn: " & vbCrLf & utf8(kortnavn) )
+					SessionOutput("<?xml version=""1.0"" encoding=""utf-8""?>")
+					SessionOutput("<wfs:FeatureCollection")
+					SessionOutput("  xmlns=""" & utf8(namespace) & """")
+					SessionOutput("  xmlns:wfs=""http://www.opengis.net/wfs/2.0""")
+					SessionOutput("  xmlns:gml=""http://www.opengis.net/gml/3.2""")
+					SessionOutput("  xmlns:xlink=""http://www.w3.org/1999/xlink""")
+					SessionOutput("  xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""")
+					SessionOutput("  xsi:schemaLocation=""" & utf8(namespace))
+					'SessionOutput("                     """ & namespace & "." & kortnavn & ".xsd""")
+					SessionOutput("                     " & utf8(namespace) & "/" & utf8(xsdfile))
+					SessionOutput("                     http://www.opengis.net/wfs/2.0")
+					SessionOutput("                     http://schemas.opengis.net/wfs/2.0/wfs.xsd""")
+					'SessionOutput("  timeStamp=""" & now & """")
+					'SessionOutput("  timeStamp=""" & Year(Date) & "-" & FormatNumber(Month(Date),0,-1,0,0) & "-" & Day(Date) & "T" & Hour(Time) & ":" & Minute(Time) & ":" & Second(Time) & "Z""")
+					'SessionOutput("  timeStamp=""" & Year(Date) & "-" & LPad(Month(Date),"0",2) & "-" & Day(Date) & "T" & Hour(Time) & ":" & Minute(Time) & ":" & Second(Time) & "Z""")
 
-				call listFeatureTypes(theElement)
 
-				SessionOutput("</wfs:FeatureCollection>")
+					' I will have a correct xml timestamp to document when the script was run
+					dim m,d,t,min,sek,tm,td,tt,tmin,tsek
+					m = Month(Date)
+					if m < 10 then
+						tm = "0" & FormatNumber(m,0,0,0,0)
+					else
+						tm = FormatNumber(m,0,0,0,0)
+					end if
+					d = Day(Date)
+					if d < 10 then
+						td = "0" & FormatNumber(d,0,0,0,0)
+					else
+						td = FormatNumber(d,0,0,0,0)
+					end if
+					t = Hour(Time)
+					if t < 10 then
+						tt = "0" & FormatNumber(t,0,0,0,0)
+					else
+						tt = FormatNumber(t,0,0,0,0)
+					end if
+					if t = 0 then tt = "00"
+					min = Minute(Time)
+					if min < 10 then
+						tmin = "0" & FormatNumber(min,0,0,0,0)
+					else
+						tmin = FormatNumber(min,0,0,0,0)
+					end if
+					if min = 0 then tmin = "00"
+					sek = Second(Time)
+					if sek < 10 then
+						tsek = "0" & FormatNumber(sek,0,0,0,0)
+					else
+						tsek = FormatNumber(sek,0,0,0,0)
+					end if
+					if sek = 0 then tsek = "00"
+					SessionOutput("  timeStamp=""" & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z""")
+					SessionOutput("  numberMatched=""unknown""")
+					SessionOutput("  numberReturned=""0"">")
+					'SessionOutput("  >")
+					'SessionOutput("  <wfs:member>")
+					pnteller=0
+					cuteller=0
+					suteller=0
+					soteller=0
+					obteller=0
 
-				
+					call listFeatureTypes(theElement)
 
-		'	case VBcancel
+					SessionOutput("</wfs:FeatureCollection>")
 
-		'	end select
-		else			'No «ApplicationSchema» Package or a «FeatureType» Class selected in the tree
-			MsgBox( "This script requires a «ApplicationSchema» Package to be selected in the Project Browser." & vbCrLf & _
-			"Please select a package in the Project Browser and try again." )
-	
-		end if
+					
+
+			'	case VBcancel
+
+			'	end select
+			else			'No «ApplicationSchema» Package or a «FeatureType» Class selected in the tree
+				MsgBox( "This script requires a «ApplicationSchema» Package or a «FeatureType» Class to be selected in the Project Browser." & vbCrLf & _
+				"Please select a «ApplicationSchema» Package or a «FeatureType» Class  in the Project Browser and try again." )
+		
+			end if
 		Else
 			if Repository.GetTreeSelectedItemType() = otElement then
-			if theElement.Type="Class" and UCASE(theElement.Stereotype) = "FEATURETYPE" then
-				if debug then Repository.WriteOutput "Script", "Debug: theElement.Name [«" & theElement.Stereotype & "» " & theElement.Name & "] currentElement.Type [" & theElement.Type & "] currentElement.Abstract [" & theElement.Abstract & "].",0
+				if theElement.Type="Class" and UCASE(theElement.Stereotype) = "FEATURETYPE" then
+					if debug then Repository.WriteOutput "Script", "Debug: theElement.Name [«" & theElement.Stereotype & "» " & theElement.Name & "] currentElement.Type [" & theElement.Type & "] currentElement.Abstract [" & theElement.Abstract & "].",0
 
-				Repository.ClearOutput "Script"
-				Repository.CreateOutputTab "Error"
-				Repository.ClearOutput "Error"
-				namespace = "http://some.server.no/namespace"
-				kortnavn = "shortNamespace"
-				pnteller=0
-				cuteller=0
-				suteller=0
-				soteller=0
-				obteller=0
-				SessionOutput("  <wfs:member>")
-				SessionOutput("    <" & utf8(theElement.Name) & " gml:id="""& utf8(theElement.Name) & ".1"">")
-				indent = "      "
-				call listDatatypes(theElement.Name,theElement,indent)
-				SessionOutput("    </" & utf8(theElement.Name) & ">")
-				SessionOutput("  </wfs:member>")
-			else
-				'Other than «ApplicationSchema» Package or a «FeatureType» Class selected in the tree
-				MsgBox( "This script requires a «FeatureType» Class to be selected in the Project Browser." & vbCrLf & _
-				"Please select a «ApplicationSchema» Package or a «FeatureType» Class in the Project Browser and try again." )
-			end if
+					Repository.ClearOutput "Script"
+					Repository.CreateOutputTab "Error"
+					Repository.ClearOutput "Error"
+					namespace = "http://some.server.no/namespace"
+					kortnavn = "shortNamespace"
+					pnteller=0
+					cuteller=0
+					suteller=0
+					soteller=0
+					obteller=0
+					SessionOutput("  <wfs:member>")
+					SessionOutput("    <" & utf8(theElement.Name) & " gml:id="""& utf8(theElement.Name) & ".1"">")
+					indent = "      "
+					
+					call listDatatypes(theElement.Name,theElement,indent)
+					
+					SessionOutput("    </" & utf8(theElement.Name) & ">")
+					SessionOutput("  </wfs:member>")
+				else
+					'Other than «ApplicationSchema» Package or a «FeatureType» Class selected in the tree
+					MsgBox( "This script requires a «ApplicationSchema» Package or a «FeatureType» Class to be selected in the Project Browser." & vbCrLf & _
+					"Please select a «ApplicationSchema» Package or a «FeatureType» Class in the Project Browser and try again." )
+				end if
 			else
 				'Other than «ApplicationSchema» Package or a «FeatureType» Class selected in the tree
 				MsgBox( "Element type selected: " & theElement.Type & vbCrLf & _
@@ -182,11 +208,6 @@ sub listFeatureTypes(pkg)
 			
 			SessionOutput("  <wfs:member>")
 			SessionOutput("    <" & utf8(currentElement.Name) & " gml:id="""& utf8(currentElement.Name) & ".1"">")
-			pnteller=0
-			cuteller=0
-			suteller=0
-			soteller=0
-			obteller=0
 			
 			ftname = currentElement.Name
 			superlist = ""
@@ -223,7 +244,7 @@ sub listDatatypes(ftname,element,indent)
 	dim datatype as EA.Element
 	dim conn as EA.Collection
 	dim connEnd as EA.ConnectorEnd
-	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef
+	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef, selfref
 	dim indent0, indent1, superlist
 	
 				
@@ -241,7 +262,7 @@ sub listDatatypes(ftname,element,indent)
 				end if
 			end if
 		next
-		if debug then Repository.WriteOutput "Script", "Debug: superlist [" & superlist & "].",0
+		'if debug then Repository.WriteOutput "Script", "Debug: superlist [" & superlist & "].",0
 
 		dim attr as EA.Attribute
 		for each attr in element.Attributes
@@ -261,16 +282,22 @@ sub listDatatypes(ftname,element,indent)
 					else
 						if datatype.Type = "Enumeration" or LCase(datatype.Stereotype) = "codelist" or LCase(datatype.Stereotype) = "enumeration" then
 							'list first code in the list
-							
-							'variant gml:CodeType
-							SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
-							if attr.UpperBound <> "1" then
+							if getTaggedValue(attr,"inlineOrByReference") = "byReference" then
+								'variant gml:ReferenceType
+								'if debug then 
+								SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & namespace & "/" & attr.Type & "/" & listCodeType(datatype) & """/>")
+								'SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & listReferenceType(attr.Type) & """/>")
+								if attr.UpperBound <> "1" then
+								'	SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
+									SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & namespace & "/" & attr.Type & "/" & listCodeType(datatype) & """/>")
+								end if
+							else
+								'variant gml:CodeType
 								SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
+								if attr.UpperBound <> "1" then
+									SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
+								end if
 							end if
-							'variant gml:ReferenceType
-						'	SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & namespace & "/" & attr.Type & "/" & listCodeType(datatype) & """/>")
-							'SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & listReferenceType(attr.Type) & """/>")
-							
 							'listCodeType(attr)
 						else
 							SessionOutput(indent & "<" & utf8(attr.Name) & ">")
@@ -281,6 +308,8 @@ sub listDatatypes(ftname,element,indent)
 							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
 							SessionOutput(indent & "</" & utf8(attr.Name) & ">")
 							if attr.UpperBound <> "1" then
+								' write a second instance of the attribute, currently with exactly same content
+								' but should be made to pick a different value or the second code (TBD)
 								SessionOutput(indent & "<" & utf8(attr.Name) & ">")
 								indent0 = indent & "  "
 								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
@@ -314,6 +343,10 @@ sub listDatatypes(ftname,element,indent)
 				end if
 			end if
 
+			'if Union then jump out of the loop after first(!) variant, this does not support well Unions having several different datatypes 
+			if LCase(element.Stereotype) = "union" then
+				Exit For
+			end if
 			'SessionOutput(indent & "</" & attr.Name & ">")
 		next
 			
@@ -327,48 +360,11 @@ sub listDatatypes(ftname,element,indent)
 				if debug then Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.ClientID).Name & "].",0
 
 				if conn.ClientID = element.ElementID then
-					set datatype = Repository.GetElementByID(conn.SupplierID)
-					umlnavn = conn.SupplierEnd.Role
-					if conn.ClientEnd.Aggregation = 2 then
-						'composition+mandatory->nest as datatype inline?
-						SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-						indent0 = indent & "  "
-						SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-						indent1 = indent0 & "  "
-						call listDatatypes(ftname, datatype,indent1)
-						SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-						SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-						if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" then
-							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-							indent0 = indent & "  "
-							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-							indent1 = indent0 & "  "
-							call listDatatypes(ftname, datatype,indent1)
-							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-						SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-						end if
-					else
-						if conn.SupplierEnd.Navigable = "Navigable" then
-							'navigable->make xlink? 
-							SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & ".1""/>")
-							if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" then
-								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & ".2""/>")
-							end if
-						end if
-					end if
-				else
-					set datatype = Repository.GetElementByID(conn.ClientID)
-					umlnavn = conn.ClientEnd.Role
-					if conn.SupplierEnd.Aggregation = 2 then
-						'composition+mandatory->nest as datatype inline?
-						SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-						indent0 = indent & "  "
-						SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-						indent1 = indent0 & "  "
-						call listDatatypes(ftname, datatype,indent1)
-						SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-						SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-						if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" then
+					if getConnectorEndTaggedValue(conn.SupplierEnd,"xsdEncodingRule") <> "notEncoded" then
+						set datatype = Repository.GetElementByID(conn.SupplierID)
+						umlnavn = conn.SupplierEnd.Role
+						if conn.ClientEnd.Aggregation = 2 then
+							'composition+mandatory->nest as datatype inline?
 							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
 							indent0 = indent & "  "
 							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
@@ -376,13 +372,66 @@ sub listDatatypes(ftname,element,indent)
 							call listDatatypes(ftname, datatype,indent1)
 							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
 							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+							if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" and conn.SupplierEnd.Cardinality <> "1" then
+								SessionOutput(indent & "<" & utf8(umlnavn) & ">")
+								indent0 = indent & "  "
+								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+								indent1 = indent0 & "  "
+								call listDatatypes(ftname, datatype,indent1)
+								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+							end if
+						else
+							if conn.SupplierEnd.Navigable = "Navigable" then
+								'self assoc? if so make xlinks to other (imaginary) instances of the same class
+								selfref = 1
+								if datatype.Name = element.Name and datatype.ElementID = element.ElementID then
+									selfref = 2
+								end if 
+								'navigable->make xlink? 
+								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
+								if debug then Repository.WriteOutput "Script", "Debug: SupplierEnd.Cardinality [" & conn.SupplierEnd.Cardinality & "].",0
+								if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" and conn.SupplierEnd.Cardinality <> "1" then
+									SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
+								end if
+							end if
 						end if
-					else
-						if conn.ClientEnd.Navigable = "Navigable" then
-							'navigable->make xlink? 
-							SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & ".1""/>")
-							if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" then
-								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & ".2""/>")
+					end if
+				else
+					if getConnectorEndTaggedValue(conn.ClientEnd,"xsdEncodingRule") <> "notEncoded" then
+						set datatype = Repository.GetElementByID(conn.ClientID)
+						umlnavn = conn.ClientEnd.Role
+						if conn.SupplierEnd.Aggregation = 2 then
+							'composition+mandatory->nest as datatype inline?
+							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
+							indent0 = indent & "  "
+							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+							indent1 = indent0 & "  "
+							call listDatatypes(ftname, datatype,indent1)
+							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+							if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" and conn.ClientEnd.Cardinality <> "1" then
+								SessionOutput(indent & "<" & utf8(umlnavn) & ">")
+								indent0 = indent & "  "
+								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+								indent1 = indent0 & "  "
+								call listDatatypes(ftname, datatype,indent1)
+								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+								SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+							end if
+						else
+							if conn.ClientEnd.Navigable = "Navigable" then
+								'self assoc? if so make xlinks to other (imaginary) instances of the same class
+								selfref = 1
+								if datatype.Name = element.Name and datatype.ElementID = element.ElementID then
+									selfref = 2
+								end if 
+								'navigable->make xlink? 
+								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
+								if debug then Repository.WriteOutput "Script", "Debug: ClientEnd.Cardinality [" & conn.ClientEnd.Cardinality & "].",0
+								if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" and conn.ClientEnd.Cardinality <> "1" then
+									SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
+								end if
 							end if
 						end if
 					end if
@@ -401,7 +450,7 @@ function listBaseType(ftname,umlname, umltype)
 	listBaseType = "*"
 	if umltype = "CharacterString" then
 		if umlname = "navnerom" or umlname = "namespace" then
-			listBaseType = "http://data.geonorge.no/" & Kortnavn 
+			listBaseType = "http://data.geonorge.no/SOSI/" & Kortnavn 
 		else
 			if umlname = "lokalId" or umlname = "localId" then
 				listBaseType = ftname & ".1"
@@ -414,16 +463,16 @@ function listBaseType(ftname,umlname, umltype)
 		listBaseType = "true"
 	end if
 	if umltype = "Date" then
-		listBaseType = "2018-09-11"
+		listBaseType = "2019-05-04"
 	end if
 	if umltype = "DateTime" then
-		listBaseType = "2018-09-11T21:08:00Z"
+		listBaseType = "2019-05-04T21:08:00Z"
 	end if
 	if umltype = "Integer" then
-		listBaseType = "44"
+		listBaseType = "42"
 	end if
 	if umltype = "Real" then
-		listBaseType = "99.99"
+		listBaseType = "92.92"
 	end if
 end function
 
@@ -451,8 +500,15 @@ sub listGeometryType(elementName, geomtype, indent)
 		end if
 		if geomtype = "Kurve" or geomtype = "GM_Curve" or geomtype = "GM_CompositeCurve" then
 				cuteller = cuteller + 1
-'				SessionOutput(indent & "<gml:Curve gml:id = """ & elementName & ".cu.1"" srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
-'
+'				SessionOutput(indent & "<gml:Curve gml:id = """ & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
+'				SessionOutput(indent & "  <gml:segments>
+'				SessionOutput(indent & "    <gml:LineStringSegment>
+'				SessionOutput(indent & "      <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2</gml:posList>")
+'				SessionOutput(indent & "    </gml:LineStringSegment>
+'				SessionOutput(indent & "  </gml:segments>
+'				SessionOutput(indent & "</gml:Curve>
+
+
 				SessionOutput(indent & "<gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
 				SessionOutput(indent & "  <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2</gml:posList>")
 				SessionOutput(indent & "</gml:LineString>")
@@ -706,7 +762,7 @@ sub generateSolidExample(elementName, indent, height)
 	
 '	start the xml structure of the gml:Solid
 	soteller = soteller + 1	
-    SessionOutput(indent & "<gml:Solid gml:id=""" & elementName & ".0612.202.27" & ".so." & soteller)
+    SessionOutput(indent & "<gml:Solid gml:id=""" & elementName & ".0612.202.27" & ".so." & soteller & """")
     SessionOutput(indent & "  srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
     SessionOutput(indent & "  <gml:exterior>")
     SessionOutput(indent & "    <gml:Shell gml:id=""" & elementName & ".0612.202.27" & ".so." & soteller & ".sh.1""")
