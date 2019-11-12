@@ -4,12 +4,14 @@ option explicit
 
 ' script:		listSOSIKontrollfiler
 ' purpose:		Generate files for SOSI validator. Lager filer for SOSI-Kontroll fra SOSI-5.0 modeller.
-' author:		Kent Jonsrud
+' author:		Kent
 ' version:		2018-03-01, 04.13
 ' version:		2018-09-07 self associations and self datatypes are detected, not other types of circular usages or inheritance loops.
 ' version:		2019-03-20 for egenskaper med defaultCodeSpace ansees kodelisten som eksternt forvaltet og tom(!), og stien til den eksterne lista legges rett i o-fila .
 ' version:		2019-04-03 retta feil vedr. SOSI_lengde og SOSI_datatype, datatyper arver fra sine supertyper
-'
+' version:		2019-07-31 utelater SOSI-kontroll av elementer med tagged value xsdEncodingRule = notEncoded
+'    			Objekttyper som manglende geometriegenskap legges under .OBJEKT
+' version:		2019-08-02 feilrettet og forbedret (?) støtte for arv mellom datatyper
 '
 '	Kjente svakheter:
 '	Hvis filene ikke dukker opp i en underkatalog under der .eap-fila ligger kan man lete på en tempsti ala:
@@ -46,7 +48,7 @@ sub listFeatureTypesForEnValgtPakke()
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
 					dim message
 			dim box
-			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2019-04-03" & vbCrLf & "Starter listing av modell som følger SOSI 5.0-regler til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
+			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2019-08-02" & vbCrLf & "Starter listing av modell som følger SOSI 5.0-regler til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
 			select case box
 			case vbOK
 				dim kortnavn
@@ -172,10 +174,16 @@ sub listFeatureTypes(pkg,kortnavn)
 			
 			obj.Write vbCrLf & ".OBJEKTTYPE" & vbCrLf
 			obj.Write"..TYPENAVN " & utf8(currentElement.Name) & vbCrLf
-			if getSosiGeometrityper(currentElement) <> "" then
-				obj.Write"..GEOMETRITYPE " & getSosiGeometrityper(currentElement) & vbCrLf
+			' hardkodet overstyring av mappingregler ?
+			if getTaggedValue(currentElement,"SOSI_geometri") <> "" then
+				obj.Write"..GEOMETRITYPE " & getTaggedValue(currentElement,"SOSI_geometri") & vbCrLf
 			else
-				obj.Write"..GEOMETRITYPE PUNKT,SVERM,KURVE,FLATE,OBJEKT" & vbCrLf
+				if getSosiGeometrityper(currentElement) <> "" then
+					obj.Write"..GEOMETRITYPE " & getSosiGeometrityper(currentElement) & vbCrLf
+				else
+					'obj.Write"..GEOMETRITYPE PUNKT,SVERM,KURVE,FLATE,OBJEKT" & vbCrLf
+					obj.Write"..GEOMETRITYPE OBJEKT" & vbCrLf
+				end if
 			end if
 			' restriksjon? -> ..AVGRENSES_AV KantUtsnitt,TakoverbyggKant,FiktivBygningsavgrensning(,Flateavgrensning?)
 			superlist = ""
@@ -222,7 +230,8 @@ sub listDatatypes(element,prikkniv)
 	dim connEnd as EA.ConnectorEnd
 	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef
 				
-	if element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype" then
+	if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
+
 
 		dim attr as EA.Attribute
 		for each attr in element.Attributes
@@ -280,23 +289,23 @@ sub listDatatypes(element,prikkniv)
 						if sositype = "*" then
 							sositype = "T"
 						end if
-
+						sosierlik = "="
 						if getTaggedValue(attr,"defaultCodeSpace") <> getTaggedValue(datatype,"codeList") then
 			'				Repository.WriteOutput "Script", "Info: egenskapen [" & Element.Name & "." & attr.Name & "]  har kodelistesti [" & getTaggedValue(attr,"defaultCodeSpace") & "]  men datatypeklassen [" & datatype.Name & "] har ulik kodelistesti [" & getTaggedValue(datatype,"codeList") & "].",0
 						end if
 						'if getTaggedValue(datatype,"asDictionary") = "true" then
 							'midlertidig! kun for kommunenummer og målemetoder
 							if attr.Name = "kommunenummer" or attr.Name = "fylkesnummer" or attr.Name = "målemetode" or attr.Name = "målemetodeHøyde" then
-								'bygger først på at egenskapen peker til korrekt sti
+								'bygger først på at egenskapen peker til korrekt sti (uten filtype)
 								koder = getTaggedValue(attr,"defaultCodeSpace")
-								sosierlik = "="
+								sosierlik = "><"
 							else				
 								' legg ut kodene som vanlig
 								koder = getKoder(datatype)
 							end if
 						'end if
-						if koder <> "" then
-							sosierlik = "="
+						if koder = "" then
+							sosierlik = "><"
 						end if
 					end if
 				else
@@ -320,7 +329,7 @@ sub listDatatypes(element,prikkniv)
 				'Putt i liste over enkeltelementer med basistype som skal listes opp separate til slutt: TBD
 				if attr.ClassifierID <> 0 then
 					'Brukerdefinert datatype
-					if datatype.Type = "Class" and LCase(datatype.Stereotype) = "datatype" or LCase(datatype.Stereotype) = "union" then
+					if datatype.Type = "Datatype" or (datatype.Type = "Class" and LCase(datatype.Stereotype) = "datatype" or LCase(datatype.Stereotype) = "union") then
 						'set datatype = Repository.GetElementByID(attr.ClassifierID)
 						'
 						'rekurser og hent egenskaper og roller fra eventuelle supertyper til datatypen TODO
@@ -331,7 +340,7 @@ sub listDatatypes(element,prikkniv)
 									if debug then Repository.WriteOutput "Script", "Debug: datatype har supertype [" & Repository.GetElementByID(sconn.SupplierID).Name & "].",0
 									set super = Repository.GetElementByID(sconn.SupplierID)
 									prikkniv1 = prikkniv & "."
-									call listDatatypes(super,prikkniv1)
+	'								call listDatatypes(super,prikkniv1)
 								end if
 							end if
 						next
@@ -387,6 +396,9 @@ sub listDatatypes(element,prikkniv)
 							sosimax = Mid(conn.SupplierEnd.Cardinality,Len(conn.SupplierEnd.Cardinality),1)
 						end if
 					end if
+					if getConnectorEndTaggedValue(conn.SupplierEnd,"xsdEncodingRule") = "notEncoded" then
+						umlnavn = ""
+					end if
 				else
 					set datatype = Repository.GetElementByID(conn.ClientID)
 					umlnavn = conn.ClientEnd.Role
@@ -398,6 +410,9 @@ sub listDatatypes(element,prikkniv)
 						if Mid(conn.ClientEnd.Cardinality,Len(conn.ClientEnd.Cardinality),1) <> "*" then
 							sosimax = Mid(conn.ClientEnd.Cardinality,Len(conn.ClientEnd.Cardinality),1)
 						end if
+					end if
+					if getConnectorEndTaggedValue(conn.ClientEnd,"xsdEncodingRule") = "notEncoded" then
+						umlnavn = ""
 					end if
 				end if
 				if umlnavn <> "" then
@@ -445,6 +460,26 @@ sub listDatatypes(element,prikkniv)
 			end if
 
 		next
+
+
+
+
+		for each conn in element.Connectors
+			if conn.Type = "Generalization" then
+				if element.ElementID = conn.ClientID then
+					' må nøste helt opp og ta med alle "inline"
+					if debug then Repository.WriteOutput "Script", "Debug: supertype [" & Repository.GetElementByID(conn.SupplierID).Name & "].",0
+'					superlist = getSupertypes(ftname, conn.SupplierID, indent)
+					if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union") then
+						set super = Repository.GetElementByID(conn.SupplierID)
+						'prikkniv = prikkniv & "."
+						call listDatatypes(super,prikkniv)
+					end if
+				end if
+			end if
+		next
+
+
 
 	end if
 
@@ -506,22 +541,23 @@ function getSosiGeometrityper(element)
 end function
 
 
-function getSosiGeometritype(element)
-
+function getSosiGeometritype(attr)
+		'fra Ralisering i SOSI-format versjon 5.0 tabell 8.2:
 		getSosiGeometritype = ""
-		if element.Type = "Punkt" or element.Type = "GM_Point" then
+		if attr.Type = "Punkt" or attr.Type = "GM_Point" then
 			getSosiGeometritype = "PUNKT"
 		end if
-		if element.Type = "Sverm" or element.Type = "GM_MultiPoint" then
+		if attr.Type = "Sverm" or attr.Type = "GM_MultiPoint" then
 			getSosiGeometritype = "SVERM"
 		end if
-		if element.Type = "Kurve" or element.Type = "GM_Curve" or element.Type = "GM_CompositeCurve" then
+		if attr.Type = "Kurve" or attr.Type = "GM_Curve" or attr.Type = "GM_CompositeCurve" then
 			getSosiGeometritype = "KURVE,BUEP,KLOTOIDE"
 		end if
-		if element.Type = "Flate" or element.Type = "GM_Surface" or element.Type = "GM_CompositeSurface" then
+		if attr.Type = "Flate" or attr.Type = "GM_Surface" or attr.Type = "GM_CompositeSurface" then
 			getSosiGeometritype = "FLATE"
 		end if
-		if element.Type = "GM_Object" or element.Type = "GM_Primitive" then
+		'fra "etablert praksis"
+		if attr.Type = "GM_Object" or attr.Type = "GM_Primitive" then
 			getSosiGeometritype = "PUNKT,SVERM,KURVE,BUEP,KLOTOIDE,FLATE"
 		end if
 end function
