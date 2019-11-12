@@ -4,9 +4,13 @@ option explicit
 
 ' script:		listJSONExample
 ' purpose:		Generates JSON example objects from types in the model
+' author:		Kent Jonsrud
 ' version:		2019-09-24 objekttyper og datatyper
 ' version:		2019-09-25 kodelister
-' TODO:			tomme klasser (krever noe refaktorering)
+' version:		2019-11-12 tomme klasser, assosiasjonsroller
+'
+' TODO:			nøsting av egenskaper i egenskaper
+' TODO:			union
 ' TODO:			velge enkeltklasse
 ' TODO:			opprydding
 
@@ -363,82 +367,10 @@ sub listDatatypes(ftname,element,indent)
 				SessionOutput("      }, {")
 			end if
 			
-			if false then
-	'f		if getSosiGeometritype(attr) = "" then
-				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] not geometry.",0
-				if attr.ClassifierID <> 0 and getBasicSOSIType(attr.Type) = "*" then
-					set datatype = Repository.GetElementByID(attr.ClassifierID)
-					'see if the datatype has a supertype, if so then write all its elements first - TBD
-					
-					if datatype.Name = element.Name and datatype.ParentID = element.ParentID then
-					'if datatype.ClassifierID = element.ClassifierID then
-						Repository.WriteOutput "Script", "Error - circular self reference: datatype.Name [" & datatype.Name & "] from attribute name [" & element.Name & "." & attr.Name & "].",0
-						exit sub
-					else
-						if datatype.Type = "Enumeration" or LCase(datatype.Stereotype) = "codelist" or LCase(datatype.Stereotype) = "enumeration" then
-							'list first code in the list
-							if getTaggedValue(attr,"inlineOrByReference") = "byReference" then
-								'variant gml:ReferenceType
-								'if debug then 
-								SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & namespace & "/" & attr.Type & "/" & listCodeType(datatype) & """/>")
-								'SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & listReferenceType(attr.Type) & """/>")
-								if attr.UpperBound <> "1" then
-								'	SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
-									SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & namespace & "/" & attr.Type & "/" & listCodeType(datatype) & """/>")
-								end if
-							else
-								'variant gml:CodeType
-								SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
-								if attr.UpperBound <> "1" then
-									SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
-								end if
-							end if
-							'listCodeType(attr)
-						else
-							SessionOutput(indent & "<" & utf8(attr.Name) & ">")
-							indent0 = indent & "  "
-							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-							indent1 = indent0 & "  "
-							call listDatatypes(ftname, datatype,indent1)
-							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-							SessionOutput(indent & "</" & utf8(attr.Name) & ">")
-							if attr.UpperBound <> "1" then
-								' write a second instance of the attribute, currently with exactly same content
-								' but should be made to pick a different value or the second code (TBD)
-								SessionOutput(indent & "<" & utf8(attr.Name) & ">")
-								indent0 = indent & "  "
-								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-								indent1 = indent0 & "  "
-								call listDatatypes(ftname, datatype,indent1)
-								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-								SessionOutput(indent & "</" & utf8(attr.Name) & ">")
-							end if
 
-						end if
-					end if
-				else
-					'base type
-					SessionOutput(indent & "<" & utf8(attr.Name) & ">" & listBaseType(ftname, attr.Name,attr.Type) & "</" & utf8(attr.Name) & ">")
-					if attr.UpperBound <> "1" then
-						SessionOutput(indent & "<" & utf8(attr.Name) & ">" & listBaseType(ftname, attr.Name,attr.Type) & "</" & utf8(attr.Name) & ">")
-					end if
-
-
-				end if
-	'f		else
-				'geometry type 
-				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] is geometry: " & getSosiGeometritype(attr) & ".",0
-				SessionOutput(indent & "<" & utf8(attr.Name) & ">")
-				call listGeometryType(ftname, attr.Type, indent & "  ")			
-				SessionOutput(indent & "</" & utf8(attr.Name) & ">")
-				if attr.UpperBound <> "1" then
-					SessionOutput(indent & "<" & utf8(attr.Name) & ">")
-					call listGeometryType(ftname, attr.Type, indent & "  ")			
-					SessionOutput(indent & "</" & utf8(attr.Name) & ">")
-				end if
-			end if
-
-			'if Union then jump out of the loop after first(!) variant, this does not support well Unions having several different datatypes 
+			'if Union then jump out of the loop after first(!) variant, 
+			'this does not support well Unions having several different datatypes 
+			'if multiplicity of attribute allows we should rather have one instance of each type
 			if LCase(element.Stereotype) = "union" then
 				Exit For
 			end if
@@ -458,77 +390,99 @@ sub listDatatypes(ftname,element,indent)
 					if getConnectorEndTaggedValue(conn.SupplierEnd,"xsdEncodingRule") <> "notEncoded" then
 						set datatype = Repository.GetElementByID(conn.SupplierID)
 						umlnavn = conn.SupplierEnd.Role
-						if conn.ClientEnd.Aggregation = 2 then
-							'composition+mandatory->nest as datatype inline?
-							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-							indent0 = indent & "  "
-							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-							indent1 = indent0 & "  "
-							call listDatatypes(ftname, datatype,indent1)
-							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" and conn.SupplierEnd.Cardinality <> "1" then
-								SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-								indent0 = indent & "  "
-								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-								indent1 = indent0 & "  "
-								call listDatatypes(ftname, datatype,indent1)
-								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							end if
-						else
+'						if conn.ClientEnd.Aggregation = 2 then
+'							'composition+mandatory->nest as datatype inline?
+'							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
+'							indent0 = indent & "  "
+'							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+'							indent1 = indent0 & "  "
+'							call listDatatypes(ftname, datatype,indent1)
+'							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+'							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+'							if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" and conn.SupplierEnd.Cardinality <> "1" then
+'								SessionOutput(indent & "<" & utf8(umlnavn) & ">")
+'								indent0 = indent & "  "
+'								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+'								indent1 = indent0 & "  "
+'								call listDatatypes(ftname, datatype,indent1)
+'								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+'							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+'							end if
+'						else
 							if conn.SupplierEnd.Navigable = "Navigable" then
-								'self assoc? if so make xlinks to other (imaginary) instances of the same class
-								selfref = 1
-								if datatype.Name = element.Name and datatype.ElementID = element.ElementID then
-									selfref = 2
-								end if 
-								'navigable->make xlink? 
-								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
-								if debug then Repository.WriteOutput "Script", "Debug: SupplierEnd.Cardinality [" & conn.SupplierEnd.Cardinality & "].",0
-								if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" and conn.SupplierEnd.Cardinality <> "1" then
-									SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
+							
+								SessionOutput("        ""kvalifisertNavn"" : """ & element.FQName &  "." & umlnavn & """,")
+						'		SessionOutput("        ""kvalifisertNavn"" : """ & utf8(namespace) & "/" & ftname & "/" & attr.Name & """,")
+								SessionOutput("        ""identifikator"" : """ & utf8(namespace) & "/" & ftname & "/" & umlnavn & """,")
+								SessionOutput("        ""elementIdentifikator"" : """ & utf8(namespace) & "/" & ftname & "/" & umlnavn & """,")
+								SessionOutput("        ""dokumentasjon"" : """ & utf8(trimDefinitionText(conn.SupplierEnd.RoleNote)) & """,")
+								SessionOutput("        ""navn"" : """ & umlnavn & """,")
+								SessionOutput("        ""begrep"" : {},")
+								SessionOutput("        ""anvendtStereotype"" : ""rolle"",")
+								SessionOutput("        ""multiplisitet"" : {")
+								if conn.SupplierEnd.Cardinality = "0..1" or conn.SupplierEnd.Cardinality = "0..*" then
+									SessionOutput("          ""nedre"" : ""0"",")
+								else
+									SessionOutput("          ""nedre"" : ""1"",")
 								end if
-							end if
+								if conn.SupplierEnd.Cardinality = "*" or conn.SupplierEnd.Cardinality = "0..*" or conn.SupplierEnd.Cardinality = "1..*" then
+									SessionOutput("          ""øvre"" : ""*""")
+								else
+									SessionOutput("          ""øvre"" : ""1""")
+								end if
+								SessionOutput("        },")
+								SessionOutput("        ""valgEgenskap"" : false,")
+								SessionOutput("        ""navigerbar"" : true,")
+						'		SessionOutput("        ""type"" : """ & utf8(namespace) & "/" & attr.Type & """")
+								SessionOutput("        ""type"" : """ & utf8(mapBaseType(namespace, conn.SupplierEnd.RoleType)) & """")
+							
+							
+								'self assoc? if so make xlinks to other (imaginary) instances of the same class
+'								selfref = 1
+'								if datatype.Name = element.Name and datatype.ElementID = element.ElementID then
+'									selfref = 2
+'								end if 
+'								'navigable->make xlink? 
+'								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
+'								if debug then Repository.WriteOutput "Script", "Debug: SupplierEnd.Cardinality [" & conn.SupplierEnd.Cardinality & "].",0
+'								if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" and conn.SupplierEnd.Cardinality <> "1" then
+'									SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
+'								end if
+'							end if
 						end if
 					end if
 				else
 					if getConnectorEndTaggedValue(conn.ClientEnd,"xsdEncodingRule") <> "notEncoded" then
 						set datatype = Repository.GetElementByID(conn.ClientID)
 						umlnavn = conn.ClientEnd.Role
-						if conn.SupplierEnd.Aggregation = 2 then
-							'composition+mandatory->nest as datatype inline?
-							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-							indent0 = indent & "  "
-							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-							indent1 = indent0 & "  "
-							call listDatatypes(ftname, datatype,indent1)
-							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" and conn.ClientEnd.Cardinality <> "1" then
-								SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-								indent0 = indent & "  "
-								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-								indent1 = indent0 & "  "
-								call listDatatypes(ftname, datatype,indent1)
-								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-								SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							end if
-						else
 							if conn.ClientEnd.Navigable = "Navigable" then
-								'self assoc? if so make xlinks to other (imaginary) instances of the same class
-								selfref = 1
-								if datatype.Name = element.Name and datatype.ElementID = element.ElementID then
-									selfref = 2
-								end if 
-								'navigable->make xlink? 
-								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
-								if debug then Repository.WriteOutput "Script", "Debug: ClientEnd.Cardinality [" & conn.ClientEnd.Cardinality & "].",0
-								if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" and conn.ClientEnd.Cardinality <> "1" then
-									SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
+							
+								SessionOutput("        ""kvalifisertNavn"" : """ & element.FQName &  "." & umlnavn & """,")
+								SessionOutput("        ""identifikator"" : """ & utf8(namespace) & "/" & ftname & "/" & umlnavn & """,")
+								SessionOutput("        ""elementIdentifikator"" : """ & utf8(namespace) & "/" & ftname & "/" & umlnavn & """,")
+								SessionOutput("        ""dokumentasjon"" : """ & utf8(trimDefinitionText(conn.ClientEnd.RoleNote)) & """,")
+								SessionOutput("        ""navn"" : """ & umlnavn & """,")
+								SessionOutput("        ""begrep"" : {},")
+								SessionOutput("        ""anvendtStereotype"" : ""rolle"",")
+								SessionOutput("        ""multiplisitet"" : {")
+								if conn.ClientEnd.Cardinality = "0..1" or conn.ClientEnd.Cardinality = "0..*" then
+									SessionOutput("          ""nedre"" : ""0"",")
+								else
+									SessionOutput("          ""nedre"" : ""1"",")
 								end if
+								if conn.ClientEnd.Cardinality = "*" or conn.ClientEnd.Cardinality = "0..*" or conn.ClientEnd.Cardinality = "1..*" then
+									SessionOutput("          ""øvre"" : ""*""")
+								else
+									SessionOutput("          ""øvre"" : ""1""")
+								end if
+								SessionOutput("        },")
+								SessionOutput("        ""valgEgenskap"" : false,")
+								SessionOutput("        ""navigerbar"" : true,")
+						'		SessionOutput("        ""type"" : """ & utf8(namespace) & "/" & attr.Type & """")
+								SessionOutput("        ""type"" : """ & utf8(mapBaseType(namespace, conn.ClientEnd.RoleType)) & """")
+							
+							
 							end if
-						end if
 					end if
 				end if
 
