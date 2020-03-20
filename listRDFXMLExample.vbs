@@ -5,11 +5,13 @@ option explicit
 ' script:		listRDFXMLExample
 ' purpose:		Generates OWL/RDF/XML example objects from types in the source model according to a common national metamodel
 ' version:		2020-02-28
+' version:		2020-03-18/19/20 Refaktorering med katalogdelen med informasjonsmodellen inline
 ' author:		Kent Jonsrud
+' TODO:			list feature types 
 ' TODO:			mappe ut assosiasjonsroller
 ' TODO:			opprydding
 
-		DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller, pversion
+		DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller, pversion, katalognavn
 		debug = false
 
 sub listRDFXMLExample()
@@ -129,33 +131,80 @@ sub listRDFXMLExample()
 					SessionOutput("         xmlns:app=""" & utf8(namespace) & """>")
 '?					SessionOutput("  xml:base=""" & utf8(namespace) & "/"">")
 
+
+'					Katalogdelen 2020-03-18
+					katalognavn = "http://sosi.geonorge.no/sosi-modellregister/katalog-over-objekttypebegreper"
 					SessionOutput("  ")
-					SessionOutput("  <!-- Pakken med informasjonsmodellen -->")
+					SessionOutput("  <!-- Kataloginformasjonen -->")
+					
+					SessionOutput("  <owl:NamedIndividual rdf:about=""" + katalognavn + """>")
+					SessionOutput("    <rdf:type rdf:resource=""http://www.w3.org/ns/dcat#Catalog""/>")
+					SessionOutput("    <dc:description xml:lang=""nb"">Katalog over elementer fra geomatikknorges UML-modeller</dc:description>")
+'					SessionOutput("    <dc:publisher rdf:resource="https://raw.githubusercontent.com/Informasjonsforvaltning/model-publisher/master/src/model/model-catalog.ttl#Utgiver"/>
+					SessionOutput("    <dc:publisher rdf:resource=""" + katalognavn + """/>")
+					SessionOutput("    <dc:title xml:lang=""nb"">SOSI-modellregister</dc:title>")
+					SessionOutput("    <dcat:record>")
+
+'					SessionOutput("      <owl:NamedIndividual rdf:about="https://raw.githubusercontent.com/Informasjonsforvaltning/model-publisher/master/src/model/model-catalog.ttl#AdresseKatalogpost">
+					SessionOutput("      <owl:NamedIndividual rdf:about=""" + katalognavn + "/" + utf8(kortnavn) + ".katalogpost""/>")
+					SessionOutput("      <rdf:type rdf:resource=""http://www.w3.org/ns/dcat#CatalogRecord""/>")
+'					SessionOutput("      <dc:identifier rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">abc123</dc:identifier>")
+'					SessionOutput("      <dc:identifier rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">" + utf8(theElement.Element.FQName) + "</dc:identifier>")
+					SessionOutput("      <dc:identifier rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">http://sosi.geonorge.no/informasjonsmodeller/" + utf8(theElement.Name) + ".owl.rdf.xml</dc:identifier>")
+					SessionOutput("      <dc:title xml:lang=""nb"">" + "SOSI-modellregister" + "</dc:title>")
+					SessionOutput("      <foaf:primaryTopic>")
+
+'					SessionOutput("        <rdf:Description rdf:about=""https://raw.githubusercontent.com/Informasjonsforvaltning/model-publisher/master/src/model/model-catalog.ttl#AdresseModell">
+'					SessionOutput("        <rdf:Description rdf:about=""" + katalognavn + "/" + kortnavn + "">
+					SessionOutput("          <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(theElement.Name) & """>")
+					SessionOutput("          <rdf:type rdf:resource=""http://data.norge.no/informationmodel/InformationModel""/>")
+'					SessionOutput("          <rdf:type rdf:resource=""http://www.w3.org/2002/07/owl#NamedIndividual""/>")
+					
+					
+'		?			call listFeatureTypeNames(theElement)
+'					SessionOutput("          <ns0:containsModelElement rdf:resource="https://raw.githubusercontent.com/Informasjonsforvaltning/model-publisher/master/src/model/model-catalog.ttl#Adresse""/>")
+'					SessionOutput("          <ns0:containsModelElement rdf:resource="https://raw.githubusercontent.com/Informasjonsforvaltning/model-publisher/master/src/model/model-catalog.ttl#GeografiskAdresse"/>
+'					SessionOutput("          <ns0:containsModelElement>
+
+'					SessionOutput("           <ns0:ModelElement rdf:about="https://raw.githubusercontent.com/Informasjonsforvaltning/model-publisher/master/src/model/model-catalog.ttl#Matrikkeladresse">
+'					SessionOutput("             <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#NamedIndividual"/>
+
+
+					SessionOutput("  ")
+					SessionOutput("        <!-- Pakken med informasjonsmodellen -->")
 					
 '?					
-					SessionOutput("  <owl:Ontology rdf:about=""" & utf8(namespace) & "/" & utf8(theElement.Name) & """>")
-					SessionOutput("      <rdfs:label>" & utf8(trimDefinitionText(theElement.Notes)) & "</rdfs:label>")
-					SessionOutput("      <dc:source>" & theElement.Element.FQName & "</dc:source>")
-					SessionOutput("      <owl:versionInfo>" & utf8(pversion) & "</owl:versionInfo>")
-					SessionOutput("      <owl:imports rdf:resource=""http://data.norge.no/informationmodel""/>")
-					SessionOutput("  </owl:Ontology>")
+'					SessionOutput("  <owl:Ontology rdf:about=""" & utf8(namespace) & "/" & utf8(theElement.Name) & """>")
+'					SessionOutput("      <rdfs:label>" & utf8(trimDefinitionText(theElement.Notes)) & "</rdfs:label>")
+'					SessionOutput("      <dc:source>" & theElement.Element.FQName & "</dc:source>")
+'					SessionOutput("      <owl:versionInfo>" & utf8(pversion) & "</owl:versionInfo>")
+'					SessionOutput("      <owl:imports rdf:resource=""http://data.norge.no/informationmodel""/>")
+'					SessionOutput("  </owl:Ontology>")
 					
 					
-					SessionOutput("  <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(theElement.Name) & """>")
-					SessionOutput("    <rdf:type rdf:resource=""http://data.norge.no/informationmodel/InformationModel""/>")
+'					SessionOutput("  <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(theElement.Name) & """>")
+'					SessionOutput("    <rdf:type rdf:resource=""http://data.norge.no/informationmodel/InformationModel""/>")
 
 '					namespace = namespace & "/" & theElement.Name
 
 '					SessionOutput("    <dcatno:containsModelElement rdf:resource=" TODO liste over stien til alle FT, DT, CL, Enum. (Union?)
 '					call listFeatureTypeNames(theElement)
 
-					SessionOutput("    <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(theElement.Notes)) & "</dcatno:description>")
-					SessionOutput("    <dcatno:name xml:lang=""nb"">" & utf8(kortnavn) & "</dcatno:name>")
-					SessionOutput("    <dcatno:versjon rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">" & utf8(pversion) & "</dcatno:versjon>")
-					SessionOutput("  </owl:NamedIndividual>")
+'					SessionOutput("    <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(theElement.Notes)) & "</dcatno:description>")
+'					SessionOutput("    <dcatno:name xml:lang=""nb"">" & utf8(kortnavn) & "</dcatno:name>")
+'					SessionOutput("    <dcatno:versjon rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">" & utf8(pversion) & "</dcatno:versjon>")
+'					SessionOutput("  </owl:NamedIndividual>")
 					
 
 					call listFeatureTypes(theElement)
+
+					SessionOutput("        <!-- Slutt pakken med informasjonsmodellen -->")
+
+
+					SessionOutput("        </owl:NamedIndividual>")
+					SessionOutput("      </foaf:primaryTopic>")
+					SessionOutput("    </dcat:record>")
+					SessionOutput("  </owl:NamedIndividual>")
 
 					SessionOutput("</rdf:RDF>")
 
@@ -218,9 +267,10 @@ sub listFeatureTypes(pkg)
  	set elements = pkg.Elements 
 	dim i, sosinavn, sositype, sosilengde, sosimin, sosimax, koder, prikkniv, sosierlik, superlist
 	dim indent, ftname
+	indent = "        "
 	if debug then Repository.WriteOutput "Script", "Debug: pkg.Name [" & pkg.Name & "].",0
 	SessionOutput(" ")
-	SessionOutput("  <!-- Pakkenavn " & pkg.Name & "  -->")
+	SessionOutput(indent + "  <!-- Pakkenavn " & utf8(pkg.Name) & "  -->")
 	for i = 0 to elements.Count - 1 
 		dim currentElement as EA.Element 
 		set currentElement = elements.GetAt( i ) 
@@ -232,16 +282,16 @@ sub listFeatureTypes(pkg)
 			SessionOutput(" ")
 
 			if  LCase(currentElement.Stereotype) = "featuretype"  then
-				SessionOutput("  <!-- Objekttype -->")
+				SessionOutput(indent + "  <!-- Objekttype -->")
 			end if
 			if  LCase(currentElement.Stereotype) = "datatype"  then
-				SessionOutput("  <!-- Datatype -->")
+				SessionOutput(indent + "  <!-- Datatype -->")
 			end if
 			if  LCase(currentElement.Stereotype) = "union"  then
-				SessionOutput("  <!-- Union (ikke handtert i metamodellen) -->")
+				SessionOutput(indent + "  <!-- Union (ikke handtert i metamodellen) -->")
 			end if
-			SessionOutput("  <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(currentElement.Name) & """>")
-			SessionOutput("    <rdf:type rdf:resource=""http://data.norge.no/informationmodel/ModelElement""/>")
+			SessionOutput(indent + "  <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(currentElement.Name) & """>")
+			SessionOutput(indent + "    <rdf:type rdf:resource=""http://data.norge.no/informationmodel/ModelElement""/>")
 			
 			ftname = currentElement.Name
 			superlist = ""
@@ -254,25 +304,25 @@ sub listFeatureTypes(pkg)
 				end if
 			next
 			if superlist <> "" then
-				SessionOutput("    <dcatno:isSubtypeOf rdf:resource=""" & namespace & "/" & superlist & """/>")
+				SessionOutput(indent + "    <dcatno:isSubtypeOf rdf:resource=""" & utf8(namespace) & "/" & utf8(superlist) & """/>")
 			end if
 			
 			call listDatatypes(ftname,currentElement,indent)
 
 			SessionOutput(" ")
-			SessionOutput("    <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(currentElement.Notes)) & "</dcatno:description>")
+			SessionOutput(indent + "    <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(currentElement.Notes)) & "</dcatno:description>")
 			if  LCase(currentElement.Stereotype) = "featuretype"  then
-				SessionOutput("    <dcatno:modelElementType rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">objekttype</dcatno:modelElementType>")
+				SessionOutput(indent + "    <dcatno:modelElementType rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">objekttype</dcatno:modelElementType>")
 			end if
 			if  LCase(currentElement.Stereotype) = "datatype"  then
-				SessionOutput("    <dcatno:modelElementType rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">datatype</dcatno:modelElementType>")
+				SessionOutput(indent + "    <dcatno:modelElementType rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">datatype</dcatno:modelElementType>")
 			end if
 			if  LCase(currentElement.Stereotype) = "union"  then
-				SessionOutput("    <dcatno:modelElementType rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">datatype</dcatno:modelElementType>")
+				SessionOutput(indent + "    <dcatno:modelElementType rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">datatype</dcatno:modelElementType>")
 			end if
 '    <dcatno:isDescribedBy rdf:datatype="http://www.w3.org/2001/XMLSchema#anyURI">http://begrepskatalog/begrep/20b2e302-9fe1-11e5-a9f8-e4115b280940</dcatno:isDescribedBy>
-			SessionOutput("    <dcatno:name xml:lang=""nb"">" & currentElement.Name & "</dcatno:name>")
-			SessionOutput("  </owl:NamedIndividual>")
+			SessionOutput(indent + "    <dcatno:name xml:lang=""nb"">" & utf8(currentElement.Name) & "</dcatno:name>")
+			SessionOutput(indent + "  </owl:NamedIndividual>")
 
 		end if
 		
@@ -282,12 +332,12 @@ sub listFeatureTypes(pkg)
 
  			SessionOutput(" ")
  
-			SessionOutput("  <!-- Kodeliste -->")
+			SessionOutput(indent + "  <!-- Kodeliste -->")
 
-			SessionOutput("  <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(currentElement.Name) & """>")
-			SessionOutput("    <rdf:type rdf:resource=""http://data.norge.no/informationmodel/CodeList""/>")
+			SessionOutput(indent + "  <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(currentElement.Name) & """>")
+			SessionOutput(indent + "    <rdf:type rdf:resource=""http://data.norge.no/informationmodel/CodeList""/>")
 			if getTaggedValue(currentElement,"asDictionary") = "true" and getTaggedValue(currentElement,"codeList") <> "" then
-				SessionOutput("    <dcatno:isDescribedBy rdf:datatype=""http://www.w3.org/2001/XMLSchema#anyURI"">" & getTaggedValue(currentElement,"codeList") & "</dcatno:isDescribedBy>")			
+				SessionOutput(indent + "    <dcatno:isDescribedBy rdf:datatype=""http://www.w3.org/2001/XMLSchema#anyURI"">" & getTaggedValue(currentElement,"codeList") & "</dcatno:isDescribedBy>")			
 			end if
 			
 			ftname = currentElement.Name
@@ -304,11 +354,11 @@ sub listFeatureTypes(pkg)
 			call listKodeliste(ftname,currentElement,indent)
 						
 			SessionOutput(" ")
-			SessionOutput("    <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(currentElement.Notes)) & "</dcatno:description>")
-			SessionOutput("    <dcatno:modelElementType rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">kodeliste</dcatno:modelElementType>")
+			SessionOutput(indent + "    <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(currentElement.Notes)) & "</dcatno:description>")
+			SessionOutput(indent + "    <dcatno:modelElementType rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">kodeliste</dcatno:modelElementType>")
 '    <dcatno:isDescribedBy rdf:datatype="http://www.w3.org/2001/XMLSchema#anyURI">http://begrepskatalog/begrep/20b2e302-9fe1-11e5-a9f8-e4115b280940</dcatno:isDescribedBy>
-			SessionOutput("    <dcatno:name xml:lang=""nb"">" & currentElement.Name & "</dcatno:name>")
-			SessionOutput("  </owl:NamedIndividual>")
+			SessionOutput(indent + "    <dcatno:name xml:lang=""nb"">" & utf8(currentElement.Name) & "</dcatno:name>")
+			SessionOutput(indent + "  </owl:NamedIndividual>")
 
 		end if
 	
@@ -355,22 +405,22 @@ sub listDatatypes(ftname,element,indent)
 		for each attr in element.Attributes
 			i = i + 1
 			SessionOutput(" ")
-			SessionOutput("    <dcatno:hasProperty>")			
-			SessionOutput("      <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & ftname & "/" & attr.Name & """>")
-			SessionOutput("      <rdf:type rdf:resource=""http://data.norge.no/informationmodel/Property""/>")
-			SessionOutput("      <dcatno:type rdf:resource=""" & attrType(namespace,attr.Type) & """/>")
-			SessionOutput("      <dcatno:name xml:lang=""nb"">" & attr.Name & "</dcatno:name>")
-			SessionOutput("      <dcatno:propertyType>attributt</dcatno:propertyType>")
+			SessionOutput(indent + "    <dcatno:hasProperty>")			
+			SessionOutput(indent + "      <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(ftname) & "/" & utf8(attr.Name) & """>")
+			SessionOutput(indent + "      <rdf:type rdf:resource=""http://data.norge.no/informationmodel/Property""/>")
+			SessionOutput(indent + "      <dcatno:type rdf:resource=""" & utf8(attrType(namespace,attr.Type)) & """/>")
+			SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & utf8(attr.Name) & "</dcatno:name>")
+			SessionOutput(indent + "      <dcatno:propertyType>attributt</dcatno:propertyType>")
 			if attr.UpperBound = "*" then
-				SessionOutput("      <xsd:maxOccurs rdf:datatype=""http://www.w3.org/2000/01/rdf-schema#Literal"">*</xsd:maxOccurs>")
+				SessionOutput(indent + "      <xsd:maxOccurs rdf:datatype=""http://www.w3.org/2000/01/rdf-schema#Literal"">*</xsd:maxOccurs>")
 			else
-				SessionOutput("      <xsd:maxOccurs rdf:datatype=""http://www.w3.org/2001/XMLSchema#nonNegativeInteger"">" & attr.UpperBound & "</xsd:maxOccurs>")
+				SessionOutput(indent + "      <xsd:maxOccurs rdf:datatype=""http://www.w3.org/2001/XMLSchema#nonNegativeInteger"">" & attr.UpperBound & "</xsd:maxOccurs>")
 			end if
-			SessionOutput("      <xsd:minOccurs rdf:datatype=""http://www.w3.org/2001/XMLSchema#nonNegativeInteger"">" & attr.LowerBound & "</xsd:minOccurs>")
-			SessionOutput("      <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(attr.Notes)) & "</dcatno:description>")
+			SessionOutput(indent + "      <xsd:minOccurs rdf:datatype=""http://www.w3.org/2001/XMLSchema#nonNegativeInteger"">" & attr.LowerBound & "</xsd:minOccurs>")
+			SessionOutput(indent + "      <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(attr.Notes)) & "</dcatno:description>")
 
-			SessionOutput("      </owl:NamedIndividual>")	
-			SessionOutput("    </dcatno:hasProperty>")			
+			SessionOutput(indent + "      </owl:NamedIndividual>")	
+			SessionOutput(indent + "    </dcatno:hasProperty>")			
 			
 			
 			
@@ -570,13 +620,13 @@ sub listKodeliste(ftname,element,indent)
 		for each attr in element.Attributes
 			i = i + 1
 			SessionOutput(" ")
-			SessionOutput("    <dcatno:containsCodename>")
-			SessionOutput("      <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & ftname & "/" & attr.Name & """>")
-			SessionOutput("        <rdf:type rdf:resource=""http://data.norge.no/informationmodel/Codename""/>")
-			SessionOutput("        <dcatno:name xml:lang=""nb"">" & attr.Name & "</dcatno:name>")
-			SessionOutput("        <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(attr.Notes)) & "</dcatno:description>")
-			SessionOutput("      </owl:NamedIndividual>")
-			SessionOutput("    </dcatno:containsCodename>")		
+			SessionOutput(indent + "    <dcatno:containsCodename>")
+			SessionOutput(indent + "      <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(ftname) & "/" & utf8(attr.Name) & """>")
+			SessionOutput(indent + "        <rdf:type rdf:resource=""http://data.norge.no/informationmodel/Codename""/>")
+			SessionOutput(indent + "        <dcatno:name xml:lang=""nb"">" & utf8(attr.Name) & "</dcatno:name>")
+			SessionOutput(indent + "        <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(attr.Notes)) & "</dcatno:description>")
+			SessionOutput(indent + "      </owl:NamedIndividual>")
+			SessionOutput(indent + "    </dcatno:containsCodename>")		
 		next
 
 
