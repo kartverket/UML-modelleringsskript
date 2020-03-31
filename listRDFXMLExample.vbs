@@ -6,13 +6,16 @@ option explicit
 ' purpose:		Generates OWL/RDF/XML example objects from types in the source model according to a common national metamodel
 ' version:		2020-02-28
 ' version:		2020-03-18/19/20 Refaktorering med katalogdelen med informasjonsmodellen inline
+' version:		2020-03-31 Utelater mult=*, bruker presentasjonsnavn, engelsktest
 ' author:		Kent Jonsrud
-' TODO:			list feature types 
+' TODO:			ta bort &nbsp; i noter
+' TODO:			list feature types (?)
 ' TODO:			mappe ut assosiasjonsroller
 ' TODO:			opprydding
 
-		DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller, pversion, katalognavn
+		DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller, pversion, katalognavn, engelsk
 		debug = false
+		engelsk = false
 
 sub listRDFXMLExample()
 	' Show and clear the script output window
@@ -37,8 +40,12 @@ sub listRDFXMLExample()
 					Repository.ClearOutput "Error"
 					kortnavn = getPackageTaggedValue(theElement,"SOSI_kortnavn")
 					if kortnavn = "" then
-						kortnavn = theElement.Name
-					'	Repository.WriteOutput "Script", "Pakken mangler tagged value SOSI_kortnavn! Kjører midlertidig videre med pakkenavnet som forslag til kortnavn: " & vbCrLf & kortnavn, 0
+						kortnavn = getPackageTaggedValue(theElement,"SOSI_presentasjonsnavn")
+						if kortnavn = "" then
+
+							kortnavn = theElement.Name
+						'	Repository.WriteOutput "Script", "Pakken mangler tagged value SOSI_kortnavn! Kjører midlertidig videre med pakkenavnet som forslag til kortnavn: " & vbCrLf & kortnavn, 0
+						end if
 					end if
 
 					pversion = getPackageTaggedValue(theElement,"version")
@@ -148,11 +155,14 @@ sub listRDFXMLExample()
 '					SessionOutput("      <owl:NamedIndividual rdf:about="https://raw.githubusercontent.com/Informasjonsforvaltning/model-publisher/master/src/model/model-catalog.ttl#AdresseKatalogpost">
 					SessionOutput("      <owl:NamedIndividual rdf:about=""" + katalognavn + "/" + utf8(kortnavn) + ".katalogpost""/>")
 					SessionOutput("      <rdf:type rdf:resource=""http://www.w3.org/ns/dcat#CatalogRecord""/>")
+					SessionOutput("      <!-- Generert med EA-vbskript listRDFXMLExample.vbs """ & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z""-->")
+
 '					SessionOutput("      <dc:identifier rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">abc123</dc:identifier>")
 '					SessionOutput("      <dc:identifier rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">" + utf8(theElement.Element.FQName) + "</dc:identifier>")
 					SessionOutput("      <dc:identifier rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">http://sosi.geonorge.no/informasjonsmodeller/" + utf8(theElement.Name) + ".owl.rdf.xml</dc:identifier>")
 					SessionOutput("      <dc:title xml:lang=""nb"">" + "SOSI-modellregister" + "</dc:title>")
 					SessionOutput("      <foaf:primaryTopic>")
+					SessionOutput("        <!-- Pakken med informasjonsmodellen -->")
 
 '					SessionOutput("        <rdf:Description rdf:about=""https://raw.githubusercontent.com/Informasjonsforvaltning/model-publisher/master/src/model/model-catalog.ttl#AdresseModell">
 '					SessionOutput("        <rdf:Description rdf:about=""" + katalognavn + "/" + kortnavn + "">
@@ -160,6 +170,14 @@ sub listRDFXMLExample()
 					SessionOutput("          <rdf:type rdf:resource=""http://data.norge.no/informationmodel/InformationModel""/>")
 '					SessionOutput("          <rdf:type rdf:resource=""http://www.w3.org/2002/07/owl#NamedIndividual""/>")
 					
+					if getPackageTaggedValue(theElement,"SOSI_presentasjonsnavn") <> "" then
+						SessionOutput("            <dcatno:name xml:lang=""nb"">" & getPackageTaggedValue(theElement,"SOSI_presentasjonsnavn") & "</dcatno:name>")
+					else
+						SessionOutput("            <dcatno:name xml:lang=""nb"">" & theElement.Name & "</dcatno:name>")
+					end if
+					if engelsk and len (theElement.Element.Alias) > 0 then
+						SessionOutput("            <dcatno:name xml:lang=""en"">" & theElement.Element.Alias & "</dcatno:name>")
+					end if
 					
 '		?			call listFeatureTypeNames(theElement)
 '					SessionOutput("          <ns0:containsModelElement rdf:resource="https://raw.githubusercontent.com/Informasjonsforvaltning/model-publisher/master/src/model/model-catalog.ttl#Adresse""/>")
@@ -171,7 +189,7 @@ sub listRDFXMLExample()
 
 
 					SessionOutput("  ")
-					SessionOutput("        <!-- Pakken med informasjonsmodellen -->")
+'					SessionOutput("        <!-- Pakken med informasjonsmodellen -->")
 					
 '?					
 '					SessionOutput("  <owl:Ontology rdf:about=""" & utf8(namespace) & "/" & utf8(theElement.Name) & """>")
@@ -288,7 +306,7 @@ sub listFeatureTypes(pkg)
 				SessionOutput(indent + "  <!-- Datatype -->")
 			end if
 			if  LCase(currentElement.Stereotype) = "union"  then
-				SessionOutput(indent + "  <!-- Union (ikke handtert i metamodellen) -->")
+				SessionOutput(indent + "  <!-- Union (ikke egentlig handtert i metamodellen) -->")
 			end if
 			SessionOutput(indent + "  <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(currentElement.Name) & """>")
 			SessionOutput(indent + "    <rdf:type rdf:resource=""http://data.norge.no/informationmodel/ModelElement""/>")
@@ -321,7 +339,24 @@ sub listFeatureTypes(pkg)
 				SessionOutput(indent + "    <dcatno:modelElementType rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">datatype</dcatno:modelElementType>")
 			end if
 '    <dcatno:isDescribedBy rdf:datatype="http://www.w3.org/2001/XMLSchema#anyURI">http://begrepskatalog/begrep/20b2e302-9fe1-11e5-a9f8-e4115b280940</dcatno:isDescribedBy>
-			SessionOutput(indent + "    <dcatno:name xml:lang=""nb"">" & utf8(currentElement.Name) & "</dcatno:name>")
+
+
+
+			if getTaggedValue(currentElement,"SOSI_presentasjonsnavn") <> "" then
+				SessionOutput(indent + "    <dcatno:name xml:lang=""nb"">" & getTaggedValue(currentElement,"SOSI_presentasjonsnavn") & "</dcatno:name>")
+			else
+				SessionOutput(indent + "    <dcatno:name xml:lang=""nb"">" & currentElement.Name & "</dcatno:name>")
+			end if
+			if engelsk and len (currentElement.Alias) > 0 then
+				SessionOutput(indent + "    <dcatno:name xml:lang=""en"">" & currentElement.Alias & "</dcatno:name>")
+			end if
+
+
+
+
+
+
+'			SessionOutput(indent + "    <dcatno:name xml:lang=""nb"">" & utf8(currentElement.Name) & "</dcatno:name>")
 			SessionOutput(indent + "  </owl:NamedIndividual>")
 
 		end if
@@ -357,7 +392,18 @@ sub listFeatureTypes(pkg)
 			SessionOutput(indent + "    <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(currentElement.Notes)) & "</dcatno:description>")
 			SessionOutput(indent + "    <dcatno:modelElementType rdf:datatype=""http://www.w3.org/2001/XMLSchema#string"">kodeliste</dcatno:modelElementType>")
 '    <dcatno:isDescribedBy rdf:datatype="http://www.w3.org/2001/XMLSchema#anyURI">http://begrepskatalog/begrep/20b2e302-9fe1-11e5-a9f8-e4115b280940</dcatno:isDescribedBy>
-			SessionOutput(indent + "    <dcatno:name xml:lang=""nb"">" & utf8(currentElement.Name) & "</dcatno:name>")
+
+			if getTaggedValue(currentElement,"SOSI_presentasjonsnavn") <> "" then
+				SessionOutput(indent + "    <dcatno:name xml:lang=""nb"">" & getTaggedValue(currentElement,"SOSI_presentasjonsnavn") & "</dcatno:name>")
+			else
+				SessionOutput(indent + "    <dcatno:name xml:lang=""nb"">" & currentElement.Name & "</dcatno:name>")
+			end if
+			if engelsk and len (currentElement.Alias) > 0 then
+				SessionOutput(indent + "    <dcatno:name xml:lang=""en"">" & currentElement.Alias & "</dcatno:name>")
+			end if
+
+
+'			SessionOutput(indent + "    <dcatno:name xml:lang=""nb"">" & utf8(currentElement.Name) & "</dcatno:name>")
 			SessionOutput(indent + "  </owl:NamedIndividual>")
 
 		end if
@@ -409,10 +455,24 @@ sub listDatatypes(ftname,element,indent)
 			SessionOutput(indent + "      <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(ftname) & "/" & utf8(attr.Name) & """>")
 			SessionOutput(indent + "      <rdf:type rdf:resource=""http://data.norge.no/informationmodel/Property""/>")
 			SessionOutput(indent + "      <dcatno:type rdf:resource=""" & utf8(attrType(namespace,attr.Type)) & """/>")
-			SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & utf8(attr.Name) & "</dcatno:name>")
+			
+			
+			if getTaggedValue(attr,"SOSI_presentasjonsnavn") <> "" then
+				SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & getTaggedValue(attr,"SOSI_presentasjonsnavn") & "</dcatno:name>")
+			else
+				SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & attr.Name & "</dcatno:name>")
+			end if
+			if engelsk and len (attr.Alias) > 0 then
+				SessionOutput(indent + "      <dcatno:name xml:lang=""en"">" & attr.Alias & "</dcatno:name>")
+			end if
+			
+			
+'			SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & utf8(attr.Name) & "</dcatno:name>")
+'			if 
+'				SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & utf8(attr.Name) & "</dcatno:name>")
 			SessionOutput(indent + "      <dcatno:propertyType>attributt</dcatno:propertyType>")
 			if attr.UpperBound = "*" then
-				SessionOutput(indent + "      <xsd:maxOccurs rdf:datatype=""http://www.w3.org/2000/01/rdf-schema#Literal"">*</xsd:maxOccurs>")
+'				SessionOutput(indent + "      <xsd:maxOccurs rdf:datatype=""http://www.w3.org/2000/01/rdf-schema#Literal"">*</xsd:maxOccurs>")
 			else
 				SessionOutput(indent + "      <xsd:maxOccurs rdf:datatype=""http://www.w3.org/2001/XMLSchema#nonNegativeInteger"">" & attr.UpperBound & "</xsd:maxOccurs>")
 			end if
@@ -422,177 +482,91 @@ sub listDatatypes(ftname,element,indent)
 			SessionOutput(indent + "      </owl:NamedIndividual>")	
 			SessionOutput(indent + "    </dcatno:hasProperty>")			
 			
-			
-			
-			if false then
-	'f		if getSosiGeometritype(attr) = "" then
-				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] not geometry.",0
-				if attr.ClassifierID <> 0 and getBasicSOSIType(attr.Type) = "*" then
-					set datatype = Repository.GetElementByID(attr.ClassifierID)
-					'see if the datatype has a supertype, if so then write all its elements first - TBD
-					
-					if datatype.Name = element.Name and datatype.ParentID = element.ParentID then
-					'if datatype.ClassifierID = element.ClassifierID then
-						Repository.WriteOutput "Script", "Error - circular self reference: datatype.Name [" & datatype.Name & "] from attribute name [" & element.Name & "." & attr.Name & "].",0
-						exit sub
-					else
-						if datatype.Type = "Enumeration" or LCase(datatype.Stereotype) = "codelist" or LCase(datatype.Stereotype) = "enumeration" then
-							'list first code in the list
-							if getTaggedValue(attr,"inlineOrByReference") = "byReference" then
-								'variant gml:ReferenceType
-								'if debug then 
-								SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & namespace & "/" & attr.Type & "/" & listCodeType(datatype) & """/>")
-								'SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & listReferenceType(attr.Type) & """/>")
-								if attr.UpperBound <> "1" then
-								'	SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
-									SessionOutput(indent & "<" & attr.Name & " xlink:href=""" & namespace & "/" & attr.Type & "/" & listCodeType(datatype) & """/>")
-								end if
-							else
-								'variant gml:CodeType
-								SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
-								if attr.UpperBound <> "1" then
-									SessionOutput(indent & "<" & attr.Name & ">" & listCodeType(datatype) & "</" & attr.Name & ">")
-								end if
-							end if
-							'listCodeType(attr)
-						else
-							SessionOutput(indent & "<" & utf8(attr.Name) & ">")
-							indent0 = indent & "  "
-							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-							indent1 = indent0 & "  "
-							call listDatatypes(ftname, datatype,indent1)
-							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-							SessionOutput(indent & "</" & utf8(attr.Name) & ">")
-							if attr.UpperBound <> "1" then
-								' write a second instance of the attribute, currently with exactly same content
-								' but should be made to pick a different value or the second code (TBD)
-								SessionOutput(indent & "<" & utf8(attr.Name) & ">")
-								indent0 = indent & "  "
-								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-								indent1 = indent0 & "  "
-								call listDatatypes(ftname, datatype,indent1)
-								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-								SessionOutput(indent & "</" & utf8(attr.Name) & ">")
-							end if
-
-						end if
-					end if
-				else
-					'base type
-					SessionOutput(indent & "<" & utf8(attr.Name) & ">" & listBaseType(ftname, attr.Name,attr.Type) & "</" & utf8(attr.Name) & ">")
-					if attr.UpperBound <> "1" then
-						SessionOutput(indent & "<" & utf8(attr.Name) & ">" & listBaseType(ftname, attr.Name,attr.Type) & "</" & utf8(attr.Name) & ">")
-					end if
-
-
-				end if
-	'f		else
-				'geometry type 
-				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] is geometry: " & getSosiGeometritype(attr) & ".",0
-				SessionOutput(indent & "<" & utf8(attr.Name) & ">")
-				call listGeometryType(ftname, attr.Type, indent & "  ")			
-				SessionOutput(indent & "</" & utf8(attr.Name) & ">")
-				if attr.UpperBound <> "1" then
-					SessionOutput(indent & "<" & utf8(attr.Name) & ">")
-					call listGeometryType(ftname, attr.Type, indent & "  ")			
-					SessionOutput(indent & "</" & utf8(attr.Name) & ">")
-				end if
-			end if
-
-			'if Union then jump out of the loop after first(!) variant, this does not support well Unions having several different datatypes 
-			if LCase(element.Stereotype) = "union" then
-				Exit For
-			end if
-			'SessionOutput(indent & "</" & attr.Name & ">")
 		next
 			
 		for each conn in element.Connectors
-			if false then
-'			if conn.Type = "Generalization" or conn.Type = "Realisation" or conn.Type = "NoteLink" then
+'			if true then
+			if conn.Type = "Generalization" or conn.Type = "Realisation" or conn.Type = "NoteLink" then
 
-'			else
+			else
 				'Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
 				'Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
-				if debug then Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.SupplierID).Name & "].",0
-				if debug then Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.ClientID).Name & "].",0
+				if debug then SessionOutput( "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.SupplierID).Name & "].")
+				if debug then SessionOutput( "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.ClientID).Name & "].")
 
 				if conn.ClientID = element.ElementID then
 					if getConnectorEndTaggedValue(conn.SupplierEnd,"xsdEncodingRule") <> "notEncoded" then
 						set datatype = Repository.GetElementByID(conn.SupplierID)
-						umlnavn = conn.SupplierEnd.Role
-						if conn.ClientEnd.Aggregation = 2 then
-							'composition+mandatory->nest as datatype inline?
-							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-							indent0 = indent & "  "
-							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-							indent1 = indent0 & "  "
-							call listDatatypes(ftname, datatype,indent1)
-							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" and conn.SupplierEnd.Cardinality <> "1" then
-								SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-								indent0 = indent & "  "
-								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-								indent1 = indent0 & "  "
-								call listDatatypes(ftname, datatype,indent1)
-								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							end if
+						umlnavn = conn.SupplierEnd.Role					
+							
+						SessionOutput(" ")
+						SessionOutput(indent + "    <dcatno:hasProperty>")			
+						SessionOutput(indent + "      <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(ftname) & "/" & utf8(umlnavn) & """>")
+						SessionOutput(indent + "      <rdf:type rdf:resource=""http://data.norge.no/informationmodel/Property""/>")
+						SessionOutput(indent + "      <dcatno:type rdf:resource=""" & utf8(attrType(namespace,datatype.Name)) & """/>")
+							
+						if getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_presentasjonsnavn") <> "" then
+							SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_presentasjonsnavn") & "</dcatno:name>")
 						else
-							if conn.SupplierEnd.Navigable = "Navigable" then
-								'self assoc? if so make xlinks to other (imaginary) instances of the same class
-								selfref = 1
-								if datatype.Name = element.Name and datatype.ElementID = element.ElementID then
-									selfref = 2
-								end if 
-								'navigable->make xlink? 
-								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
-								if debug then Repository.WriteOutput "Script", "Debug: SupplierEnd.Cardinality [" & conn.SupplierEnd.Cardinality & "].",0
-								if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" and conn.SupplierEnd.Cardinality <> "1" then
-									SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
-								end if
-							end if
+							SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & umlnavn & "</dcatno:name>")
 						end if
+						if engelsk and len (conn.SupplierEnd.Alias) > 0 then
+							SessionOutput(indent + "      <dcatno:name xml:lang=""en"">" & conn.SupplierEnd.Alias & "</dcatno:name>")
+						end if
+						
+						SessionOutput(indent + "      <dcatno:propertyType>rolle</dcatno:propertyType>")
+						
+						if Mid(conn.SupplierEnd.Cardinality,4,1) = "*" then
+			'				SessionOutput(indent + "      <xsd:maxOccurs rdf:datatype=""http://www.w3.org/2000/01/rdf-schema#Literal"">*</xsd:maxOccurs>")
+						else
+							SessionOutput(indent + "      <xsd:maxOccurs rdf:datatype=""http://www.w3.org/2001/XMLSchema#nonNegativeInteger"">" & Mid(conn.SupplierEnd.Cardinality,4,1) & "</xsd:maxOccurs>")
+						end if
+						SessionOutput(indent + "      <xsd:minOccurs rdf:datatype=""http://www.w3.org/2001/XMLSchema#nonNegativeInteger"">" & Mid(conn.SupplierEnd.Cardinality,1,1) & "</xsd:minOccurs>")
+											
+						SessionOutput(indent + "      <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(conn.SupplierEnd.RoleNote)) & "</dcatno:description>")
+
+						SessionOutput(indent + "      </owl:NamedIndividual>")	
+						SessionOutput(indent + "    </dcatno:hasProperty>")			
+			
 					end if
 				else
 					if getConnectorEndTaggedValue(conn.ClientEnd,"xsdEncodingRule") <> "notEncoded" then
 						set datatype = Repository.GetElementByID(conn.ClientID)
 						umlnavn = conn.ClientEnd.Role
-						if conn.SupplierEnd.Aggregation = 2 then
-							'composition+mandatory->nest as datatype inline?
-							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-							indent0 = indent & "  "
-							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-							indent1 = indent0 & "  "
-							call listDatatypes(ftname, datatype,indent1)
-							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" and conn.ClientEnd.Cardinality <> "1" then
-								SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-								indent0 = indent & "  "
-								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-								indent1 = indent0 & "  "
-								call listDatatypes(ftname, datatype,indent1)
-								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-								SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							end if
+						
+							
+						SessionOutput(" ")
+						SessionOutput(indent + "    <dcatno:hasProperty>")			
+						SessionOutput(indent + "      <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(ftname) & "/" & utf8(umlnavn) & """>")
+						SessionOutput(indent + "      <rdf:type rdf:resource=""http://data.norge.no/informationmodel/Property""/>")
+						SessionOutput(indent + "      <dcatno:type rdf:resource=""" & utf8(attrType(namespace,datatype.Name)) & """/>")
+							
+						if getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_presentasjonsnavn") <> "" then
+							SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_presentasjonsnavn") & "</dcatno:name>")
 						else
-							if conn.ClientEnd.Navigable = "Navigable" then
-								'self assoc? if so make xlinks to other (imaginary) instances of the same class
-								selfref = 1
-								if datatype.Name = element.Name and datatype.ElementID = element.ElementID then
-									selfref = 2
-								end if 
-								'navigable->make xlink? 
-								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
-								if debug then Repository.WriteOutput "Script", "Debug: ClientEnd.Cardinality [" & conn.ClientEnd.Cardinality & "].",0
-								if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" and conn.ClientEnd.Cardinality <> "1" then
-									SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
-								end if
-							end if
+							SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & umlnavn & "</dcatno:name>")
 						end if
-					end if
-				end if
+						if engelsk and len (conn.ClientEnd.Alias) > 0 then
+							SessionOutput(indent + "      <dcatno:name xml:lang=""en"">" & conn.ClientEnd.Alias & "</dcatno:name>")
+						end if
+						
+						SessionOutput(indent + "      <dcatno:propertyType>rolle</dcatno:propertyType>")
+						
+						if Mid(conn.ClientEnd.Cardinality,4,1) = "*" then
+			'				SessionOutput(indent + "      <xsd:maxOccurs rdf:datatype=""http://www.w3.org/2000/01/rdf-schema#Literal"">*</xsd:maxOccurs>")
+						else
+							SessionOutput(indent + "      <xsd:maxOccurs rdf:datatype=""http://www.w3.org/2001/XMLSchema#nonNegativeInteger"">" & Mid(conn.ClientEnd.Cardinality,4,1) & "</xsd:maxOccurs>")
+						end if
+						SessionOutput(indent + "      <xsd:minOccurs rdf:datatype=""http://www.w3.org/2001/XMLSchema#nonNegativeInteger"">" & Mid(conn.ClientEnd.Cardinality,1,1) & "</xsd:minOccurs>")
+											
+						SessionOutput(indent + "      <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(conn.ClientEnd.RoleNote)) & "</dcatno:description>")
+
+						SessionOutput(indent + "      </owl:NamedIndividual>")	
+						SessionOutput(indent + "    </dcatno:hasProperty>")			
+			
+					end if		
+					
+				end if		
 
 			end if
 
@@ -623,7 +597,21 @@ sub listKodeliste(ftname,element,indent)
 			SessionOutput(indent + "    <dcatno:containsCodename>")
 			SessionOutput(indent + "      <owl:NamedIndividual rdf:about=""" & utf8(namespace) & "/" & utf8(ftname) & "/" & utf8(attr.Name) & """>")
 			SessionOutput(indent + "        <rdf:type rdf:resource=""http://data.norge.no/informationmodel/Codename""/>")
-			SessionOutput(indent + "        <dcatno:name xml:lang=""nb"">" & utf8(attr.Name) & "</dcatno:name>")
+			
+			
+			if getTaggedValue(attr,"SOSI_presentasjonsnavn") <> "" then
+				SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & getTaggedValue(attr,"SOSI_presentasjonsnavn") & "</dcatno:name>")
+			else
+				SessionOutput(indent + "      <dcatno:name xml:lang=""nb"">" & attr.Name & "</dcatno:name>")
+			end if
+			if engelsk and len (attr.Alias) > 0 then
+				SessionOutput(indent + "      <dcatno:name xml:lang=""en"">" & attr.Alias & "</dcatno:name>")
+			end if
+			
+			
+			
+			
+'			SessionOutput(indent + "        <dcatno:name xml:lang=""nb"">" & utf8(attr.Name) & "</dcatno:name>")
 			SessionOutput(indent + "        <dcatno:description xml:lang=""nb"">" & utf8(trimDefinitionText(attr.Notes)) & "</dcatno:description>")
 			SessionOutput(indent + "      </owl:NamedIndividual>")
 			SessionOutput(indent + "    </dcatno:containsCodename>")		
