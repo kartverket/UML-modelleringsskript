@@ -4,14 +4,14 @@ option explicit
 
 ' script:		listSKOSBegreper
 ' purpose:		Generere filer på standard SKOS-format for alle begreper i en UML-modell
-' version:		2020-04-23 
+' version:		2020-04-23, 04-26, 04-27, 04-29
 ' author: 		Kent Jonsrud
 '
-' 				Genererer ei stor fil på standard SKOS-format med alle begreper
+' 				Genererer ei fil på standard SKOS-format med alle begreper listet opp
 ' 				Generere ei SKOS-fil og ei html-fil pr. begrep, for direkte oppslag på hver http-URI.
 ' TBD:			
-' TBD:			
-' TBD:			'
+' TBD:			alle tagger, stereotyper og multiplisiteter o.l vises i html, med tagzzz = abc, stereotype = CodeList, multiplisitet = 1..2 etc.
+' TBD:			rydde i koden
 '
 	DIM kortnavnFSO
 	DIM pkgFSO
@@ -28,7 +28,7 @@ option explicit
 	DIM skos2FileName
 	DIM html2FileName
 
-	DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller, label, pkgname
+	DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller, label, pkgname, pkgNCname
 	debug = false
 
 sub listSKOSBegreper()
@@ -129,23 +129,24 @@ sub listSKOSBegreper()
 					obteller=0
 					
 					'katalog for kortnavnet
-					Set kortnavnFSO=CreateObject("Scripting.FileSystemObject")
-					kortnavn = getNCNameX(kortnavn)
-					if not kortnavnFSO.FolderExists(kortnavn) then
-						kortnavnFSO.CreateFolder kortnavn
-					end if
+			'		Set kortnavnFSO=CreateObject("Scripting.FileSystemObject")
+			'		kortnavn = getNCNameX(kortnavn)
+			'		if not kortnavnFSO.FolderExists(kortnavn) then
+			'			kortnavnFSO.CreateFolder kortnavn
+			'		end if
 
 					'katalog for pakken
 					pkgname = kortnavn & "/" & getNCNameX(theElement.Name)
+					pkgNCname = getNCNameX(theElement.Name)
 					Set pkgFSO=CreateObject("Scripting.FileSystemObject")
-					if not pkgFSO.FolderExists(pkgname) then
-						pkgFSO.CreateFolder pkgname
+					if not pkgFSO.FolderExists(pkgNCname) then
+						pkgFSO.CreateFolder pkgNCname
 					end if
 
 					label = getPackageTaggedValue(theElement,"SOSI_presentasjonsnavn")
 					if label = "" then label = theElement.Name
 					' filer for pakken
-					htmlFileName = pkgname & "/index.html"
+					htmlFileName = pkgNCname & "/index.html"
 					SessionOutput(" htmlFileName: " & htmlFileName )
 					Set htmlFSO = CreateObject("Scripting.FileSystemObject")
 					Set htmlFile = htmlFSO.CreateTextFile(htmlFileName,True,False)
@@ -156,12 +157,14 @@ sub listSKOSBegreper()
 					htmlFile.Write"	  <title>" & utf8(kortnavn) & "</title>" & vbCrLf
 					htmlFile.Write"	</head>" & vbCrLf
 					htmlFile.Write"	<body>" & vbCrLf
-					htmlFile.Write"    <p>xml:base=" & utf8(namespace) & "</p>" & vbCrLf
-					htmlFile.Write"    <p>http-URI=" & utf8(namespace) & "/" & utf8(kortnavn) & "</p>" & vbCrLf
+					'htmlFile.Write"    <p>xml:base=" & utf8(namespace) & "</p>" & vbCrLf
+					htmlFile.Write"	   <h1>" & utf8(kortnavn) & "</h1>" & vbCrLf
 					if getPackageTaggedValue(theElement,"SOSI_presentasjonsnavn") <> "" then
-						htmlFile.Write"    <p>presentasjonsnavn=" & utf8(getPackageTaggedValue(theElement,"SOSI_presentasjonsnavn")) & "</p>" & vbCrLf
+						htmlFile.Write"    <p>presentasjonsnavn = " & utf8(getPackageTaggedValue(theElement,"SOSI_presentasjonsnavn")) & "</p>" & vbCrLf
 					end if
-					htmlFile.Write"    <p>kodelistas definisjon=" & utf8(getCleanDefinitionText(theElement.Notes)) & "</p>" & vbCrLf
+					htmlFile.Write"    <p>applikasjonsskjemaets definisjon = " & utf8(getCleanDefinitionText(theElement.Notes)) & "</p>" & vbCrLf
+					htmlFile.Write"    <p>publiseringstidspunkt = " & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z</p>" & vbCrLf
+					htmlFile.Write"    <p>http-URI = " & utf8(namespace) & "/" & utf8(kortnavn) & "</p>" & vbCrLf
 
 					'htmlFile.Write"   <table border=""1"">" & vbCrLf
 					htmlFile.Write"   <table>" & vbCrLf
@@ -170,7 +173,7 @@ sub listSKOSBegreper()
 					htmlFile.Write"   <tr>" & vbCrLf
 					htmlFile.Write"   <th>_______Modellbegrep___________</th>	<th>Definisjon___________</th></tr><tr>" & vbCrLf
 					
-					skosFileName = pkgname & ".rdf"
+					skosFileName = pkgNCname & ".rdf"
 					SessionOutput(" skosFileName: " & skosFileName )
 					Set skosFSO = CreateObject("Scripting.FileSystemObject")
 					Set skosFile = skosFSO.CreateTextFile(skosFileName,True,False)
@@ -178,14 +181,14 @@ sub listSKOSBegreper()
 					skosFile.Write"<rdf:RDF" & vbCrLf
 					skosFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
 					skosFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
-					skosFile.Write"  xml:base=""" & utf8(namespace) & "/" & utf8(kortnavn) & "/"">" & vbCrLf
-					skosFile.Write"  <skos:Concept rdf:about=""" & utf8(namespace) & "/" & utf8(kortnavn) & """>" & vbCrLf
-					skosFile.Write"    <skos:inScheme rdf:resource=""" & utf8(namespace) & "/" & utf8(kortnavn) & """/>" & vbCrLf
+					skosFile.Write"  xml:base=""" & utf8(namespace) & "/"">" & vbCrLf
+					skosFile.Write"  <skos:Concept rdf:about=""" & utf8(namespace) & "/" & utf8(pkgNCname) & """>" & vbCrLf
+					skosFile.Write"    <skos:inScheme rdf:resource=""" & utf8(namespace) & """/>" & vbCrLf
 					skosFile.Write"    <skos:prefLabel xml:lang=""no"">" & utf8(label) & "</skos:prefLabel>" & vbCrLf
 					skosFile.Write"    <skos:definition xml:lang=""no"">" & utf8(getCleanDefinitionText(theElement.Notes)) & "</skos:definition>" & vbCrLf
 					'skosFile.Write"    <skos:broader rdf:resource="http://skjema.geonorge.no/SOSI/kodeliste/AdmEnheter/2020/Fylkesnummer/01"/>" & vbCrLf
 					skosFile.Write"  </skos:Concept>" & vbCrLf
-					skosFile.Write"  <skos:Collection rdf:about=""" & utf8(namespace) & "/" & utf8(kortnavn) & "Collection"">" & vbCrLf
+					skosFile.Write"  <skos:Collection rdf:about=""" & utf8(namespace) & "/" & utf8(pkgNCname) & "Collection"">" & vbCrLf
 
 
 ' ----------------------
@@ -291,18 +294,20 @@ sub listFeatureTypes(pkg)
 	
 		if currentElement.Type = "Class" or currentElement.Type = "Enumeration" then
 		
-			Call writeSkosElement(utf8(namespace),pkgname,utf8(currentElement.Name),utf8(getTaggedValue(currentElement,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(currentElement.Notes)))
-			Call writeHtmlElement(utf8(namespace),pkgname & "/" & currentElement.Name,utf8(currentElement.Name),utf8(getTaggedValue(currentElement,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(currentElement.Notes)))
+			Call writeSkosElement(utf8(namespace),pkgNCname,currentElement.Name,utf8(getTaggedValue(currentElement,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(currentElement.Notes)))
+			Call writeHtmlElement(utf8(namespace),pkgNCname & "/" & currentElement.Name,utf8(currentElement.Name),utf8(getTaggedValue(currentElement,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(currentElement.Notes)))
 		
 			'skosFile.Write"  <skos:Collection rdf:about=""" & utf8(namespace) & "/" & utf8(kortnavn) & "/Collection"">" & vbCrLf
-			skosFile.Write"  <skos:member rdf:resource=""" & utf8(namespace) & "/" & utf8(currentElement.Name) & """/>" & vbCrLf
+			skosFile.Write"   <skos:member rdf:resource=""" & utf8(namespace) & "/" & utf8(pkgNCname) & "/" & utf8(currentElement.Name) & """/>" & vbCrLf
 
 			'idxFile.Write"    <td>kode <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & ">	" & utf8(presentasjonsnavn) & "</a></td><td>" & utf8(getCleanDefinitionText(attr)) & "</td></tr><tr>" & vbCrLf
-			htmlFile.Write"  <td><a href=" & utf8(pkgname) & "/" & utf8(currentElement.Name) & ">	" & utf8(toLabel(currentElement.Name)) & "</a></td><td>" & utf8(getCleanDefinitionText(currentElement.Notes)) & "</td></tr><tr>" & vbCrLf
+			htmlFile.Write"  <td><a href=" & utf8(currentElement.Name) & ">	" & utf8(toLabel(currentElement.Name)) & "</a></td><td>" & utf8(getCleanDefinitionText(currentElement.Notes)) & "</td></tr><tr>" & vbCrLf
+			'htmlFile.Write"  <td><a href=" & utf8(pkgNCname) & "/" & utf8(currentElement.Name) & ">	" & utf8(toLabel(currentElement.Name)) & "</a></td><td>" & utf8(getCleanDefinitionText(currentElement.Notes)) & "</td></tr><tr>" & vbCrLf
+			'htmlFile.Write"  <td><a href=" & utf8(pkgNCname) & "/" & utf8(currentElement.Name) & ">	" & utf8(toLabel(currentElement.Name)) & "</a></td><td>" & utf8(getCleanDefinitionText(currentElement.Notes)) & "</td></tr><tr>" & vbCrLf
 			'htmlFile.Write"  <td>kode <a href=" & utf8(pkgname) & "/" & utf8(currentElement.Name) & ">	" & utf8(currentElement.Name) & "</a></td><td>" & utf8(currentElement.Notes) & "</td></tr><tr>" & vbCrLf
 			
 ' ----------------------
-			call listClassProperties(namespace,pkgname,currentElement)
+			call listClassProperties(namespace,pkgNCname,currentElement)
 ' ----------------------
 			
 		end if
@@ -338,11 +343,12 @@ sub listClassProperties(ns,path,element)
 		dim attr as EA.Attribute
 		for each attr in element.Attributes
 
-			skosFile.Write"  <skos:member rdf:resource=""" & utf8(ns) & "/" & utf8(element.Name) &"/" & utf8(attr.Name) & """/>" & vbCrLf
+			skosFile.Write"   <skos:member rdf:resource=""" & utf8(ns) & "/" & utf8(pkgNCname) & "/" & utf8(element.Name) & "/" & utf8(attr.Name) & """/>" & vbCrLf
 
-			htmlFile.Write"  <td><a href=" & utf8(path) & "/" & utf8(element.Name) & ">	" & utf8(toLabel(attr.Name)) & "</a></td><td>" & utf8(getCleanDefinitionText(attr.Notes)) & "</td></tr><tr>" & vbCrLf
+			'htmlFile.Write"  <td><a href=" & utf8(path) & "/" & utf8(element.Name) & "/" & utf8(attr.Name) & ">	" & utf8(toLabel(attr.Name)) & "</a></td><td>" & utf8(getCleanDefinitionText(attr.Notes)) & "</td></tr><tr>" & vbCrLf
+			htmlFile.Write"  <td><a href=" & utf8(element.Name) & "/" & utf8(attr.Name) & ">	" & utf8(toLabel(attr.Name)) & "</a></td><td>" & utf8(getCleanDefinitionText(attr.Notes)) & "</td></tr><tr>" & vbCrLf
 
-			Call writeSkosElement(utf8(ns),path & "/" & element.Name,utf8(attr.Name),utf8(getTaggedValue(attr,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(attr.Notes)))
+			Call writeSkosElement(utf8(ns),path & "/" & element.Name,attr.Name,utf8(getTaggedValue(attr,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(attr.Notes)))
 			Call writeHtmlElement(utf8(ns),path & "/" & element.Name & "/" & attr.Name,utf8(attr.Name),utf8(getTaggedValue(attr,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(attr.Notes)))
 
 		next
@@ -1193,7 +1199,7 @@ function toLabel(name)
 		' loop gjennom alle resterende tegn og sett inn blank og liten bokstav der det er stor bokstav
 		For i = 2 To Len(txt)
 			tegn = Mid(txt,i,1)
-			If tegn = UCase(tegn) Then
+			If tegn <> LCase(tegn) Then
 				res = res + " "
 				res = res + LCase(tegn)
 			Else 
@@ -1216,19 +1222,20 @@ Sub writeSkosElement(ns,path,name,label,description)
 	Dim ftfFile
 	Dim ftfFileName
 	ftfFileName = path & "/" & name & ".rdf"
+	SessionOutput(" SKOS ftfFileName: " & ftfFileName )
 	Set ftfFSO = CreateObject("Scripting.FileSystemObject")
 	Set ftfFile = ftfFSO.CreateTextFile(ftfFileName,True,False)			
 	ftfFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
 	ftfFile.Write"<rdf:RDF" & vbCrLf
 	ftfFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
 	ftfFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
-	ftfFile.Write"  xml:base=""" & ns & "/" & name & "/"">" & vbCrLf
-	ftfFile.Write"  <skos:Concept rdf:about=""" & ns & "/" & name & """>" & vbCrLf
-	ftfFile.Write"    <skos:inScheme rdf:resource=""" & ns & "/" & name & """/>" & vbCrLf
+	ftfFile.Write"  xml:base=""" & ns & "/" & path & "/"">" & vbCrLf
+	ftfFile.Write"  <skos:Concept rdf:about=""" & ns & "/" & path & "/"  & utf8(name) & """>" & vbCrLf
+	ftfFile.Write"    <skos:inScheme rdf:resource=""" & ns & "/" & path & "/" & """/>" & vbCrLf
 	if label <> "" then
-		ftfFile.Write"    <skos:prefLabel xml:lang=""no"">" & label & "</skos:prefLabel>" & vbCrLf
+		ftfFile.Write"    <skos:prefLabel xml:lang=""no"">" & utf8(label) & "</skos:prefLabel>" & vbCrLf
 	else
-		ftfFile.Write"    <skos:prefLabel xml:lang=""no"">" & toLabel(name) & "</skos:prefLabel>" & vbCrLf
+		ftfFile.Write"    <skos:prefLabel xml:lang=""no"">" & utf8(toLabel(name)) & "</skos:prefLabel>" & vbCrLf
 	end if
 	ftfFile.Write"    <skos:definition xml:lang=""no"">" & description & "</skos:definition>" & vbCrLf
 	ftfFile.Write"  </skos:Concept>" & vbCrLf
@@ -1258,12 +1265,14 @@ Sub writeHtmlElement(ns,path,name,label,description)
 	ftfFile.Write"	  <title>" & name & "</title>" & vbCrLf
 	ftfFile.Write"	</head>" & vbCrLf
 	ftfFile.Write"	<body>" & vbCrLf
-	ftfFile.Write"    <p>xml:base=" & ns & "</p>" & vbCrLf
-	ftfFile.Write"    <p>http-URI=" & ns & "/" & name & "</p>" & vbCrLf
+	ftfFile.Write"	  <h1>" & name & "</h1>" & vbCrLf
+	'ftfFile.Write"    <p>xml:base=" & ns & "</p>" & vbCrLf
 	if label <> "" then
-		ftfFile.Write"    <p>presentasjonsnavn=" & label & "</p>" & vbCrLf
+		ftfFile.Write"    <p>presentasjonsnavn = " & label & "</p>" & vbCrLf
 	end if
-	ftfFile.Write"    <p>definisjon=" & description & "</p>" & vbCrLf
+	ftfFile.Write"    <p>definisjon = " & description & "</p>" & vbCrLf
+	'ftfFile.Write"    <p>http-URI = " & ns & "/" & path & "/" & name & "</p>" & vbCrLf
+	ftfFile.Write"    <p>http-URI = " & ns & "/" & utf8(path) & "</p>" & vbCrLf
 	ftfFile.Write"	</body>" & vbCrLf
 	ftfFile.Write"</html>"
 	ftfFile.Close
