@@ -7,12 +7,15 @@ option explicit
 ' If you wish to modify this template, it is located in the Config\Script Templates
 ' directory of your EA install path.   
 '
-' Script Name: AliasToTaggedValue
-' Author: Sara Henriksen
+' Script Name: aliasToTaggedValue
+' Author: Sara Henriksen, Kent Jonsrud
 ' Purpose: For every package/attribute/element with an Alias, add the Alias-Value to a new designation-tag 
 ' Date: 12.07.16
+' Date: 2020-05-11 added test for existing tagged value designation on attributes, and parsing of Notes for moving text after -- Definition -- keyword into tagged value definition
 '
-
+' TBD: Uppercase on first character in package and class designations
+' TBD: copy alias and -- Definition -- on association roles, classes and packages into tagged values
+' TBD: add test for existing tagged value designation and definition on packages and classes
 '
 ' Project Browser Script main function
 '
@@ -92,8 +95,8 @@ Session.Output("The current package is: " & package.Name)
 			if len (package.Element.Alias) > 0 then
 						
 						Session.Output("   Package [" & package.Element.Name & "] has Alias tag: [" & package.Element.Alias & "]. Copied to designation-tag" )
-							
-						set newTaggedValue = package.Element.TaggedValues.AddNew ("designation", """"&package.Element.Alias&""""&"@en")
+						'TODO: check for designations already entered
+						set newTaggedValue = package.Element.TaggedValues.AddNew ("designation", """"&makeLCName(package.Element.Alias)&""""&"@en")
 						newTaggedValue.Update()
 						
 			end if
@@ -123,7 +126,7 @@ Session.Output("The current package is: " & package.Name)
 						
 						Session.Output("   Class [" & currentElement.Name & "] has Alias tag: [" & currentElement.Alias & "] Copied to designation-tag" )
 						'if Alias exist, a new taggedValue ("designation") is made with the same value as Alias
-						set newTaggedValue = currentElement.TaggedValues.AddNew( "designation", """"&currentElement.Alias&""""&"@en" )
+						set newTaggedValue = currentElement.TaggedValues.AddNew( "designation", """"&makeLCName(currentElement.Alias)&""""&"@en" )
 						
 						newTaggedValue.Update()
 						
@@ -150,9 +153,24 @@ Session.Output("The current package is: " & package.Name)
 								if len (currentAttribute.Alias) > 0 then
 									Session.Output( "    Class ["& currentElement.Name &"] \ Attribute [" & currentAttribute.Name & "] has Alias tag [" & currentAttribute.Alias & "] Copied to designation-tag" )
 									'if Alias exist, a new taggedValue ("designation") is made with the same value as Alias
-									set newTaggedValue = currentAttribute.TaggedValues.AddNew( "designation", """"&currentAttribute.Alias&""""&"@en" )
-									newTaggedValue.Update()
+									if getTaggedValue(currentAttribute,"designation") = "" then 
+										set newTaggedValue = currentAttribute.TaggedValues.AddNew( "designation", """"&makeLCName(currentAttribute.Alias)&""""&"@en" )
+										newTaggedValue.Update()
+									end if
 									
+									
+								end if
+								
+								if InStr(currentAttribute.Notes,"-- Definition --") > 0 then
+									if getTaggedValue(currentAttribute,"definition") = "" then 
+										dim j,l
+										j = InStr(currentAttribute.Notes,"-- Definition --")
+										Session.Output( "    Class ["& currentElement.Name &"] \ Attribute [" & currentAttribute.Name & "] has -- Definition -- in Notes [" & currentAttribute.Alias & "] Copied to definition-tag" )
+										set newTaggedValue = currentAttribute.TaggedValues.AddNew( "definition", """"& Mid(currentAttribute.Notes,j+16) &""""&"@en" )
+										currentAttribute.Notes = Trim(Mid(currentAttribute.Notes,1,j-1))
+										newTaggedValue.Update()
+										currentAttribute.Update()
+									end if
 									
 								end if
 							next
@@ -168,6 +186,86 @@ Session.Output("The current package is: " & package.Name)
 		Session.Output("---------------------------------------")
 		
 end sub
+
+function makeLCName(tekst)
+		' make name legal NCName
+		' (alternatively replace each bad character with a "_", typically used for codelist with proper names.)
+		' (Sub settBlankeIKodensNavnTil_(attr))
+    Dim txt, txt1, txt2, res, tegn, i, u
+    u=0
+		'Repository.WriteOutput "Script", "Old code: " & attr.Name,0
+		makeLCName = ""
+		txt = Trim(tekst)
+		res = ""
+			'Repository.WriteOutput "Script", "New NCName: " & txt & " " & res,0
+
+		' loop gjennom alle tegn
+		For i = 1 To Len(txt)
+		  ' blank, komma, !, ", #, $, %, &, ', (, ), *, +, /, :, ;, <, =, >, ?, @, [, \, ], ^, `, {, |, }, ~
+		  ' (tatt med flere fnuttetyper, men hva med "."?)
+		  tegn = Mid(txt,i,1)
+		  if tegn = " " or tegn = "," or tegn = """" or tegn = "#" or tegn = "$" or tegn = "%" or tegn = "&" or tegn = "(" or tegn = ")" or tegn = "*" Then
+			  'Repository.WriteOutput "Script", "Bad1: " & tegn,0
+			  u=1
+		  Else
+		    if tegn = "+" or tegn = "/" or tegn = ":" or tegn = ";" or tegn = "<" or tegn = ">" or tegn = "?" or tegn = "@" or tegn = "[" or tegn = "\" Then
+			    'Repository.WriteOutput "Script", "Bad2: " & tegn,0
+			    u=1
+		    Else
+		      If tegn = "]" or tegn = "^" or tegn = "`" or tegn = "{" or tegn = "|" or tegn = "}" or tegn = "~" or tegn = "'" or tegn = "´" or tegn = "¨" Then
+			      'Repository.WriteOutput "Script", "Bad3: " & tegn,0
+			      u=1
+		      else
+				if res = "" then
+					if tegn = "1" or tegn = "2" or tegn = "3" or tegn = "4" or tegn = "5" or tegn = "6" or tegn = "7" or tegn = "8" or tegn = "9" or tegn = "0" or tegn = "-" or tegn = "." Then
+						' NCNames can not start with any of these characters, skip this
+					else
+						If u = 1 Then
+							res = res + UCase(tegn)
+							u=0
+						else
+							res = res + tegn
+						end if
+					end if
+				else
+					'Repository.WriteOutput "Script", "Good: " & tegn & "  " & i & " " & u,0
+					If u = 1 Then
+						res = res + UCase(tegn)
+						u=0
+					else
+						res = res + tegn
+					End If
+		        End If
+		      End If
+		    End If
+		  End If
+		Next
+		txt1 = LCase( Mid(res,1,1) )
+		i = Len(res) - 1
+		if i < 0 then
+			Repository.WriteOutput "Script", "Error: Unable to construct NCName for code: [" & tekst & "]",0
+		else
+			txt2 =Mid(res,2,i)
+			txt = txt1 + txt2
+			if txt <> tekst then
+				Repository.WriteOutput "Script", "Change: Old code: [" & tekst & "] changed to new NCName: [" & txt & "]",0
+				' return txt
+				makeLCName = txt
+			end if
+		end if
+
+end function
+
+function getTaggedValue(element,taggedValueName)
+		dim i, existingTaggedValue
+		getTaggedValue = ""
+		for i = 0 to element.TaggedValues.Count - 1
+			set existingTaggedValue = element.TaggedValues.GetAt(i)
+			if existingTaggedValue.Name = taggedValueName then
+				getTaggedValue = existingTaggedValue.Value
+			end if
+		next
+end function
 
 'start the main function
 OnProjectBrowserScript
