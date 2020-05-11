@@ -7,7 +7,8 @@ option explicit
 ' author:			Kent
 ' date:				2017-06-29,07-07,09-08,09-14,11-09,12-05, 2918-02-20
 ' date:				2018-10-05 html5, 2018-12-18 feilretting (samisk tegn eng)
-' date:				2019-05-23 index.htm
+' date:				2019-05-23 index.html, 05-27 +/-style?
+' date:				2020-05-11 code html points to skos-file for the code
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -99,7 +100,7 @@ sub listCodelistCodes(el,namespace)
 	if not objFSO.FolderExists(el.Name) then
 		objFSO.CreateFolder el.Name
 	end if
-	Set idxFile = objFSO.CreateTextFile(el.Name & "\index.htm",True,False)
+	Set idxFile = objFSO.CreateTextFile(el.Name & "\index.html",True,False)
 	
 	Repository.WriteOutput "Script", "Writes Codelist Name: " & el.Name & " to file " & outfile& " and subfolder " & el.Name,0
 	Repository.WriteOutput "Script", "With namespace: " & namespace,0
@@ -116,6 +117,14 @@ sub listCodelistCodes(el,namespace)
 	idxFile.Write"	<head>" & vbCrLf
 	idxFile.Write"	  <meta charset=""utf-8""/>" & vbCrLf
 	idxFile.Write"	  <title>" & utf8(el.Name) & "</title>" & vbCrLf
+	' Style?
+'	idxFile.Write"	  <style>" & vbCrLf
+'	idxFile.Write"	  	table, th, td {" & vbCrLf
+'	idxFile.Write"	  	border: 1px solid black;" & vbCrLf
+'	idxFile.Write"	  	border-collapse: collapse;}" & vbCrLf
+'	idxFile.Write"	  </style>" & vbCrLf
+	'idxFile.Write"	  " & vbCrLf
+
 	idxFile.Write"	</head>" & vbCrLf
 	idxFile.Write"	<body>" & vbCrLf
 	idxFile.Write"    <p>xml:base=" & utf8(namespace) & "</p>" & vbCrLf
@@ -125,11 +134,9 @@ sub listCodelistCodes(el,namespace)
 		idxFile.Write"    <p>presentasjonsnavn=" & utf8(getTaggedValue(el,"SOSI_presentasjonsnavn")) & "</p>" & vbCrLf
 	end if
 	idxFile.Write"    <p>kodelistas definisjon=" & utf8(getCleanDefinitionText(el)) & "</p>" & vbCrLf
-	'htmFile.Write"    <p>code description=" & attr.Notes & "</p>" & vbCrLf
-	'if getTaggedValue(attr,"SOSI_verdi") <> "" then
-	'	idxFile.Write"    <p>SOSI_verdi=" & utf8(getTaggedValue(attr,"SOSI_verdi")) & "</p>" & vbCrLf
-	'end if
-	idxFile.Write"   <table border=""1"">" & vbCrLf
+
+	'idxFile.Write"   <table border=""1"">" & vbCrLf
+	idxFile.Write"   <table>" & vbCrLf
 	idxFile.Write"   <tbody align=""left"">" & vbCrLf
 	idxFile.Write"   <tr>" & vbCrLf
 
@@ -220,6 +227,12 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 		fy = Mid(uricode,1,2)
 		objFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
 	end if
+	if getTaggedValue(attr,"designation") <> "" then
+		objFile.Write"    <skos:hiddenLabel xml:lang=""en"">" & Mid(utf8(getTaggedValue(attr,"designation")),2,Len(getTaggedValue(attr,"designation"))-4) & "</skos:hiddenLabel>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"definition") <> "" then
+		objFile.Write"    <skos:definition xml:lang=""en"">" & Mid(utf8(getTaggedValue(attr,"definition")),2,Len(getTaggedValue(attr,"definition"))-4) & "</skos:definition>>" & vbCrLf
+	end if
     objFile.Write"  </skos:Concept>" & vbCrLf
 
 		'<skos:broader rdf:resource="Målemetode/terrengmåltUspesifisertMåleinstrument"/>
@@ -246,6 +259,12 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 		fy = Mid(uricode,1,2)
 		objCodeFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
 	end if
+	if getTaggedValue(attr,"designation") <> "" then
+		objCodeFile.Write"    <skos:hiddenLabel xml:lang=""en"">" & Mid(utf8(getTaggedValue(attr,"designation")),2,Len(getTaggedValue(attr,"designation"))-4) & "</skos:hiddenLabel>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"definition") <> "" then
+		objCodeFile.Write"    <skos:definition xml:lang=""en"">" & Mid(utf8(getTaggedValue(attr,"definition")),2,Len(getTaggedValue(attr,"definition"))-4) & "</skos:definition>>" & vbCrLf
+	end if
 	objCodeFile.Write"  </skos:Concept>" & vbCrLf
 	objCodeFile.Write"</rdf:RDF>" & vbCrLf
 
@@ -264,15 +283,22 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	htmFile.Write"	  <title>" & utf8(codelist) & " " & utf8(uricode) & "</title>" & vbCrLf
 	htmFile.Write"	</head>" & vbCrLf
 	htmFile.Write"	<body>" & vbCrLf
-	htmFile.Write"    <p>xml:base=" & utf8(namespace) & "/" & utf8(codelist) & "</p>" & vbCrLf
-	htmFile.Write"    <p>http-URI=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "</p>" & vbCrLf
-	htmFile.Write"    <p>kodens navn=" & utf8(uricode) & "</p>" & vbCrLf
-	htmFile.Write"    <p>presentasjonsnavn=" & utf8(presentasjonsnavn) & "</p>" & vbCrLf
-	htmFile.Write"    <p>kodens definisjon=" & utf8(getCleanDefinitionText(attr)) & "</p>" & vbCrLf
+	htmFile.Write"    <p>xml:base = " & utf8(namespace) & "/" & utf8(codelist) & "</p>" & vbCrLf
+	htmFile.Write"    <p>http-URI = " & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "</p>" & vbCrLf
+	htmFile.Write"    <p>kodens navn = " & utf8(uricode) & "</p>" & vbCrLf
+	htmFile.Write"    <p>presentasjonsnavn = " & utf8(presentasjonsnavn) & "</p>" & vbCrLf
+	htmFile.Write"    <p>kodens definisjon = " & utf8(getCleanDefinitionText(attr)) & "</p>" & vbCrLf
 	'htmFile.Write"    <p>code description=" & attr.Notes & "</p>" & vbCrLf
 	if getTaggedValue(attr,"SOSI_verdi") <> "" then
-		htmFile.Write"    <p>SOSI_verdi=" & utf8(getTaggedValue(attr,"SOSI_verdi")) & "</p>" & vbCrLf
+		htmFile.Write"    <p>SOSI_verdi = " & utf8(getTaggedValue(attr,"SOSI_verdi")) & "</p>" & vbCrLf
 	end if
+	if getTaggedValue(attr,"designation") <> "" then
+		htmFile.Write"    <p>kodens engelske tekniske navn = " & Mid(utf8(getTaggedValue(attr,"designation")),2,Len(getTaggedValue(attr,"designation"))-4) & "</p>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"definition") <> "" then
+		htmFile.Write"    <p>kodens engelske definisjon = " & Mid(utf8(getTaggedValue(attr,"definition")),2,Len(getTaggedValue(attr,"definition"))-4) & "</p>" & vbCrLf
+	end if
+	htmFile.Write"    <p>lenke til SKOS-fil: <a href=" & utf8(uricode) & ".rdf>" & utf8(uricode) & ".rdf</a></p>" & vbCrLf
 	htmFile.Write"  </body>" & vbCrLf
 	htmFile.Write"</html>" & vbCrLf
 
@@ -283,7 +309,7 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	'add one line in index.htm <a href="land/nasjk.m4a" alt="nasjk.m4a">nÃ¥sjk</a>
 	'idxFile.Write"    <p>kode <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "/a>	" & utf8(uricode) & "</p> - <p>" & utf8(getCleanDefinitionText(attr)) & "</p>"& vbCrLf
 	'idxFile.Write"    <p>kode <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "/a>	" & utf8(presentasjonsnavn) & "</p> - <p>" & utf8(getCleanDefinitionText(attr)) & "</p>"& vbCrLf
-	idxFile.Write"    <td>kode <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & ">	" & utf8(presentasjonsnavn) & "</a></td><td>" & utf8(getCleanDefinitionText(attr)) & "</td></tr><tr>" & vbCrLf
+	idxFile.Write"    <td>presentasjonsnavn: <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & ">	" & utf8(presentasjonsnavn) & "</a></td><td>" & utf8(getCleanDefinitionText(attr)) & "</td></tr><tr>" & vbCrLf
 
 	
 End Sub
