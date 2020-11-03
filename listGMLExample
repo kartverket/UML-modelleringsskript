@@ -3,22 +3,20 @@ option explicit
 !INC Local Scripts.EAConstants-VBScript
 
 ' script:		listGMLExample
-' purpose:		Generates GML example objects from feature types in the model
+' purpose:		Generates GML example objects from all non-abstract feature types in the model
 ' version:		2018-09-11, 09-12, 09-14, 09-16(single class), 10-04 utf8
 ' version:		2019-05-04 complete solid example, two xml elements where max multiplicity > 1
 ' version:		2019-05-31 Union fixed
 ' version:		2019-06-13 fixed minor flaws after testruns on all UML-patterns
 ' version:		2019-07-31 utelater eksempel av elementer med tagged value xsdEncodingRule = notEncoded
+' version:		2020-04-03 fixed self associations, started on associations to abstract classes
+' version:		2020-04-15 attributes and associations to abstract classes
+' version:		2020-11-03 inherited roles point to (first of) concrete subtypes of abstract supertype
 ' author: 		Kent Jonsrud
 '
 ' 				candidates for manual improvement:
-' 				inherited roles now point to the supertype, but should point to (all) subtypes
-' 				multiple codelist codes and enumeration codes should have first and second code, now it has first code twice
-'				x-to-many: should (maybe) make and point to a second object instance on the many-side?
-' TBD:			
-' TBD:			
-' TBD:			
-' TBD:          utf8 (for all codes with any sami characters) does not survive the clipboard
+' TBD:			multiple codelist codes and enumeration codes should have first and second code, now it has first code twice
+' TBD:          utf8 (for all codes with any sami characters) does not survive the clipboard, must write directly to file
 ' TBD:          utf8 on model names in the gml:Solid-part
 ' TBD:			elaborate on the CompositeXxx and MultiXxx
 ' TBD:			Union ok?
@@ -30,7 +28,7 @@ option explicit
 ' TBD:			standard (getFeatureById-) container for the single object selection
 ' TBD:			documentation and cleanup
 
-' TBN:          decimal point character for numbers need to be set to "." in the regional settings
+' TBN:          Important vbs-snag: decimal point character for numbers need to be set to "." in the regional settings
 
 		DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller
 		debug = false
@@ -64,14 +62,13 @@ sub listGMLExample()
 
 					namespace = getPackageTaggedValue(theElement,"targetNamespace")
 					if namespace = "" then
-						namespace = kortnavn
+						namespace = "http://schemas.someserver.org/" & kortnavn
 					end if
 					
 					xsdfile = getPackageTaggedValue(theElement,"xsdDocument")
 					if xsdfile = "" then
 						xsdfile = kortnavn & ".xsd"
 					end if
-					'SessionOutput("test3: SOSI_kortnavn: " & vbCrLf & utf8(kortnavn) )
 					SessionOutput("<?xml version=""1.0"" encoding=""utf-8""?>")
 					SessionOutput("<wfs:FeatureCollection")
 					SessionOutput("  xmlns=""" & utf8(namespace) & """")
@@ -89,7 +86,7 @@ sub listGMLExample()
 					'SessionOutput("  timeStamp=""" & Year(Date) & "-" & LPad(Month(Date),"0",2) & "-" & Day(Date) & "T" & Hour(Time) & ":" & Minute(Time) & ":" & Second(Time) & "Z""")
 
 
-					' I will have a correct xml timestamp to document when the script was run
+					' I just wanted a correct xml timestamp to document when the script was run
 					dim m,d,t,min,sek,tm,td,tt,tmin,tsek
 					m = Month(Date)
 					if m < 10 then
@@ -127,8 +124,6 @@ sub listGMLExample()
 					SessionOutput("  timeStamp=""" & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z""")
 					SessionOutput("  numberMatched=""unknown""")
 					SessionOutput("  numberReturned=""0"">")
-					'SessionOutput("  >")
-					'SessionOutput("  <wfs:member>")
 					pnteller=0
 					cuteller=0
 					suteller=0
@@ -157,7 +152,7 @@ sub listGMLExample()
 					Repository.ClearOutput "Script"
 					Repository.CreateOutputTab "Error"
 					Repository.ClearOutput "Error"
-					namespace = "http://some.server.no/namespace"
+					namespace = "http://schemas.someserver.org/someproduct"
 					kortnavn = "shortNamespace"
 					pnteller=0
 					cuteller=0
@@ -212,15 +207,9 @@ sub listFeatureTypes(pkg)
 			ftname = currentElement.Name
 			superlist = ""
 			indent = "      "
-			'for each conn in currentElement.Connectors
-		'		if conn.Type = "Generalization" then
-			'		if currentElement.ElementID = conn.ClientID then
-			'			superlist = getSupertypes(ftname,conn.SupplierID, indent)
-			'		end if
-			'	end if
-			'next
 
 			call listDatatypes(ftname,currentElement,indent)
+			
 			SessionOutput("    </" & utf8(currentElement.Name) & ">")
 			SessionOutput("  </wfs:member>")
 
@@ -240,17 +229,19 @@ end sub
 sub listDatatypes(ftname,element,indent)
 	dim presentasjonsnavn
  	dim elements as EA.Collection 
+	dim element0 as EA.Element
 	dim super as EA.Element
 	dim datatype as EA.Element
+	dim subbtype as EA.Element
 	dim conn as EA.Collection
 	dim connEnd as EA.ConnectorEnd
-	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef, selfref
+	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef, selfref, subID
 	dim indent0, indent1, superlist
 	
 				
+	if debug then Repository.WriteOutput "Script", "Debug: --------listDatatypes element.Name [" & element.Name & "] element.ElementID [" & element.ElementID & "].",0
 	if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
-
-		if debug then Repository.WriteOutput "Script", "Debug: --------listDatatypes element.Name [" & element.Name & "] element.ElementID [" & element.ElementID & "].",0
+		
 		for each conn in element.Connectors
 			if debug then Repository.WriteOutput "Script", "Debug: conn.Type [" & conn.Type & "] conn.ClientID [" & conn.ClientID & "] conn.SupplierID [" & conn.SupplierID & "].",0
 			if conn.Type = "Generalization" then
@@ -262,13 +253,10 @@ sub listDatatypes(ftname,element,indent)
 				end if
 			end if
 		next
-		'if debug then Repository.WriteOutput "Script", "Debug: superlist [" & superlist & "].",0
+'		if debug then Repository.WriteOutput "Script", "Debug: superlist [" & superlist & "].",0
 
 		dim attr as EA.Attribute
 		for each attr in element.Attributes
-
-			'SessionOutput(indent & "<" & attr.Name & ">")
-
 			if getSosiGeometritype(attr) = "" then
 				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] not geometry.",0
 				if attr.ClassifierID <> 0 and getBasicSOSIType(attr.Type) = "*" then
@@ -347,7 +335,7 @@ sub listDatatypes(ftname,element,indent)
 			if LCase(element.Stereotype) = "union" then
 				Exit For
 			end if
-			'SessionOutput(indent & "</" & attr.Name & ">")
+			
 		next
 			
 		for each conn in element.Connectors
@@ -356,87 +344,36 @@ sub listDatatypes(ftname,element,indent)
 			else
 				'Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
 				'Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
-				if debug then Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.SupplierID).Name & "].",0
-				if debug then Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & Repository.GetElementByID(conn.ClientID).Name & "].",0
+				if debug then Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens navn [" & Repository.GetElementByID(conn.SupplierID).Name & "], conn.SupplierID [" & conn.SupplierID & "].",0
+				if debug then Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens navn [" & Repository.GetElementByID(conn.ClientID).Name & "], conn.ClientID [" & conn.ClientID & "].",0
 
 				if conn.ClientID = element.ElementID then
 					if getConnectorEndTaggedValue(conn.SupplierEnd,"xsdEncodingRule") <> "notEncoded" then
 						set datatype = Repository.GetElementByID(conn.SupplierID)
 						umlnavn = conn.SupplierEnd.Role
-						if conn.ClientEnd.Aggregation = 2 then
+						if conn.ClientEnd.Aggregation = 2 and conn.SupplierID <> conn.ClientID then
+'						if conn.ClientEnd.Aggregation = 2 and conn.SupplierID <> conn.ClientID or getConnectorEndTaggedValue(conn.SupplierEnd,"inlineOrByReference") = "inline"  then
 							'composition+mandatory->nest as datatype inline?
-							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-							indent0 = indent & "  "
-							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-							indent1 = indent0 & "  "
-							call listDatatypes(ftname, datatype,indent1)
-							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" and conn.SupplierEnd.Cardinality <> "1" then
-								SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-								indent0 = indent & "  "
-								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-								indent1 = indent0 & "  "
-								call listDatatypes(ftname, datatype,indent1)
-								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							end if
+							'inLineOrByReference?
+							call listComposition(ftname,umlnavn,datatype,indent,conn.SupplierEnd.Cardinality)
 						else
-							if conn.SupplierEnd.Navigable = "Navigable" then
-								'self assoc? if so make xlinks to other (imaginary) instances of the same class
-								selfref = 1
-								if datatype.Name = element.Name and datatype.ElementID = element.ElementID then
-									selfref = 2
-								end if 
-								'navigable->make xlink? 
-								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
-								if debug then Repository.WriteOutput "Script", "Debug: SupplierEnd.Cardinality [" & conn.SupplierEnd.Cardinality & "].",0
-								if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" and conn.SupplierEnd.Cardinality <> "1" then
-									SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
-								end if
-							end if
+							call listAssociation(ftname,umlnavn,datatype,indent,conn.SupplierEnd.Cardinality,conn.SupplierEnd.Navigable,element.Name)
 						end if
 					end if
+
 				else
 					if getConnectorEndTaggedValue(conn.ClientEnd,"xsdEncodingRule") <> "notEncoded" then
 						set datatype = Repository.GetElementByID(conn.ClientID)
 						umlnavn = conn.ClientEnd.Role
 						if conn.SupplierEnd.Aggregation = 2 then
 							'composition+mandatory->nest as datatype inline?
-							SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-							indent0 = indent & "  "
-							SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-							indent1 = indent0 & "  "
-							call listDatatypes(ftname, datatype,indent1)
-							SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-							SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" and conn.ClientEnd.Cardinality <> "1" then
-								SessionOutput(indent & "<" & utf8(umlnavn) & ">")
-								indent0 = indent & "  "
-								SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
-								indent1 = indent0 & "  "
-								call listDatatypes(ftname, datatype,indent1)
-								SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
-								SessionOutput(indent & "</" & utf8(umlnavn) & ">")
-							end if
+							'inLineOrByReference?
+							call listComposition(ftname,umlnavn,datatype,indent,conn.ClientEnd.Cardinality)
 						else
-							if conn.ClientEnd.Navigable = "Navigable" then
-								'self assoc? if so make xlinks to other (imaginary) instances of the same class
-								selfref = 1
-								if datatype.Name = element.Name and datatype.ElementID = element.ElementID then
-									selfref = 2
-								end if 
-								'navigable->make xlink? 
-								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
-								if debug then Repository.WriteOutput "Script", "Debug: ClientEnd.Cardinality [" & conn.ClientEnd.Cardinality & "].",0
-								if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" and conn.ClientEnd.Cardinality <> "1" then
-									SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
-								end if
-							end if
+							call listAssociation(ftname,umlnavn,datatype,indent,conn.ClientEnd.Cardinality,conn.ClientEnd.Navigable,element.Name)
 						end if
 					end if
 				end if
-
 			end if
 
 		next
@@ -445,6 +382,83 @@ sub listDatatypes(ftname,element,indent)
 
 end sub
 
+
+
+sub listComposition(ftname,umlnavn,datatype,indent,cardinality)
+	dim indent0, indent1, subID
+	dim subbtype as EA.Element
+
+	SessionOutput(indent & "<" & utf8(umlnavn) & ">")
+	indent0 = indent & "  "
+'	'	SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+	indent1 = indent0 & "  "
+	if datatype.Abstract = 1 then
+		'must move down to make an example of a instanciable subtype of the class pointed to TODO, NB needed on mandatory attributes!
+		call getFirstConcreteSubtypeName(datatype,subID)
+		set subbtype = Repository.GetElementByID(subID)
+		SessionOutput(indent0 & "<" & utf8(subbtype.Name) & ">")
+		call listDatatypes(ftname, subbtype,indent1)
+		SessionOutput(indent0 & "</" & utf8(subbtype.Name) & ">")
+	else
+		SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+		call listDatatypes(ftname, datatype,indent1)
+		SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+	end if
+	SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+	if cardinality <> "0..1" and cardinality <> "1..1" and cardinality <> "1" then
+		SessionOutput(indent & "<" & utf8(umlnavn) & ">")
+		indent0 = indent & "  "
+		SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+		indent1 = indent0 & "  "
+		if datatype.Abstract = 1 then
+			'must move down to make an example of a instanciable subtype of the class pointed to TODO, NB needed on mandatory attributes!
+			call getFirstConcreteSubtypeName(datatype,subID)
+			set subbtype = Repository.GetElementByID(subID)
+			SessionOutput(indent0 & "<" & utf8(subbtype.Name) & ">")
+			call listDatatypes(ftname, subbtype,indent1)
+			SessionOutput(indent0 & "</" & utf8(subbtype.Name) & ">")
+		else
+			SessionOutput(indent0 & "<" & utf8(datatype.Name) & ">")
+			call listDatatypes(ftname, datatype,indent1)
+			SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+		end if
+		SessionOutput(indent0 & "</" & utf8(datatype.Name) & ">")
+		SessionOutput(indent & "</" & utf8(umlnavn) & ">")
+	end if
+end sub
+
+
+sub listAssociation(ftname,umlnavn,datatype,indent,cardinality,navigable,elementname)
+'sub listComposition(ftname,umlnavn,datatype,indent,cardinality)
+	dim indent0, indent1, subID, selfref
+	dim subbtype as EA.Element
+	
+	if navigable = "Navigable" then
+		'self assoc? if so make xlinks to other (imaginary) instances of the same class
+		selfref = 1
+		if datatype.Name = elementname then
+			selfref = 2
+		end if 
+		'navigable->make xlink? 
+		if datatype.Abstract = 1 then
+			'must move down to make an example of a instanciable subtype of the class pointed to TODO, NB needed on mandatory attributes!
+			SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(getFirstConcreteSubtypeName(datatype,subID)) & "." & selfref & """/>")
+		else
+			SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
+		end if
+'								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
+		if debug then Repository.WriteOutput "Script", "Debug: .Cardinality [" & cardinality & "].",0
+		if cardinality <> "0..1" and cardinality <> "1..1" and cardinality <> "1" then
+			if datatype.Abstract = 1 then
+				'must move down to make an example of a instanciable subtype of the class pointed to TODO, NB needed on mandatory attributes!
+				SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(getFirstConcreteSubtypeName(datatype,subID)) & "." & selfref + 1 & """/>")
+			else
+				SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
+			end if
+		end if
+	end if
+							
+end sub
 
 function listBaseType(ftname,umlname, umltype)
 	listBaseType = "*"
@@ -835,5 +849,54 @@ end sub
 sub SessionOutput(text)
 	Session.Output(text)
 end sub
+
+function getFirstConcreteSubtypeName(datatype,subID)
+	dim subber as EA.Element
+'	dim datatype as EA.Element
+	dim conn as EA.Collection
+'	dim connEnd as EA.ConnectorEnd
+
+	'subID = datatype.ElementID
+	getFirstConcreteSubtypeName = "datatype.Name"
+				
+'	if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
+	if datatype.Abstract = 1 then
+		if debug then Repository.WriteOutput "Script", "Debug: --------datatype.Name [" & datatype.Name & "] datatype.ElementID [" & datatype.ElementID & "].",0
+		for each conn in datatype.Connectors
+			if debug then Repository.WriteOutput "Script", "Debug: conn.Type [" & conn.Type & "] conn.ClientID [" & conn.ClientID & "] conn.SupplierID [" & conn.SupplierID & "].",0
+			if conn.Type = "Generalization" then
+				if datatype.ElementID <> conn.ClientID then
+					if debug then Repository.WriteOutput "Script", "Debug: subbtype [" & Repository.GetElementByID(conn.ClientID).Name & "].",0
+					set subber = Repository.GetElementByID(conn.ClientID)
+					getFirstConcreteSubtypeName =  getFirstConcreteSubtypeName(subber,subID)
+					exit function
+				end if
+			end if
+		next
+	else
+		getFirstConcreteSubtypeName = datatype.Name
+		subID = datatype.ElementID
+	end if
+	
+end function
+
+function getFirstConcreteSubtypeID(datatype)
+	dim subber as EA.Element
+'	dim datatype as EA.Element
+	dim conn as EA.Collection
+'	dim connEnd as EA.ConnectorEnd
+	dim subID
+
+	subID = datatype.ElementID
+	getFirstConcreteSubtypeID = 0
+				
+'	if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
+	if datatype.Abstract = 1 then
+		if debug then Repository.WriteOutput "Script", "Debug: --------datatype.Name [" & datatype.Name & "] datatype.ElementID [" & datatype.ElementID & "].",0
+		call getFirstConcreteSubtypeName(datatype,subID)
+	end if
+	getFirstConcreteSubtypeID = subID
+	
+end function
 
 listGMLExample
