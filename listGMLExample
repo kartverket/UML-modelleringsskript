@@ -12,13 +12,15 @@ option explicit
 ' version:		2020-04-03 fixed self associations, started on associations to abstract classes
 ' version:		2020-04-15 attributes and associations to abstract classes
 ' version:		2020-11-03 inherited roles point to (first of) concrete subtypes of abstract supertype
+' version:		2020-11-19 able to select 2D epsg/0/4326 or 3D epsg/0/5972 (25832+NN2000) geometries (and temporary test of SOSI-format-example)
+' version:		2020-11-20 elaborate on the CompositeXxx (and soon MultiXxx?)
 ' author: 		Kent Jonsrud
 '
 ' 				candidates for manual improvement:
+' TBD:			x-to-many: should (maybe) make and point to a second object instance on the many-side?
 ' TBD:			multiple codelist codes and enumeration codes should have first and second code, now it has first code twice
 ' TBD:          utf8 (for all codes with any sami characters) does not survive the clipboard, must write directly to file
 ' TBD:          utf8 on model names in the gml:Solid-part
-' TBD:			elaborate on the CompositeXxx and MultiXxx
 ' TBD:			Union ok?
 ' TBD:			On attributes with multiplicity and codelist codes the second instance should be the second code in the list(?)
 ' TBD:			On attributes with externally managed codelist codes read the actual codes from the http-URI on the attribute
@@ -30,9 +32,10 @@ option explicit
 
 ' TBN:          Important vbs-snag: decimal point character for numbers need to be set to "." in the regional settings
 
-		DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller
+		DIM epsg, debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller
 		debug = false
-
+		epsg = 5972
+		
 sub listGMLExample()
 	' Show and clear the script output window
 	Repository.EnsureOutputVisible "Script"
@@ -477,10 +480,10 @@ function listBaseType(ftname,umlname, umltype)
 		listBaseType = "true"
 	end if
 	if umltype = "Date" then
-		listBaseType = "2019-05-04"
+		listBaseType = "2020-11-19"
 	end if
 	if umltype = "DateTime" then
-		listBaseType = "2019-05-04T21:08:00Z"
+		listBaseType = "2020-11-19T21:08:00Z"
 	end if
 	if umltype = "Integer" then
 		listBaseType = "42"
@@ -501,49 +504,100 @@ function listCodeType(element)
 	next
 end function
 
+
 sub listGeometryType(elementName, geomtype, indent)
 
 		if geomtype = "Punkt" or geomtype = "GM_Point" then
 				pnteller = pnteller + 1
-				SessionOutput(indent & "<gml:Point gml:id=""" & elementName & ".pn." & pnteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
-				SessionOutput(indent & "  <gml:pos>60.02 10.1</gml:pos>")
+				if epsg = 5972 then
+					SessionOutput(indent & "<gml:Point gml:id=""" & elementName & ".pn." & pnteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "  <gml:pos>568497.68 6662024.15 90.67</gml:pos>")
+				else
+					SessionOutput(indent & "<gml:Point gml:id=""" & elementName & ".pn." & pnteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
+					SessionOutput(indent & "  <gml:pos>60.02 10.1</gml:pos>")
+				end if
 				SessionOutput(indent & "</gml:Point>")
 		end if
 		if geomtype = "Sverm" or geomtype = "GM_MultiPoint" then
 			'getSosiGeometritype = "SVERM"
 		end if
-		if geomtype = "Kurve" or geomtype = "GM_Curve" or geomtype = "GM_CompositeCurve" then
+		if geomtype = "Kurve" or geomtype = "GM_Curve" then
 				cuteller = cuteller + 1
-'				SessionOutput(indent & "<gml:Curve gml:id = """ & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
-'				SessionOutput(indent & "  <gml:segments>
-'				SessionOutput(indent & "    <gml:LineStringSegment>
-'				SessionOutput(indent & "      <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2</gml:posList>")
-'				SessionOutput(indent & "    </gml:LineStringSegment>
-'				SessionOutput(indent & "  </gml:segments>
-'				SessionOutput(indent & "</gml:Curve>
-
-
-				SessionOutput(indent & "<gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
-				SessionOutput(indent & "  <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2</gml:posList>")
+				if epsg = 5972 then
+					SessionOutput(indent & "<gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "  <gml:posList>568597.68 6662024.15 90.67 568497.68 6662024.15 90.67</gml:posList>")
+				else
+					SessionOutput(indent & "<gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
+					SessionOutput(indent & "  <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2</gml:posList>")
+				end if
 				SessionOutput(indent & "</gml:LineString>")
 		end if
-		if geomtype = "Flate" or geomtype = "GM_Surface" or geomtype = "GM_CompositeSurface" then
+		if geomtype = "GM_CompositeCurve" then
+				cuteller = cuteller + 1
+				SessionOutput(indent & "<gml:Curve gml:id = """ & elementName & ".cc." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+				SessionOutput(indent & "  <gml:segments>")
+
+
+				if epsg = 5972 then
+					SessionOutput(indent & "    <gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "     <gml:posList>568597.68 6662024.15 90.67 568497.68 6662024.15 90.67</gml:posList>")
+				else
+					SessionOutput(indent & "    <gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
+					SessionOutput(indent & "      <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2</gml:posList>")
+				end if
+				SessionOutput(indent & "    </gml:LineString>")
+
+				SessionOutput(indent & "  </gml:segments>")
+				SessionOutput(indent & "</gml:Curve>")
+		end if
+		if geomtype = "Flate" or geomtype = "GM_Surface" then
 '				SessionOutput(indent & "<gml:Surface gml:id = """ & elementName & ".su.1"" srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
 				suteller = suteller + 1
-				SessionOutput(indent & "<gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
+				if epsg = 5972 then
+					SessionOutput(indent & "<gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+				else
+					SessionOutput(indent & "<gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
+				end if
 				SessionOutput(indent & "  <gml:exterior>")
 				SessionOutput(indent & "    <gml:LinearRing>")
-				SessionOutput(indent & "      <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2 60.02 10.1</gml:posList>")
+				if epsg = 5972 then
+					SessionOutput(indent & "      <gml:posList>568444.03 6661981.48 89.20 568506.41 6662009.49 91.20 568525.84 6661998.97 90.80 568529.64 6662001.85 91.00 568535.02 6662054.94 91.50 568476.33 6662067.85 90.50 568466.50 6662054.49 90.50 568444.03 6661981.48 89.20</gml:posList>")
+				else
+					SessionOutput(indent & "      <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2 60.02 10.1</gml:posList>")
+				end if
 				SessionOutput(indent & "    </gml:LinearRing>")
 				SessionOutput(indent & "  </gml:exterior>")
 				SessionOutput(indent & "</gml:Polygon>")
 '				SessionOutput(indent & "</gml:Surface>")
+		end if
+		if geomtype = "GM_CompositeSurface" then
+ 				SessionOutput(indent & "<gml:Surface gml:id = """ & elementName & ".cs." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+ 				SessionOutput(indent & "  <gml:surfaceMember>")
+				suteller = suteller + 1
+				if epsg = 5972 then
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+				else
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
+				end if
+				SessionOutput(indent & "      <gml:exterior>")
+				SessionOutput(indent & "        <gml:LinearRing>")
+				if epsg = 5972 then
+					SessionOutput(indent & "          <gml:posList>568444.03 6661981.48 89.20 568506.41 6662009.49 91.20 568525.84 6661998.97 90.80 568529.64 6662001.85 91.00 568535.02 6662054.94 91.50 568476.33 6662067.85 90.50 568466.50 6662054.49 90.50 568444.03 6661981.48 89.20</gml:posList>")
+				else
+					SessionOutput(indent & "          <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2 60.02 10.1</gml:posList>")
+				end if
+				SessionOutput(indent & "        </gml:LinearRing>")
+				SessionOutput(indent & "      </gml:exterior>")
+				SessionOutput(indent & "    </gml:Polygon>")
+ 				SessionOutput(indent & "  </gml:surfaceMember>")
+ 				SessionOutput(indent & "</gml:Surface>")
 		end if
 		if geomtype = "GM_Solid" or geomtype = "GM_CompositeSolid" then
 			'getSosiGeometritype = "NO GO"
 			dim height
 			height = 6.0
 			call generateSolidExample(elementName, indent, height)
+'''			call generateSOSISolidExample(elementName, indent, height)
 		end if
 		if geomtype = "GM_Object" or geomtype = "GM_Primitive" then
 				obteller = obteller + 1
@@ -552,6 +606,8 @@ sub listGeometryType(elementName, geomtype, indent)
 				SessionOutput(indent & "</gml:Point>")
 		end if
 end sub
+
+
 
 function getSosiGeometritype(element)
 
@@ -843,6 +899,157 @@ sub generateSolidExample(elementName, indent, height)
     SessionOutput(indent & "    </gml:Shell>")
     SessionOutput(indent & "  </gml:exterior>")
     SessionOutput(indent & "</gml:Solid>")
+
+end sub
+
+
+sub generateSOSISolidExample(elementName, indent, height)
+
+'	start with a small surface with different elevations in each coordinate position, and with no interiors
+
+'	test whether the whole surface is in a single plane, and if so consider skipping the center point part(?)
+
+'	split the surface in subsurfaces where it is possible to generate a central point thet has direct vision to all its perimeter points(?)
+
+'	find the central point and the mean height
+
+'	construct the set of floor surface slices from the central point to every two consecutive points on the perimeter 
+
+'	erect a set of sheet piles from two and two perimeter points up the given height above the floor
+
+'	copy the reverse of the floor as a roof and add the given height to it
+
+'	.
+
+
+'	hardcode a totally random surface to start with
+'   srsName="urn:ogc:def:crs:EPSG::5972" srsDimension="3">
+'	568444.03 6661981.48 89.20
+'	568506.41 6662009.49 91.20
+'	568525.84 6661998.97 90.80
+'	568529.64 6662001.85 91.00
+'	568535.02 6662054.94 91.50
+'	568476.33 6662067.85 90.50
+'	568466.50 6662054.49 90.50
+'	568444.03 6661981.48 89.20
+	dim s1(7,2), c1(2), z1(2), h1, posNum, i
+	h1 = height*100
+	s1(0,1) = 56844403
+	s1(0,0) = 666198148 
+	s1(0,2) = 8920
+	s1(1,1) = 56850641 
+	s1(1,0) = 666200949 
+	s1(1,2) = 9120
+	s1(2,1) = 56852584 
+	s1(2,0) = 666199897
+	s1(2,2) = 9080
+	s1(3,1) = 56852964 
+	s1(3,0) = 666200185 
+	s1(3,2) = 9100
+	s1(4,1) = 56853502 
+	s1(4,0) = 666205494 
+	s1(4,2) = 9150
+	s1(5,1) = 56847633 
+	s1(5,0) = 666206785 
+	s1(5,2) = 9050
+	s1(6,1) = 56846650 
+	s1(6,0) = 666205449 
+	s1(6,2) = 9050
+	s1(7,1) = 56844403 
+	s1(7,0) = 666198148 
+	s1(7,2) = 8920
+	posNum = 8
+	z1(0) =0.0
+	z1(1) =0.0
+	z1(2) =0.0
+	
+'	calculate the central point and mean height
+
+	for i = 0 to posNum - 2
+		z1(0) = z1(0) + s1(i,0)
+		z1(1) = z1(1) + s1(i,1)
+		z1(2) = z1(2) + s1(i,2)
+	next
+	
+'	c1(0) = Round( z1(0) / (posNum - 1),2)
+'	c1(1) = Round( z1(1) / (posNum - 1),2)
+'	c1(2) = Round( z1(2) / (posNum - 1),2)
+	c1(0) = Round( z1(0) / (posNum - 1),0)
+	c1(1) = Round( z1(1) / (posNum - 1),0)
+	c1(2) = Round( z1(2) / (posNum - 1),0)
+	
+'	start the xml structure of the gml:Solid
+	soteller = soteller + 1	
+		SessionOutput(".HODE")
+		SessionOutput("..TRANSPAR")
+		SessionOutput("...KOORDSYS 22 EUREF89 UTM")
+		SessionOutput("...ORIGO-NØ 0 0")
+		SessionOutput("...ENHET 0.01")
+		SessionOutput("..OMRÅDE")
+		SessionOutput("...MIN-NØ 6660981 568044")
+		SessionOutput("...MAX-NØ 6663024 568997")
+		SessionOutput("!...ENHET-H 0.01")
+		SessionOutput("!...VERT-DATUM NN2000")
+'	generate the floor tiles
+	
+	for i = 0 to posNum - 2
+		suteller = suteller + 1	
+		SessionOutput(".FLATE " & suteller & ":")	
+		SessionOutput("..OBJTYPE " & elementName)	
+		suteller = suteller + 1	
+		SessionOutput("..REF :" & suteller)
+		SessionOutput(".KURVE " & suteller & ":")	
+		SessionOutput("..OBJTYPE " & elementName & "grense")	
+		SessionOutput("..NØH")
+		SessionOutput(c1(0) & " " & c1(1) & " " & c1(2)) 
+		SessionOutput(s1(i+1,0) & " " & s1(i+1,1) & " " & s1(i+1,2))
+		SessionOutput(s1(i,0) & " " & s1(i,1) & " " & s1(i,2))
+		SessionOutput(c1(0) & " " & c1(1) & " " & c1(2))
+
+
+	next
+
+'	erect the sheet piles
+
+	for i = 0 to posNum - 2
+	
+		suteller = suteller + 1	
+		SessionOutput(".FLATE " & suteller & ":")	
+		SessionOutput("..OBJTYPE " & elementName)	
+		suteller = suteller + 1	
+		SessionOutput("..REF :" & suteller)
+		SessionOutput(".KURVE " & suteller & ":")	
+		SessionOutput("..OBJTYPE " & elementName & "grense")	
+		SessionOutput("..NØH")
+		SessionOutput(s1(i,0) & " " & s1(i,1) & " " & s1(i,2))
+		SessionOutput(s1(i+1,0) & " " & s1(i+1,1) & " " & s1(i+1,2))
+		SessionOutput(s1(i+1,0) & " " & s1(i+1,1) & " " & s1(i+1,2)+h1)
+		SessionOutput(s1(i,0) & " " & s1(i,1) & " " & s1(i,2)+h1)
+		SessionOutput(s1(i,0) & " " & s1(i,1) & " " & s1(i,2))
+
+
+	next
+	
+'	generate the roof
+
+	for i = 0 to posNum - 2
+	
+		suteller = suteller + 1	
+		SessionOutput(".FLATE " & suteller & ":")	
+		SessionOutput("..OBJTYPE " & elementName)	
+		suteller = suteller + 1	
+		SessionOutput("..REF :" & suteller)
+		SessionOutput(".KURVE " & suteller & ":")	
+		SessionOutput("..OBJTYPE " & elementName & "grense")	
+		SessionOutput("..NØH")
+		SessionOutput(c1(0) & " " & c1(1) & " " & c1(2)+h1)
+		SessionOutput(s1(i,0) & " " & s1(i,1) & " " & s1(i,2)+h1)
+		SessionOutput(s1(i+1,0) & " " & s1(i+1,1) & " " & s1(i+1,2)+h1)
+		SessionOutput(c1(0) & " " & c1(1) & " " & c1(2)+h1)
+
+
+	next
+	SessionOutput(".SLUTT")
 
 end sub
 
