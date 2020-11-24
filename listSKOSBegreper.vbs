@@ -3,32 +3,36 @@ option explicit
 !INC Local Scripts.EAConstants-VBScript
 
 ' script:		listSKOSBegreper
-' purpose:		Generere filer på standard SKOS-format for alle begreper i en UML-modell
+' purpose:		Generere filer på standard html og skos-format for alle begreper i en UML-modell
 ' version:		2020-04-23, 04-26, 04-27, 04-29
+' version:		2020-11-24 lager ei owl/rdf/turtle-fil
 ' author: 		Kent Jonsrud
 '
 ' 				Genererer ei fil på standard SKOS-format med alle begreper listet opp
 ' 				Generere ei SKOS-fil og ei html-fil pr. begrep, for direkte oppslag på hver http-URI.
-' TBD:			
+' TBD:			/ i rolle og egenskapsnavn, feiler unødvendig på nøsting av første konkrete subtype
 ' TBD:			alle tagger, stereotyper og multiplisiteter o.l vises i html, med tagzzz = abc, stereotype = CodeList, multiplisitet = 1..2 etc.
-' TBD:			rydde i koden
+' TBD:			rydde i koden, http://skjema.geonorge.no/basistype/Punkt + Flate + Kurve ++ selvom de er linket opp
 '
 	DIM kortnavnFSO
 	DIM pkgFSO
 	DIM skosFSO
 	DIM htmlFSO
+	DIM ttlFSO
 	DIM skos2FSO
 	DIM html2FSO
 	DIM skosFile
 	DIM htmlFile
+	DIM ttlFile
 	DIM skos2File
 	DIM html2File
 	DIM skosFileName
 	DIM htmlFileName
+	DIM ttlFileName
 	DIM skos2FileName
 	DIM html2FileName
 
-	DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller, label, pkgname, pkgNCname
+	DIM debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller, label, pkgname, pkgNCname, pkgNCFolder, nsprefix
 	debug = false
 
 sub listSKOSBegreper()
@@ -67,6 +71,12 @@ sub listSKOSBegreper()
 					if xsdfile = "" then
 						xsdfile = kortnavn & ".xsd"
 					end if
+
+					nsprefix = getPackageTaggedValue(theElement,"xmlns")
+					if nsprefix = "" then
+						nsprefix = "app"
+					end if
+
 					SessionOutput("<?xml version=""1.0"" encoding=""utf-8""?>")
 					SessionOutput("<wfs:FeatureCollection")
 					SessionOutput("  xmlns=""" & utf8(namespace) & """")
@@ -139,14 +149,20 @@ sub listSKOSBegreper()
 					pkgname = kortnavn & "/" & getNCNameX(theElement.Name)
 					pkgNCname = getNCNameX(theElement.Name)
 					Set pkgFSO=CreateObject("Scripting.FileSystemObject")
-					if not pkgFSO.FolderExists(pkgNCname) then
-						pkgFSO.CreateFolder pkgNCname
+					SessionOutput(" pkgNCname: " & pkgNCname  & "...")
+					SessionOutput(" pkgFSO.GetAbsolutePathName: " & pkgFSO.GetAbsolutePathName("./")  & "...")
+					SessionOutput(" Repository.ConnectionString: " & Repository.ConnectionString() & "...")
+					SessionOutput(" pkgFSO.GetBaseName: " & pkgFSO.GetBaseName(Repository.ConnectionString())  & "...")
+					SessionOutput(" pkgFSO.GetParentFolderName: " & pkgFSO.GetParentFolderName(Repository.ConnectionString())  & "...")
+					pkgNCFolder = pkgFSO.GetParentFolderName(Repository.ConnectionString())  & "\" & pkgNCname
+					if not pkgFSO.FolderExists(pkgNCFolder) then
+						pkgFSO.CreateFolder pkgNCFolder
 					end if
 
 					label = getPackageTaggedValue(theElement,"SOSI_presentasjonsnavn")
 					if label = "" then label = theElement.Name
 					' filer for pakken
-					htmlFileName = pkgNCname & "/index.html"
+					htmlFileName = pkgNCFolder & "/index.html"
 					SessionOutput(" htmlFileName: " & htmlFileName )
 					Set htmlFSO = CreateObject("Scripting.FileSystemObject")
 					Set htmlFile = htmlFSO.CreateTextFile(htmlFileName,True,False)
@@ -173,7 +189,7 @@ sub listSKOSBegreper()
 					htmlFile.Write"   <tr>" & vbCrLf
 					htmlFile.Write"   <th>_______Modellbegrep___________</th>	<th>Definisjon___________</th></tr><tr>" & vbCrLf
 					
-					skosFileName = pkgNCname & ".rdf"
+					skosFileName = pkgNCFolder & ".rdf"
 					SessionOutput(" skosFileName: " & skosFileName )
 					Set skosFSO = CreateObject("Scripting.FileSystemObject")
 					Set skosFile = skosFSO.CreateTextFile(skosFileName,True,False)
@@ -190,6 +206,57 @@ sub listSKOSBegreper()
 					skosFile.Write"  </skos:Concept>" & vbCrLf
 					skosFile.Write"  <skos:Collection rdf:about=""" & utf8(namespace) & "/" & utf8(pkgNCname) & "Collection"">" & vbCrLf
 
+					ttlFileName = pkgNCFolder & ".ttl"
+					SessionOutput(" ttlFileName: " & ttlFileName )
+					Set ttlFSO = CreateObject("Scripting.FileSystemObject")
+					Set ttlFile = skosFSO.CreateTextFile(ttlFileName,True,False)
+					ttlFile.Write"@prefix <" & nsprefix & ": """ & utf8(namespace) & "/" & utf8(pkgNCname) & "/> ." & vbCrLf
+					ttlFile.Write"@prefix sosi:  <http://skjema.geonorge.no/SOSI/basistype/> ." & vbCrLf
+					ttlFile.Write"@prefix adms:  <http://www.w3.org/ns/adms#> ." & vbCrLf
+					ttlFile.Write"@prefix dct:   <http://purl.org/dc/terms/> ." & vbCrLf
+					ttlFile.Write"@prefix owl:   <http://www.w3.org/2002/07/owl#> ." & vbCrLf
+					ttlFile.Write"@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> ." & vbCrLf
+					ttlFile.Write"@prefix dcat:  <http://www.w3.org/ns/dcat#> ." & vbCrLf
+					ttlFile.Write"@prefix foaf:  <http://xmlns.com/foaf/0.1/> ." & vbCrLf
+					ttlFile.Write"@prefix vcard: <http://www.w3.org/2006/vcard/ns#> ." & vbCrLf
+					ttlFile.Write"@prefix locn: <http://www.w3.org/ns/locn#> ." & vbCrLf
+					ttlFile.Write"@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> ." & vbCrLf
+					ttlFile.Write"@prefix skos: <http://www.w3.org/2004/02/skos/core#> ." & vbCrLf
+					ttlFile.Write"@prefix xkos: <https://rdf-vocabulary.ddialliance.org/xkos/> ." & vbCrLf
+					ttlFile.Write"@prefix xsd: <http://www.w3.org/2001/XMLSchema#> ." & vbCrLf
+					ttlFile.Write"@prefix modelldcatno: <https://data.norge.no/vocabulary/modelldcatno#> ." & vbCrLf & vbCrLf
+
+					ttlFile.Write nsprefix & ":" & utf8(pkgNCname) & " a           modelldcatno:InformationModel , owl:NamedIndividual ;" & vbCrLf
+					ttlFile.Write"modelldcatno:containsModelElement" & vbCrLf
+				'	ttlFile.Write"        " & getClassList(nsprefix) &  " ;" & vbCrLf
+					ttlFile.Write"        app:Sted , app:Stedsnavn , app:SkrivemÃ¥te ;" & vbCrLf
+					ttlFile.Write"        dct:identifier          """  & utf8(namespace) & "/" & utf8(pkgNCname) & """^^xsd:string ;" & vbCrLf
+					ttlFile.Write"        dct:publisher          <https://organization-catalogue.fellesdatakatalog.digdir.no/organizations/971040238> ;" & vbCrLf
+					ttlFile.Write"        dct:description          """ & utf8(getCleanDefinitionText(theElement.Notes)) & """@nb ;" & vbCrLf
+					ttlFile.Write"        dct:title          """ & getPackageTaggedValue(theElement,"SOSI_langnavn")  & """@nb ;" & vbCrLf
+					ttlFile.Write"        dct:issued          """ & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "+01:00""^^xsd:dateTime ;" & vbCrLf
+					ttlFile.Write"        dct:language          <http://publications.europa.eu/resource/authority/language/NOB> ;" & vbCrLf
+					ttlFile.Write"        owl:versionInfo          """ &  getPackageTaggedValue(theElement,"version")  & """^^xsd:string ;" & vbCrLf
+					ttlFile.Write"        adms:status             <http://purl.org/adms/status/Completed> ;" & vbCrLf       ' =SOSI_modellstatus?
+					ttlFile.Write"        dct:license             <http://creativecommons.org/licenses/by/4.0/deed.no> ;" & vbCrLf
+					ttlFile.Write"        dcat:contactPoint       " & nsprefix & ":standardiseringssekretariatet ;" & vbCrLf
+					ttlFile.Write"        dcat:keyword            " & label & "@nb ;" & vbCrLf
+					ttlFile.Write"        foaf:homepage           <http://sosi.geonorge.no> ;" & vbCrLf
+					ttlFile.Write"        dct:spatial             <http://publications.europa.eu/resource/authority/country/NOR> ;" & vbCrLf
+					ttlFile.Write"        dcat:theme              <https://psi.norge.no/los/tema/eiendom> ." & vbCrLf  & vbCrLf        'ikke eiendom!-???
+
+					ttlFile.Write nsprefix & ":Katalog  a        owl:NamedIndividual , dcat:Catalog ;""" & vbCrLf
+					ttlFile.Write"        dct:description         ""SOSI-modellregister med geografiske modeller""@nb ;" & vbCrLf
+					ttlFile.Write"        dct:identifier          ""https://sosi.geonorge.no/svn""^^xsd:string ;" & vbCrLf
+					ttlFile.Write"        dct:title          ""SOSI-modellregister""@nb ;" & vbCrLf
+					ttlFile.Write"        dct:license             <http://creativecommons.org/licenses/by/4.0/deed.no> ;" & vbCrLf
+					ttlFile.Write"        modelldcatno:model      " & nsprefix & ":" & utf8(pkgNCname) & " ." & vbCrLf & vbCrLf
+
+					ttlFile.Write nsprefix & ":standardiseringssekretariatet  a          vcard:Kind , owl:NamedIndividual ;" & vbCrLf
+					ttlFile.Write"        vcard:hasOrganizationName            ""Norwegian Mapping Authority""@en , ""Kartverket""@nn , ""Kartverket""@nb ;" & vbCrLf
+					ttlFile.Write"        vcard:hasEmail			<mailto:standardiseringssekretariatet@kartverket.no> ;" & vbCrLf
+					ttlFile.Write"        vcard:hasTelephone		<tel:+47 32118000> ." & vbCrLf & vbCrLf
+					
 
 ' ----------------------
 					call listFeatureTypes(theElement)
@@ -210,6 +277,8 @@ sub listSKOSBegreper()
 					htmlFile.Close
 					Set htmlFSO= Nothing
 					
+					ttlFile.Close
+					Set ttlFSO= Nothing
 
 			'	case VBcancel
 
@@ -294,8 +363,8 @@ sub listFeatureTypes(pkg)
 	
 		if currentElement.Type = "Class" or currentElement.Type = "Enumeration" then
 		
-			Call writeSkosElement(utf8(namespace),pkgNCname,currentElement.Name,utf8(getTaggedValue(currentElement,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(currentElement.Notes)))
-			Call writeHtmlElement(utf8(namespace),pkgNCname & "/" & currentElement.Name,utf8(currentElement.Name),utf8(getTaggedValue(currentElement,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(currentElement.Notes)))
+			Call writeSkosElement(utf8(namespace),pkgNCFolder,currentElement.Name,utf8(getTaggedValue(currentElement,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(currentElement.Notes)))
+			Call writeHtmlElement(utf8(namespace),pkgNCFolder & "/" & currentElement.Name,utf8(currentElement.Name),utf8(getTaggedValue(currentElement,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(currentElement.Notes)))
 		
 			'skosFile.Write"  <skos:Collection rdf:about=""" & utf8(namespace) & "/" & utf8(kortnavn) & "/Collection"">" & vbCrLf
 			skosFile.Write"   <skos:member rdf:resource=""" & utf8(namespace) & "/" & utf8(pkgNCname) & "/" & utf8(currentElement.Name) & """/>" & vbCrLf
@@ -305,11 +374,40 @@ sub listFeatureTypes(pkg)
 			'htmlFile.Write"  <td><a href=" & utf8(pkgNCname) & "/" & utf8(currentElement.Name) & ">	" & utf8(toLabel(currentElement.Name)) & "</a></td><td>" & utf8(getCleanDefinitionText(currentElement.Notes)) & "</td></tr><tr>" & vbCrLf
 			'htmlFile.Write"  <td><a href=" & utf8(pkgNCname) & "/" & utf8(currentElement.Name) & ">	" & utf8(toLabel(currentElement.Name)) & "</a></td><td>" & utf8(getCleanDefinitionText(currentElement.Notes)) & "</td></tr><tr>" & vbCrLf
 			'htmlFile.Write"  <td>kode <a href=" & utf8(pkgname) & "/" & utf8(currentElement.Name) & ">	" & utf8(currentElement.Name) & "</a></td><td>" & utf8(currentElement.Notes) & "</td></tr><tr>" & vbCrLf
-			
+
+			if LCase(currentElement.Stereotype) = "featuretype" then
+				ttlFile.Write nsprefix & ":" & utf8(currentElement.Name) & " a           owl:NamedIndividual , modelldcatno:ObjectType ;" & vbCrLf
+'				dct:subject <https://data.skatteetaten.no/begreper/20b52aba-9fe1-11e5-a9f8-e4115b280940> ;
+				ttlFile.Write"		modelldcatno:hasProperty" 
+			'	ttlFile.Write" 		" & getPropertyList(nsprefix)  & " ;" & vbCrLf
+				ttlFile.Write" 		app:stedsnavn , app:posisjon ;" & vbCrLf
+			end if
+			if LCase(currentElement.Stereotype) = "datatype" then
+				ttlFile.Write nsprefix & ":" & utf8(currentElement.Name) & " a           owl:NamedIndividual , modelldcatno:DataType ;" & vbCrLf
+				ttlFile.Write"		modelldcatno:hasProperty" 
+			'	ttlFile.Write" 		" & getPropertyList(nsprefix)  & " ;" & vbCrLf
+				ttlFile.Write" 		app:skrivemåte , app:kasuser ;" & vbCrLf 
+			end if
+			if LCase(currentElement.Stereotype) = "union" then
+				ttlFile.Write nsprefix & ":" & utf8(currentElement.Name) & " a           owl:NamedIndividual , modelldcatno:Choice ;" & vbCrLf
+				ttlFile.Write"		modelldcatno:hasProperty" 
+			'	ttlFile.Write" 		" & getPropertyList(nsprefix)  & " ;" & vbCrLf 
+				ttlFile.Write" 		app:alternativ1 , app:alternativ2 ;" & vbCrLf
+			end if
+			if LCase(currentElement.Stereotype) = "codelist" or LCase(currentElement.Stereotype) = "enumeration" or currentElement.Type = "Enumeration" then
+				ttlFile.Write nsprefix & ":" & utf8(currentElement.Name) & " a           owl:NamedIndividual , modelldcatno:CodeList ;" & vbCrLf
+			end if
+			ttlFile.Write"		dct:description """"" & utf8(getCleanDefinitionText(currentElement.Notes)) & """@nb ;" & vbCrLf
+			ttlFile.Write"		dct:identifier " & utf8(namespace) & "/" & utf8(pkgNCname) & "/" & utf8(currentElement.Name) & """^^xsd:anyURI ;	" & vbCrLf		
+			ttlFile.Write"		dct:title     """ & utf8(getTaggedValue(currentElement,"SOSI_presentasjonsnavn")) & """@nb ;" & vbCrLf
+			ttlFile.Write"		modelldcatno:typeDefinitionReference " & utf8(namespace) & "/" & utf8(pkgNCname) & "/" & utf8(currentElement.Name) & """^^xsd:anyURI ;	" & vbCrLf		
+			ttlFile.Write"		modelldcatno:belongsToModule   """ & pkg.Element.Name & """@nb ." & vbCrLf & vbCrLf
+		
 ' ----------------------
-			call listClassProperties(namespace,pkgNCname,currentElement)
+			call listClassProperties(namespace,pkgNCFolder,currentElement)
 ' ----------------------
-			
+
+
 		end if
 	
 	next
@@ -333,7 +431,7 @@ sub listClassProperties(ns,path,element)
 	dim conn as EA.Collection
 	dim connEnd as EA.ConnectorEnd
 	dim i, umlnavn, definisjon, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef, selfref, subID
-	dim indent0, indent1, superlist
+	dim indent0, indent1, superlist, tittel, attnavn
 	
 				
 	'if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
@@ -342,21 +440,60 @@ sub listClassProperties(ns,path,element)
 
 		dim attr as EA.Attribute
 		for each attr in element.Attributes
-
+			if getTaggedValue(attr,"SOSI_presentasjonsnavn") <>  "" then
+				tittel = """" & utf8(getTaggedValue(attr,"SOSI_presentasjonsnavn")) & """@nb"
+			else
+				tittel = """" & utf8(attr.Name) & """@nb"
+			end if
+			if getTaggedValue(attr,"designation") <>  "" then
+				tittel = tittel & " , " & utf8(getTaggedValue(attr,"designation"))
+			end if
 			skosFile.Write"   <skos:member rdf:resource=""" & utf8(ns) & "/" & utf8(pkgNCname) & "/" & utf8(element.Name) & "/" & utf8(attr.Name) & """/>" & vbCrLf
 
 			'htmlFile.Write"  <td><a href=" & utf8(path) & "/" & utf8(element.Name) & "/" & utf8(attr.Name) & ">	" & utf8(toLabel(attr.Name)) & "</a></td><td>" & utf8(getCleanDefinitionText(attr.Notes)) & "</td></tr><tr>" & vbCrLf
 			htmlFile.Write"  <td><a href=" & utf8(element.Name) & "/" & utf8(attr.Name) & ">	" & utf8(toLabel(attr.Name)) & "</a></td><td>" & utf8(getCleanDefinitionText(attr.Notes)) & "</td></tr><tr>" & vbCrLf
 
-			Call writeSkosElement(utf8(ns),path & "/" & element.Name,attr.Name,utf8(getTaggedValue(attr,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(attr.Notes)))
-			Call writeHtmlElement(utf8(ns),path & "/" & element.Name & "/" & attr.Name,utf8(attr.Name),utf8(getTaggedValue(attr,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(attr.Notes)))
+			attnavn = attr.Name
+			if attr.default <> "" then
+				attnavn = Trim(attr.Default)
+			end if
+			Call writeSkosElement(utf8(ns),path & "/" & element.Name,attnavn,utf8(getTaggedValue(attr,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(attr.Notes)))
+			Call writeHtmlElement(utf8(ns),path & "/" & element.Name & "/" & attnavn,utf8(attr.Name),utf8(getTaggedValue(attr,"SOSI_presentasjonsnavn")),utf8(getCleanDefinitionText(attr.Notes)))
 
+			if LCase(element.Stereotype) = "featuretype" or LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" then
+				ttlFile.Write nsprefix & ":" & utf8(attr.Name) & " a           owl:NamedIndividual , modelldcatno:Attribute ;" & vbCrLf
+				if attr.ClassifierID <> 0 then
+					ttlFile.Write"		modelldcatno:hasDataType   " & nsprefix & ":" & attr.Type & " ;" & vbCrLf 
+				else
+					ttlFile.Write"		modelldcatno:hasSimpleType   http://skjema.geonorge.no/basistype/" & attr.Type & " ;" & vbCrLf 
+				end if
+				ttlFile.Write"		dct:description """"" & utf8(getCleanDefinitionText(attr.Notes)) & """@nb ;" & vbCrLf
+				ttlFile.Write"		dct:identifier " & utf8(ns) & "/" & utf8(pkgNCname) & "/" & utf8(element.Name) & "/" & utf8(attr.Name) & """^^xsd:anyURI ;	" & vbCrLf		
+				ttlFile.Write"		dct:title     " & tittel & " ;" & vbCrLf
+				ttlFile.Write"		modelldcatno:typeDefinitionReference " & utf8(ns) & "/" & utf8(pkgNCname) & "/" & utf8(element.Name) & "/" & utf8(attr.Name) & """^^xsd:anyURI ;	" & vbCrLf		
+ 				ttlFile.Write"		xsd:maxOccurs 	""" & attr.UpperBound & """^^xsd:string ;	" & vbCrLf	
+				ttlFile.Write"		xsd:minOccurs 	""" & attr.LowerBound & """^^xsd:nonNegativeInteger .	" & vbCrLf & vbCrLf	
+			end if		
+			if LCase(element.Stereotype) = "codelist" or LCase(element.Stereotype) = "enumeration" or element.Type = "Enumeration" then
+				ttlFile.Write nsprefix & ":" & utf8(attr.Name) & " a           owl:NamedIndividual , modelldcatno:Code ;" & vbCrLf
+				ttlFile.Write"		dct:description """"" & utf8(getCleanDefinitionText(attr.Notes)) & """@nb"
+				if getTaggedValue(attr,"definition") <> "" then
+					ttlFile.Write" , " & utf8(getTaggedValue(attr,"definition"))
+				end if
+				ttlFile.Write" ;" & vbCrLf
+			'	ttlFile.Write"		dct:description """"" & utf8(getCleanDefinitionText(attr.Notes)) & """@nb ;" & vbCrLf
+				ttlFile.Write"		dct:identifier " & utf8(ns) & "/" & utf8(pkgNCname) & "/" & utf8(element.Name) & "/" & utf8(attr.Name) & """^^xsd:anyURI ;	" & vbCrLf		
+			'	ttlFile.Write"		dct:title     """ & utf8(getTaggedValue(attr,"SOSI_presentasjonsnavn")) & """@nb ;" & vbCrLf
+				ttlFile.Write"		dct:title     " & tittel & " ;" & vbCrLf
+				ttlFile.Write"		modelldcatno:typeDefinitionReference " & utf8(ns) & "/" & utf8(pkgNCname) & "/" & utf8(element.Name) & "/" & utf8(attr.Name) & """^^xsd:anyURI .	" & vbCrLf	& vbCrLf		
+			end if		
 		next
 		
 
 		for each conn in element.Connectors
 			if conn.Type = "Generalization" or conn.Type = "Realisation" or conn.Type = "NoteLink" then
-
+			sosimin= "0"
+			sosimax = "*"
 			else
 				umlnavn = ""
 				definisjon = ""
@@ -365,11 +502,33 @@ sub listClassProperties(ns,path,element)
 					umlnavn = conn.SupplierEnd.Role
 					definisjon = conn.SupplierEnd.RoleNote
 					presentasjonsnavn = getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_presentasjonsnavn")
+					if presentasjonsnavn = "" then
+						presentasjonsnavn = umlnavn
+					end if
+					if conn.SupplierEnd.Cardinality <> "" then
+						if Mid(conn.SupplierEnd.Cardinality,1,1) <> "*" then
+							sosimin = Mid(conn.SupplierEnd.Cardinality,1,1)
+						end if
+						if Mid(conn.SupplierEnd.Cardinality,Len(conn.SupplierEnd.Cardinality),1) <> "*" then
+							sosimax = Mid(conn.SupplierEnd.Cardinality,Len(conn.SupplierEnd.Cardinality),1)
+						end if
+					end if
 				else
 					set datatype = Repository.GetElementByID(conn.ClientID)
 					umlnavn = conn.ClientEnd.Role
 					definisjon = conn.ClientEnd.RoleNote
 					presentasjonsnavn = getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_presentasjonsnavn")
+					if presentasjonsnavn = "" then
+						presentasjonsnavn = umlnavn
+					end if
+					if conn.ClientEnd.Cardinality <> "" then
+						if Mid(conn.ClientEnd.Cardinality,1,1) <> "*" then
+							sosimin = Mid(conn.ClientEnd.Cardinality,1,1)
+						end if
+						if Mid(conn.ClientEnd.Cardinality,Len(conn.ClientEnd.Cardinality),1) <> "*" then
+							sosimax = Mid(conn.ClientEnd.Cardinality,Len(conn.ClientEnd.Cardinality),1)
+						end if
+					end if					
 				end if
 				if umlnavn <> "" then
 					skosFile.Write"  <skos:member rdf:resource=""" & utf8(ns) & "/" & utf8(element.Name) &"/" & utf8(umlnavn) & """/>" & vbCrLf
@@ -378,7 +537,21 @@ sub listClassProperties(ns,path,element)
 
 					Call writeSkosElement(utf8(ns),path & "/" & element.Name,utf8(umlnavn),utf8(presentasjonsnavn),utf8(getCleanDefinitionText(definisjon)))
 					Call writeHtmlElement(utf8(ns),path & "/" & element.Name & "/" & umlnavn,utf8(umlnavn),utf8(presentasjonsnavn),utf8(getCleanDefinitionText(definisjon)))
-				
+
+'				if LCase(element.Stereotype) = "featuretype" or LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" then
+					ttlFile.Write nsprefix & ":" & utf8(umlnavn) & " a           owl:NamedIndividual , modelldcatno:Role ;" & vbCrLf
+					ttlFile.Write"		modelldcatno:hasDataType   " & nsprefix & ":" & datatype.Name & " ;" & vbCrLf 
+					ttlFile.Write"		dct:description """"" & utf8(getCleanDefinitionText(definisjon)) & """@nb ;" & vbCrLf
+					ttlFile.Write"		dct:identifier " & utf8(ns) & "/" & utf8(pkgNCname) & "/" & utf8(element.Name) & "/" & utf8(umlnavn) & """^^xsd:anyURI ;	" & vbCrLf		
+					ttlFile.Write"		dct:title     """ & utf8(presentasjonsnavn) & """@nb ;" & vbCrLf
+					ttlFile.Write"		modelldcatno:typeDefinitionReference " & utf8(ns) & "/" & utf8(pkgNCname) & "/" & utf8(element.Name) & "/" & utf8(umlnavn) & """^^xsd:anyURI ;	" & vbCrLf		
+
+					ttlFile.Write"		xsd:maxOccurs 	""" & sosimax & """^^xsd:string ;	" & vbCrLf	
+					ttlFile.Write"		xsd:minOccurs 	""" & sosimin & """^^xsd:nonNegativeInteger .	" & vbCrLf & vbCrLf	
+'				end if		
+
+
+
 				end if
 			end if
 		next
@@ -548,7 +721,7 @@ sub listDatatypes(ftname,element,indent)
 								'navigable->make xlink? 
 									if datatype.Abstract = 1 then
 										'must move down to make an example of a instanciable subtype of the class pointed to TODO, NB needed on mandatory attributes!
-										SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(getFirstConcreteSubtypeName(datatype),subID) & "." & selfref & """/>")
+										SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(getFirstConcreteSubtypeName(datatype,subID) & "." & selfref & """/>")
 									else
 										SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
 									end if
@@ -557,7 +730,7 @@ sub listDatatypes(ftname,element,indent)
 								if conn.SupplierEnd.Cardinality <> "0..1" and conn.SupplierEnd.Cardinality <> "1..1" and conn.SupplierEnd.Cardinality <> "1" then
 									if datatype.Abstract = 1 then
 										'must move down to make an example of a instanciable subtype of the class pointed to TODO, NB needed on mandatory attributes!
-										SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(getFirstConcreteSubtypeName(datatype),subID) & "." & selfref + 1 & """/>")
+										SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(getFirstConcreteSubtypeName(datatype,subID) & "." & selfref + 1 & """/>")
 									else
 										SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
 									end if
@@ -607,7 +780,7 @@ sub listDatatypes(ftname,element,indent)
 								if conn.ClientEnd.Cardinality <> "0..1" and conn.ClientEnd.Cardinality <> "1..1" and conn.ClientEnd.Cardinality <> "1" then
 									if datatype.Abstract = 1 then
 										'must move down to make an example of a instanciable subtype of the class pointed to TODO, NB needed on mandatory attributes!
-										SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(getFirstConcreteSubtypeName(datatype),subID) & "." & selfref + 1 & """/>")
+										SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(getFirstConcreteSubtypeName(datatype,subID) & "." & selfref + 1 & """/>")
 									else
 										SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref + 1 & """/>")
 									end if
