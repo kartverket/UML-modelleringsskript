@@ -6,6 +6,7 @@ option explicit
 ' description:		Skriver kodeliste til gml:Dictionary.xml fil. på samme sti som .eap-fila ligger.
 ' author:			Kent
 ' date  :			2017-06-29, 07-07,09-08,11-09,12-05, 2018-02-20, 2018-09-19
+' date  :			2020-11-19 utvalgte tagged values ut i name-felt
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -100,16 +101,16 @@ sub listCodelistCodes(el,namespace)
 		if el.Name = "Kommunenummer" or el.Name = "Fylkesnummer" then
 			Repository.WriteOutput "Script", Now & "  " & attr.Name & "." & attr.Notes, 0
 			if InStr(LCASE(attr.Notes),"utgått") then 
-				Repository.WriteOutput "Script", Now & " utgått: " & attr.Name & "." & attr.Notes, 0
+			'	Repository.WriteOutput "Script", Now & " utgått: " & attr.Name & "." & attr.Notes, 0
 				call listDICTfraKode(attr,el.Name,namespace)
 			else
 			if Int(attr.Name) > 2099 and Int(attr.Name) < 2400 then 
-				Repository.WriteOutput "Script", Now & " svalb.: " & attr.Name & "." & attr.Notes, 0
+			'	Repository.WriteOutput "Script", Now & " svalb.: " & attr.Name & "." & attr.Notes, 0
 				call listDICTfraKode(attr,el.Name,namespace)
 			else
 			if Int(attr.Name) > 20 and Int(attr.Name) < 24 then 
-				Repository.WriteOutput "Script", Now & " Svalb.: " & attr.Name & "." & attr.Notes, 0
-	'			call listDICTfraKode(attr,el.Name,namespace)
+			'	Repository.WriteOutput "Script", Now & " Svalb.: " & attr.Name & "." & attr.Notes, 0
+				call listDICTfraKode(attr,el.Name,namespace)
 			else
 				call listDICTfraKode(attr,el.Name,namespace)
 			end if
@@ -161,7 +162,33 @@ Sub listDICTfraKode(attr, codelist, namespace)
 		'Repository.WriteOutput "Script", "debug: SOSI_verdi:"&utf8(getTaggedValue(attr,"SOSI_verdi"))&"",0
 		objFile.Write"      <name>SOSI_verdi:"&utf8(getTaggedValue(attr,"SOSI_verdi"))&"</name>" & vbCrLf
 	end if
- 
+	
+ 	if getTaggedValue(attr,"oppdateringsdato") <> "" then
+		objFile.Write"      <name>oppdateringsdato:"&utf8(getTaggedValue(attr,"oppdateringsdato"))&"</name>" & vbCrLf
+	end if
+ 	if getTaggedValue(attr,"gyldigFra") <> "" then
+		objFile.Write"      <name>gyldigFra:"&utf8(getTaggedValue(attr,"gyldigFra"))&"</name>" & vbCrLf
+	end if
+ 	if getTaggedValue(attr,"gyldigTil") <> "" then
+		objFile.Write"      <name>gyldigTil:"&utf8(getTaggedValue(attr,"gyldigTil"))&"</name>" & vbCrLf
+	end if
+ 	if getTaggedValue(attr,"erstatningFor") <> "" then
+		objFile.Write"      <name>erstatningFor:"&utf8(getTaggedValue(attr,"erstatningFor"))&"</name>" & vbCrLf
+	end if
+	
+ 	if getTaggedValue(attr,"utvekslingsalias") <> "" then
+		objFile.Write"      <name>utvekslingsalias:"&utf8(getTaggedValue(attr,"utvekslingsalias"))&"</name>" & vbCrLf
+	end if
+ 	if getTaggedValue(attr,"SOSI_elementstatus") <> "" then
+		objFile.Write"      <name>SOSI_elementstatus:"&utf8(getTaggedValue(attr,"SOSI_elementstatus"))&"</name>" & vbCrLf
+	end if
+ 	if getTaggedValue(attr,"designation") <> "" then
+		objFile.Write"      <name>designation:"&utf8(getTaggedValue(attr,"designation"))&"</name>" & vbCrLf
+	end if
+ 	if getTaggedValue(attr,"definition") <> "" then
+		objFile.Write"      <name>definition:"&utf8(getTaggedValue(attr,"definition"))&"</name>" & vbCrLf
+	end if
+
 
 	objFile.Write"    </Definition>" & vbCrLf
     objFile.Write"  </dictionaryEntry>" & vbCrLf
