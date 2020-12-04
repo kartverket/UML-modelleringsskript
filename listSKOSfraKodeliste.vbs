@@ -9,6 +9,8 @@ option explicit
 ' date:				2018-10-05 html5, 2018-12-18 feilretting (samisk tegn eng)
 ' date:				2019-05-23 index.html, 05-27 +/-style?
 ' date:				2020-05-11 code html points to skos-file for the code
+' date  :			2020-11-19 utvalgte tagged values ut i html
+' date  :			2020-11-26 bedre ledetekster
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -35,11 +37,20 @@ sub listKoderForEnValgtKodeliste()
 	Set theElement = Repository.GetTreeSelectedObject()
 
 	if not theElement is nothing  then 
+	if Repository.GetTreeSelectedItemType() = otElement then
 		if theElement.Type="Class" and ( LCASE(theElement.Stereotype) = "codelist" or LCASE(theElement.Stereotype) = "enumeration") or theElement.Type="Enumeration"then
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
 			dim message
+'			message = "--------------------------------------------------------------------------------------" & vbCrLf & vbCrLf & _
+			message = "List class : [«" & theElement.Stereotype &"» "& theElement.Name & "]." & vbCrLf & vbCrLf
+			message = message & "Script listSKOSfraKodeliste versjon 2020-11-26 (Kent Jonsrud)" & vbCrLf & vbCrLf
+			message = message & "Creates one SKOS/RDF/xml format file with all codes, "
+			message = message & "and one subfolder with a SKOS/RDF/xml format file for each code in the list." & vbCrLf
+			message = message & "Also creates a html-list, and one html-file for each code in the list." & vbCrLf & vbCrLf
+			message = message & "All files are created in the same folder as the project .eap-file."& vbCrLf  & vbCrLf
+'			message = message & "--------------------------------------------------------------------------------------"
 			dim box
-			box = Msgbox ("List class : [«" & theElement.Stereotype &"» "& theElement.Name & "]. to SKOS/RDF/xml format."& vbCrLf & "Creates one file with all codes in the same folder as the .eap-file,"& vbCrLf & " and a subfolder with one file for each code in the list.",1)
+			box = Msgbox (message,1)
 			select case box
 			case vbOK
 		 		'Session.Output("Debug: ------------ Start class: [«" &theElement.Stereotype& "» " &theElement.Name& "] of type. [" &theElement.Type& "]. ")
@@ -47,14 +58,14 @@ sub listKoderForEnValgtKodeliste()
 				dim namespace, nsp
 				'namespace = "http://skjema.geonorge.no/SOSI/produktspesifikasjon/Stedsnavn/5.0/"
 				namespace = getTaggedValue(theElement, "codeList")
-		 		Session.Output("Debug: ------------ Start namespace: [" &namespace& "]. "&Len(namespace)&"  "&Len(theElement.Name)+1&"")
+'		 		Session.Output("Debug: ------------ Start namespace: [" &namespace& "]. "&Len(namespace)&"  "&Len(theElement.Name)+1&"")
 				if namespace <> "" and namespace <> theElement.Name and Len(namespace) > Len(theElement.Name)+1 then
 					nsp = Mid(namespace,Len(namespace)-Len(theElement.Name)+1,Len(theElement.Name))
-					Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+					Repository.WriteOutput "Script"," Info: namespace shortened:"&namespace &" to "&nsp, 0
 					if nsp = theElement.Name and nsp <> namespace then
-						Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+						Repository.WriteOutput "Script"," Info: namespace shortened: "&namespace &" to "&nsp, 0
 						namespace = Mid(namespace,1,Len(namespace)-Len(nsp)-1)
-						Repository.WriteOutput "Script"," namespace shortened:"&namespace &" to "&nsp, 0
+						Repository.WriteOutput "Script"," Info: namespace shortened: "&namespace &" to "&nsp, 0
 					end if
 				end if
 				if namespace = "" then
@@ -64,6 +75,7 @@ sub listKoderForEnValgtKodeliste()
 				namespace = InputBox("Please select the namespace name for the codelist.", "namespace", namespace)
 				if Mid(namespace,Len(namespace),1) = "/" then
 					namespace = Mid(namespace,1,Len(namespace)-1)
+					Repository.WriteOutput "Script"," Info: namespace shortened: "&namespace, 0
 				end if
 				call listCodelistCodes(theElement,namespace)
 			case VBcancel
@@ -81,6 +93,7 @@ sub listKoderForEnValgtKodeliste()
 		MsgBox( "This script requires a CodeList class to be selected in the Project Browser." & vbCrLf & _
 	  "Please select a CodeList class in the Project Browser and try again." )
 	end if
+	end if
 end sub
 
 sub listCodelistCodes(el,namespace)
@@ -93,8 +106,8 @@ sub listCodelistCodes(el,namespace)
 	'Repository.WriteOutput "Script", "Codelist Name: " & el.Name,0
 	
 	Set objFSO=CreateObject("Scripting.FileSystemObject")
-	outFile = getNCNameX(el.Name)&".rdf"
-	Repository.WriteOutput "Script", Now & " outFile: " & outFile, 0
+	outFile = getNCNameX(el.Name) &".rdf"
+	Repository.WriteOutput "Script", Now & " Output SKOS file: " & outFile, 0
 	Set objFile = objFSO.CreateTextFile(outFile,True,False)
 	'  får ut 16-bits unicode ved å sette True som siste flagg i kallet over.
 	if not objFSO.FolderExists(el.Name) then
@@ -103,7 +116,7 @@ sub listCodelistCodes(el,namespace)
 	Set idxFile = objFSO.CreateTextFile(el.Name & "\index.html",True,False)
 	
 	Repository.WriteOutput "Script", "Writes Codelist Name: " & el.Name & " to file " & outfile& " and subfolder " & el.Name,0
-	Repository.WriteOutput "Script", "With namespace: " & namespace,0
+	Repository.WriteOutput "Script", "with namespace: " & namespace,0
 
 	objFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
 	objFile.Write"<?xml-stylesheet type='text/xsl' href='./CodelistDictionary-skosrdfxml.xsl'?>" & vbCrLf
@@ -127,11 +140,12 @@ sub listCodelistCodes(el,namespace)
 
 	idxFile.Write"	</head>" & vbCrLf
 	idxFile.Write"	<body>" & vbCrLf
-	idxFile.Write"    <p>xml:base=" & utf8(namespace) & "</p>" & vbCrLf
-	idxFile.Write"    <p>http-URI=" & utf8(namespace) & "/" & utf8(el.Name) & "</p>" & vbCrLf
+'	idxFile.Write"    <p>xml:base=" & utf8(namespace) & "</p>" & vbCrLf
+	idxFile.Write"    <p>Kodeliste:</p>" & vbCrLf
+	idxFile.Write"    <h1>http-URI=" & utf8(namespace) & "/" & utf8(el.Name) & "</h1>" & vbCrLf
 	'idxFile.Write"    <p>kodens navn=" & utf8(uricode) & "</p>" & vbCrLf
 	if getTaggedValue(el,"SOSI_presentasjonsnavn") <> "" then
-		idxFile.Write"    <p>presentasjonsnavn=" & utf8(getTaggedValue(el,"SOSI_presentasjonsnavn")) & "</p>" & vbCrLf
+		idxFile.Write"    <p>kodelistas presentasjonsnavn=" & utf8(getTaggedValue(el,"SOSI_presentasjonsnavn")) & "</p>" & vbCrLf
 	end if
 	idxFile.Write"    <p>kodelistas definisjon=" & utf8(getCleanDefinitionText(el)) & "</p>" & vbCrLf
 
@@ -156,15 +170,15 @@ sub listCodelistCodes(el,namespace)
 		if el.Name = "Kommunenummer" or el.Name = "Fylkesnummer" then
 			Repository.WriteOutput "Script", Now & "  " & attr.Name & "." & attr.Notes, 0
 			if InStr(LCASE(attr.Notes),"utgått") then 
-				Repository.WriteOutput "Script", Now & " utgått: " & attr.Name & "." & attr.Notes, 0
+			'	Repository.WriteOutput "Script", Now & " utgått: " & attr.Name & "." & attr.Notes, 0
 				call listSKOSfraKode(attr,el.Name,namespace)
 			else
 			if Int(attr.Name) > 2099 and Int(attr.Name) < 2400 then 
-				Repository.WriteOutput "Script", Now & " svalb.: " & attr.Name & "." & attr.Notes, 0
+			'	Repository.WriteOutput "Script", Now & " svalb.: " & attr.Name & "." & attr.Notes, 0
 				call listSKOSfraKode(attr,el.Name,namespace)
 			else
 			if Int(attr.Name) > 20 and Int(attr.Name) < 24 then 
-				Repository.WriteOutput "Script", Now & " Svalb.: " & attr.Name & "." & attr.Notes, 0
+			'	Repository.WriteOutput "Script", Now & " Svalb.: " & attr.Name & "." & attr.Notes, 0
 				call listSKOSfraKode(attr,el.Name,namespace)
 			else
 				call listSKOSfraKode(attr,el.Name,namespace)
@@ -190,6 +204,7 @@ sub listCodelistCodes(el,namespace)
 	' Release the file system object
     Set objFSO= Nothing
 	Repository.WriteOutput "Script", "html5/SKOS/RDF/xml-file: "&outFile&" written",0
+	Repository.WriteOutput "Script", "Please Copy all created files and folders to the desired server location.",0
 	
 end sub
 
@@ -197,19 +212,14 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 
 	dim presentasjonsnavn, uricode, fy, tegn
 	if attr.Default <> "" then
-		'filter mot å legge meningsløse tallkoder (i initialverdier) inn i filer laget for semantiske søk
-		tegn = Mid(attr.Default,1,1)
-		if tegn = "0" or tegn = "1" or tegn = "2" or tegn = "3" or tegn = "4" or tegn = "5" or tegn = "6" or tegn = "7" or tegn = "8" or tegn = "9" Then
-			uricode = underscore(attr.Name)
-		else
-			uricode = underscore(attr.Default)
-			if attr.Default <> getNCNameX(attr.Default) then
-				Repository.WriteOutput "Script", "Trying to make legal http-URI out of initial value for this code: [" & attr.Name & " = " & attr.Default & "] -> [" & uricode & "]",0
-			end if
+		uricode = underscore(attr.Default)
+		if attr.Default <> uricode then
+			Repository.WriteOutput "Script", "Trying to make legal http-URI out of initial value for this code: [" & attr.Name & " = " & attr.Default & "] -> [" & uricode & "]",0
 		end if
 	else
 		uricode = underscore(attr.Name)
-		if attr.Name <> getNCNameX(attr.Name) then
+	'	if attr.Name <> getNCNameX(attr.Name) then
+		if attr.Name <> uricode then
 			Repository.WriteOutput "Script", "Trying to make legal http-URI out of this code: [" & attr.Name & "] -> ["& uricode &"]",0
 		end if
 	end if
@@ -243,7 +253,7 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	outCodeFile = codeList & "\" & uricode & ".rdf"
 	'Repository.WriteOutput "Script", "Debug: outCodeFile ["&outCodeFile&"]",0
 	Set objCodeFile = codeFSO.CreateTextFile(outCodeFile,True,False)
-	'  får ut 16-bits unicode ved å sette True som siste flagg i kallet over.
+	'  får ut 16-bits unicode ved å sette True som siste flagg i kallet over. Må derfor lage utf8 selv.
 	objCodeFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
 	objCodeFile.Write"<rdf:RDF" & vbCrLf
     objCodeFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
@@ -283,22 +293,51 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	htmFile.Write"	  <title>" & utf8(codelist) & " " & utf8(uricode) & "</title>" & vbCrLf
 	htmFile.Write"	</head>" & vbCrLf
 	htmFile.Write"	<body>" & vbCrLf
-	htmFile.Write"    <p>xml:base = " & utf8(namespace) & "/" & utf8(codelist) & "</p>" & vbCrLf
-	htmFile.Write"    <p>http-URI = " & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "</p>" & vbCrLf
-	htmFile.Write"    <p>kodens navn = " & utf8(uricode) & "</p>" & vbCrLf
-	htmFile.Write"    <p>presentasjonsnavn = " & utf8(presentasjonsnavn) & "</p>" & vbCrLf
+'	htmFile.Write"    <p>xml:base = " & utf8(namespace) & "/" & utf8(codelist) & "</p>" & vbCrLf
+	htmFile.Write"    <p>Kodelistekode:</p>" & vbCrLf
+	htmFile.Write"    <h1>http-URI = " & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "</h1>" & vbCrLf
+	htmFile.Write"    <p>kodens tekniske navn = " & utf8(uricode) & "</p>" & vbCrLf
+	htmFile.Write"    <p>kodens presentasjonsnavn = " & utf8(presentasjonsnavn) & "</p>" & vbCrLf
 	htmFile.Write"    <p>kodens definisjon = " & utf8(getCleanDefinitionText(attr)) & "</p>" & vbCrLf
 	'htmFile.Write"    <p>code description=" & attr.Notes & "</p>" & vbCrLf
+
 	if getTaggedValue(attr,"SOSI_verdi") <> "" then
 		htmFile.Write"    <p>SOSI_verdi = " & utf8(getTaggedValue(attr,"SOSI_verdi")) & "</p>" & vbCrLf
 	end if
+	if getTaggedValue(attr,"oppdateringsdato") <> "" then
+		htmFile.Write"    <p>oppdateringsdato = " & utf8(getTaggedValue(attr,"oppdateringsdato")) & "</p>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"gyldigFra") <> "" then
+		htmFile.Write"    <p>gyldig fra = " & utf8(getTaggedValue(attr,"gyldigFra")) & "</p>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"gyldigTil") <> "" then
+		htmFile.Write"    <p>gyldig til = " & utf8(getTaggedValue(attr,"gyldigTil")) & "</p>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"erstatningFor") <> "" then
+		htmFile.Write"    <p>erstatning for = " & utf8(getTaggedValue(attr,"erstatningFor")) & "</p>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"utvekslingsalias") <> "" then
+		htmFile.Write"    <p>utvekslingsalias = " & utf8(getTaggedValue(attr,"utvekslingsalias")) & "</p>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"SOSI_elementstatus") <> "" then
+		htmFile.Write"    <p>SOSI_elementstatus = " & utf8(getTaggedValue(attr,"SOSI_elementstatus")) & "</p>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"SOSI_bildeAvModellelement") <> "" then
+		htmFile.Write"    <p>SOSI_bildeAvModellelement = " & utf8(getTaggedValue(attr,"SOSI_bildeAvModellelement")) & "</p>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"ccccccccccc") <> "" then
+		htmFile.Write"    <p>ccccccccccc = " & utf8(getTaggedValue(attr,"ccccccccccc")) & "</p>" & vbCrLf
+	end if
 	if getTaggedValue(attr,"designation") <> "" then
-		htmFile.Write"    <p>kodens engelske tekniske navn = " & Mid(utf8(getTaggedValue(attr,"designation")),2,Len(getTaggedValue(attr,"designation"))-4) & "</p>" & vbCrLf
+		htmFile.Write"    <p>kodens engelske navn = " & Mid(utf8(getTaggedValue(attr,"designation")),2,Len(getTaggedValue(attr,"designation"))-4) & "</p>" & vbCrLf
 	end if
 	if getTaggedValue(attr,"definition") <> "" then
 		htmFile.Write"    <p>kodens engelske definisjon = " & Mid(utf8(getTaggedValue(attr,"definition")),2,Len(getTaggedValue(attr,"definition"))-4) & "</p>" & vbCrLf
 	end if
-	htmFile.Write"    <p>lenke til SKOS-fil: <a href=" & utf8(uricode) & ".rdf>" & utf8(uricode) & ".rdf</a></p>" & vbCrLf
+	htmFile.Write"    <p>lenke til SKOS-fil: <a href=" & utf8(namespace) & "/" & utf8(uricode) & ".rdf>" & utf8(uricode) & ".rdf</a></p>" & vbCrLf
+
+	htmFile.Write"    <p>Generert med skriptet listSKOSfraKodeliste " & getCurrentDateTime() & "</p>" & vbCrLf
+
 	htmFile.Write"  </body>" & vbCrLf
 	htmFile.Write"</html>" & vbCrLf
 
@@ -309,7 +348,8 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	'add one line in index.htm <a href="land/nasjk.m4a" alt="nasjk.m4a">nÃ¥sjk</a>
 	'idxFile.Write"    <p>kode <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "/a>	" & utf8(uricode) & "</p> - <p>" & utf8(getCleanDefinitionText(attr)) & "</p>"& vbCrLf
 	'idxFile.Write"    <p>kode <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & "/a>	" & utf8(presentasjonsnavn) & "</p> - <p>" & utf8(getCleanDefinitionText(attr)) & "</p>"& vbCrLf
-	idxFile.Write"    <td>presentasjonsnavn: <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & ">	" & utf8(presentasjonsnavn) & "</a></td><td>" & utf8(getCleanDefinitionText(attr)) & "</td></tr><tr>" & vbCrLf
+	'idxFile.Write"    <td>presentasjonsnavn: <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & ">	" & utf8(presentasjonsnavn) & "</a></td><td>" & utf8(getCleanDefinitionText(attr)) & "</td></tr><tr>" & vbCrLf
+	idxFile.Write"    <td>teknisk navn: <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & ">  "& utf8(uricode) & "</a></td><td> presentasjonsnavn: " & utf8(presentasjonsnavn) & "</a></td><td>" & utf8(getCleanDefinitionText(attr)) & "</td></tr><tr>" & vbCrLf
 
 	
 End Sub
@@ -562,46 +602,44 @@ function underscore(name)
 
 End function
 
+Function getCurrentDateTime()
+	getCurrentDateTime = ""
+					dim m,d,t,min,sek,tm,td,tt,tmin,tsek
+					m = Month(Date)
+					if m < 10 then
+						tm = "0" & FormatNumber(m,0,0,0,0)
+					else
+						tm = FormatNumber(m,0,0,0,0)
+					end if
+					d = Day(Date)
+					if d < 10 then
+						td = "0" & FormatNumber(d,0,0,0,0)
+					else
+						td = FormatNumber(d,0,0,0,0)
+					end if
+					t = Hour(Time)
+					if t < 10 then
+						tt = "0" & FormatNumber(t,0,0,0,0)
+					else
+						tt = FormatNumber(t,0,0,0,0)
+					end if
+					if t = 0 then tt = "00"
+					min = Minute(Time)
+					if min < 10 then
+						tmin = "0" & FormatNumber(min,0,0,0,0)
+					else
+						tmin = FormatNumber(min,0,0,0,0)
+					end if
+					if min = 0 then tmin = "00"
+					sek = Second(Time)
+					if sek < 10 then
+						tsek = "0" & FormatNumber(sek,0,0,0,0)
+					else
+						tsek = FormatNumber(sek,0,0,0,0)
+					end if
+					if sek = 0 then tsek = "00"
+	getCurrentDateTime = Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "+01:00"
+end function
 
-'Private Declare Function WideCharToMultiByte Lib "kernel32" ( _
-'    ByVal CodePage As Long, _
-'    ByVal dwFlags As Long, _
-'    ByVal lpWideCharStr As Long, _
-'    ByVal cchWideChar As Long, _
-'    ByVal lpMultiByteStr As Long, _
-'    ByVal cbMultiByte As Long, _
-'    ByVal lpDefaultChar As Long, _
-'    ByVal lpUsedDefaultChar As Long) As Long
-'    
-'' CodePage constant for UTF-8
-'Private Const CP_UTF8 = 65001''''''
-'
-'''' Return byte array with VBA "Unicode" string encoded in UTF-8
-'Public Function Utf8BytesFromString(strInput As String) As Byte()
-'    Dim nBytes As Long
-'    Dim abBuffer() As Byte
-'    ' Get length in bytes *including* terminating null
-'    nBytes = WideCharToMultiByte(CP_UTF8, 0&, ByVal StrPtr(strInput), -1, vbNull, 0&, 0&, 0&)
-'    ' We don't want the terminating null in our byte array, so ask for `nBytes-1` bytes
-'    ReDim abBuffer(nBytes - 2)  ' NB ReDim with one less byte than you need
-'    nBytes = WideCharToMultiByte(CP_UTF8, 0&, ByVal StrPtr(strInput), -1, ByVal VarPtr(abBuffer(0)), nBytes - 1, 0&, 0&)
-'    Utf8BytesFromString = abBuffer
-'End Function
-
-'CStringA ConvertUnicodeToUTF8(const CStringW& uni)
-'{
-'    if (uni.IsEmpty()) return ""; // nothing to do
-'    CStringA utf8;
-'    int cc=0;
-'    // get length (cc) of the new multibyte string excluding the \0 terminator first
-'    if ((cc = WideCharToMultiByte(CP_UTF8, 0, uni, -1, NULL, 0, 0, 0) - 1) > 0)
-'    { 
-'        // convert
-'        char *buf = utf8.GetBuffer(cc);
-'        if (buf) WideCharToMultiByte(CP_UTF8, 0, uni, -1, buf, cc, 0, 0);
-'        utf8.ReleaseBuffer();
-'    }
-'    return utf8;
-'}
 
 listKoderForEnValgtKodeliste
