@@ -2,15 +2,21 @@ option explicit
 
 !INC Local Scripts.EAConstants-VBScript
 
-'
+' scriptnavn: leggInnGMLTagger
+' formål:	  legger inn nødvendige tagged values for generering av GML-Applikasjonsskjema
 ' Script Name: 	leggInnGMLformatTagger (AddMissingTags)
 ' Author: 		Magnus Karge / Kent Jonsrud
 ' Purpose: 		To add missing tags on model elements 
 '               (application schemas, feature types & attributes, data types & attributes,code lists, enumerations)
 '				for genetrating GML-ApplicationSchema as defined in the Norwegian standard "SOSI regler for UML-modellering"
 ' Date: 		2016-08-24     Original:11.09.2015   + Moddet av Kent 2016-03-09/08-24: Legger nå inn forslag til verdi i alle taggene!
-' scriptnavn: leggInnGMLTagger
 
+' Date: 		2021-02-09  Går nå gjennom alle underpakker
+'							setter inn sequenceNumber på alle navigerbare assosiasjonsender (med roller)
+'							setter inn inLineOrByReference = byReference på navigerbare assosiasjonsender mot FeatureTypes
+'
+'
+'	TBD: ta bort unødvendig utskrift av tagger som allerede finnes
 
 ' Project Browser Script main function
 sub OnProjectBrowserScript()
@@ -33,8 +39,8 @@ sub OnProjectBrowserScript()
 			set thePackage = Repository.GetTreeSelectedObject()
 			'Msgbox "The selected package is: [" & thePackage.Name &"]. Starting search for elements with missing tags."
 			dim box, mess
-			mess = 	"Creates tags needed for creating GML format from model elements. Script version 2016-08-24." & vbCrLf
-			mess = mess + "NOTE! This script may add content of all elements in package: "& vbCrLf & "[«" & thePackage.element.Stereotype & "» " & thePackage.Name & "]."
+			mess = 	"Creates tags needed for generating GML format from model elements. Script version 2021-02-09." & vbCrLf
+			mess = mess + "NOTE! This script may add content to all model elements in package: "& vbCrLf & "[«" & thePackage.element.Stereotype & "» " & thePackage.Name & "]."
 
 			box = Msgbox (mess, vbOKCancel)
 			select case box
@@ -81,7 +87,8 @@ end sub
 '@param[in]: package (EA.package) The package containing elements with potentially missing tags.
 			Dim ASpackage
 sub FindElementsWithMissingTagsInPackage(package)
-
+			dim conn as EA.Collection
+			dim connEnd as EA.ConnectorEnd
 			Session.Output("The current package is: " & package.Name)
 			'if the current package has stereotype applicationSchema then check tagged values
 			if package.element.stereotype = "applicationSchema" or package.element.stereotype = "ApplicationSchema" then
@@ -195,10 +202,32 @@ sub FindElementsWithMissingTagsInPackage(package)
 					Next
 					' traverse all roles: tbd
 
-					' reset sequenceNumber to the sequence the attributes currently have in the model
-					' resequenceAttributes()
-					' reset sequenceNumber to a sequence after all the attributes, keep the old internal role sequence
-					' resequenceRoles()
+					for each conn in currentElement.Connectors
+						if conn.Type = "Generalization" or conn.Type = "Realisation" or conn.Type = "NoteLink" then
+
+						else
+							if conn.SupplierEnd.Navigable = "Navigable" then
+								Call TVSetEndTaggedValue(currentElement.Name, conn.SupplierEnd, "sequenceNumber", "")
+								if LCase(Repository.GetElementByID(conn.SupplierID).Stereotype) = "featuretype" then 
+									Call TVSetEndTaggedValue(currentElement.Name, conn.SupplierEnd, "inLineOrByReference", "byReference")
+								end if
+								conn.SupplierEnd.Update()
+							end if
+							if conn.ClientEnd.Navigable = "Navigable" then
+								Call TVSetEndTaggedValue(currentElement.Name, conn.ClientEnd, "sequenceNumber", "")
+								if LCase(Repository.GetElementByID(conn.ClientID).Stereotype) = "featuretype" then 
+									Call TVSetEndTaggedValue(currentElement.Name, conn.ClientEnd, "inLineOrByReference", "byReference")
+								end if
+								conn.ClientEnd.Update()
+							end if
+						end if
+					next
+									
+									
+								' reset sequenceNumber to the sequence the attributes currently have in the model (?)
+								' resequenceAttributes()
+								' reset sequenceNumber to a sequence after all the attributes, keep the old internal role sequence
+								' resequenceRoles()
 
 
 				end if
@@ -207,6 +236,11 @@ sub FindElementsWithMissingTagsInPackage(package)
 			next
 	Session.Output( "Done with package ["& package.Name &"]")
 
+	dim subP as EA.Package
+	for each subP in package.packages
+	    call FindElementsWithMissingTagsInPackage(subP)
+	next
+	
 end sub
 
 
@@ -215,6 +249,37 @@ end sub
 ' name and value. If a TaggedValue already exists with the specified name then nothing will be changed.
 '
 '
+sub TVSetEndTaggedValue( ownerElementName, connectorEnd, taggedValueName, theValue)
+	'Session.Output( "  Checking if tagged value [" & taggedValueName & "] exists")
+	if not connectorEnd is nothing and Len(taggedValueName) > 0 then
+		dim newTaggedValue as EA.RoleTag
+		set newTaggedValue = nothing
+		dim taggedValueExists, taggedValueValue
+		taggedValueExists = False
+		taggedValueValue = ""
+
+		'check if the element has a tagged value with the provided name
+		dim currentExistingTaggedValue AS EA.RoleTag
+		dim taggedValuesCounter
+		for taggedValuesCounter = 0 to connectorEnd.TaggedValues.Count - 1
+			set currentExistingTaggedValue = connectorEnd.TaggedValues.GetAt(taggedValuesCounter)
+			if currentExistingTaggedValue.Tag = taggedValueName then
+				taggedValueValue = currentExistingTaggedValue.Value
+				taggedValueExists = True
+			end if
+		next
+
+		'if the element does not contain a tagged value with the provided name, create a new one
+		if not taggedValueExists = True then
+			set newTaggedValue = connectorEnd.TaggedValues.AddNew( taggedValueName, theValue )
+			newTaggedValue.Update()
+			Session.Output( "    ADDED To " & ownerElementName & " " & connectorEnd.Role & " tagged value [" & taggedValueName & " = " & theValue & "]")
+		else
+			Session.Output( "    FOUND On " & ownerElementName & " " & connectorEnd.Role & " tagged value [" & taggedValueName & " = " & taggedValueValue & "]")
+		end if
+	end if
+end sub
+
 sub TVSetElementTaggedValue( ownerElementName, theElement, taggedValueName, theValue)
 	'Session.Output( "  Checking if tagged value [" & taggedValueName & "] exists")
 	if not theElement is nothing and Len(taggedValueName) > 0 then
