@@ -13,7 +13,8 @@ option explicit
 ' version:		2020-04-15 attributes and associations to abstract classes
 ' version:		2020-11-03 inherited roles point to (first of) concrete subtypes of abstract supertype
 ' version:		2020-11-19 able to select 2D epsg/0/4326 or 3D epsg/0/5972 (25832+NN2000) geometries (and temporary test of SOSI-format-example)
-' version:		2020-11-20 elaborate on the CompositeXxx (and soon MultiXxx?)
+' version:		2020-11-20 elaborate on the CompositeXxx 
+' version:		2020-11-21 gml:id only on content of CompositeXxx and EPSG/0/4326
 ' author: 		Kent Jonsrud
 '
 ' 				candidates for manual improvement:
@@ -21,7 +22,7 @@ option explicit
 ' TBD:			multiple codelist codes and enumeration codes should have first and second code, now it has first code twice
 ' TBD:          utf8 (for all codes with any sami characters) does not survive the clipboard, must write directly to file
 ' TBD:          utf8 on model names in the gml:Solid-part
-' TBD:			Union ok?
+' TBD:			Union ok? (and soon MultiXxx?)
 ' TBD:			On attributes with multiplicity and codelist codes the second instance should be the second code in the list(?)
 ' TBD:			On attributes with externally managed codelist codes read the actual codes from the http-URI on the attribute
 ' TBD:			association [..*] pointing to supertype should make one xlink to each subtype
@@ -510,7 +511,8 @@ sub listGeometryType(elementName, geomtype, indent)
 		if geomtype = "Punkt" or geomtype = "GM_Point" then
 				pnteller = pnteller + 1
 				if epsg = 5972 then
-					SessionOutput(indent & "<gml:Point gml:id=""" & elementName & ".pn." & pnteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+'					SessionOutput(indent & "<gml:Point gml:id=""" & elementName & ".pn." & pnteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "<gml:Point srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
 					SessionOutput(indent & "  <gml:pos>568497.68 6662024.15 90.67</gml:pos>")
 				else
 					SessionOutput(indent & "<gml:Point gml:id=""" & elementName & ".pn." & pnteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
@@ -524,7 +526,8 @@ sub listGeometryType(elementName, geomtype, indent)
 		if geomtype = "Kurve" or geomtype = "GM_Curve" then
 				cuteller = cuteller + 1
 				if epsg = 5972 then
-					SessionOutput(indent & "<gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+'					SessionOutput(indent & "<gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "<gml:LineString srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
 					SessionOutput(indent & "  <gml:posList>568597.68 6662024.15 90.67 568497.68 6662024.15 90.67</gml:posList>")
 				else
 					SessionOutput(indent & "<gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
@@ -534,8 +537,9 @@ sub listGeometryType(elementName, geomtype, indent)
 		end if
 		if geomtype = "GM_CompositeCurve" then
 				cuteller = cuteller + 1
-				SessionOutput(indent & "<gml:Curve gml:id = """ & elementName & ".cc." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
-				SessionOutput(indent & "  <gml:segments>")
+'				SessionOutput(indent & "<gml:Curve gml:id = """ & elementName & ".cc." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+				SessionOutput(indent & "<gml:CompositeCurve>")
+				SessionOutput(indent & "  <gml:curveMember>")
 
 
 				if epsg = 5972 then
@@ -547,14 +551,27 @@ sub listGeometryType(elementName, geomtype, indent)
 				end if
 				SessionOutput(indent & "    </gml:LineString>")
 
-				SessionOutput(indent & "  </gml:segments>")
-				SessionOutput(indent & "</gml:Curve>")
+				SessionOutput(indent & "  </gml:curveMember>")
+				SessionOutput(indent & "</gml:CompositeCurve>")
+'eller   <gml:CompositeCurve>
+'          <gml:curveMember>
+'            <gml:Curve gml:id = "PblTiltak.cc.1" srsName="http://www.opengis.net/def/crs/epsg/0/5972" srsDimension="3">
+'              <gml:segments>
+'                <gml:LineStringSegment>
+'                 <gml:posList>568597.68 6662024.15 90.67 568497.68 6662024.15 90.67</gml:posList>
+'                </gml:LineStringSegment>
+'              </gml:segments>
+'            </gml:Curve>
+'          </gml:curveMember>
+'        </gml:CompositeCurve>
+		
 		end if
 		if geomtype = "Flate" or geomtype = "GM_Surface" then
 '				SessionOutput(indent & "<gml:Surface gml:id = """ & elementName & ".su.1"" srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
 				suteller = suteller + 1
 				if epsg = 5972 then
-					SessionOutput(indent & "<gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+'					SessionOutput(indent & "<gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "<gml:Polygon srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
 				else
 					SessionOutput(indent & "<gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
 				end if
@@ -569,9 +586,29 @@ sub listGeometryType(elementName, geomtype, indent)
 				SessionOutput(indent & "  </gml:exterior>")
 				SessionOutput(indent & "</gml:Polygon>")
 '				SessionOutput(indent & "</gml:Surface>")
+
+'
+'eller	<gml:CompositeSurface srsName="http://www.opengis.net/def/crs/epsg/0/4258" gml:id="Havneavsnitt.CS111111">
+'	 		<gml:surfaceMember>
+' 				<gml:Surface srsName="http://www.opengis.net/def/crs/epsg/0/4258" gml:id="Havneavsnitt.S111111">
+' 					<gml:patches>
+' 						<gml:PolygonPatch>
+' 							<gml:exterior>
+' 								<gml:Ring>
+' 									<gml:curveMember xlink:href="Havneavsnittgrense.C444444"/>
+' 								</gml:Ring>
+' 							</gml:exterior>
+' 						</gml:PolygonPatch>
+' 					</gml:patches>
+' 				</gml:Surface>
+' 			</gml: surfaceMember >
+' 		</gml:CompositeSurface>
+
+
 		end if
 		if geomtype = "GM_CompositeSurface" then
- 				SessionOutput(indent & "<gml:Surface gml:id = """ & elementName & ".cs." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+' 				SessionOutput(indent & "<gml:CompositeSurface gml:id = """ & elementName & ".cs." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+ 				SessionOutput(indent & "<gml:CompositeSurface>")
  				SessionOutput(indent & "  <gml:surfaceMember>")
 				suteller = suteller + 1
 				if epsg = 5972 then
@@ -590,7 +627,27 @@ sub listGeometryType(elementName, geomtype, indent)
 				SessionOutput(indent & "      </gml:exterior>")
 				SessionOutput(indent & "    </gml:Polygon>")
  				SessionOutput(indent & "  </gml:surfaceMember>")
- 				SessionOutput(indent & "</gml:Surface>")
+ 				SessionOutput(indent & "</gml:CompositeSurface>")
+
+'eller delt mellom flere objekter
+'        <gml:CompositeSurface gml:id = "PblTiltak.cs.0" srsName="http://www.opengis.net/def/crs/epsg/0/5972" srsDimension="3">
+'          <gml:surfaceMember>
+'            <gml:Surface gml:id = "PblTiltak.su.0" srsName="http://www.opengis.net/def/crs/epsg/0/5972" srsDimension="3">
+'              <gml:patches>
+'                <gml:PolygonPatch>
+'                  <gml:exterior>
+'                    <gml:Ring>
+'                      <gml:curveMember xlink:href="#Tiltaksgrense.cc.2"/>
+'                    </gml:Ring>
+'                  </gml:exterior>
+'                </gml:PolygonPatch>
+'              </gml:patches>
+'            </gml:Surface>
+'          </gml:surfaceMember>
+'        </gml:CompositeSurface>
+				
+				
+				
 		end if
 		if geomtype = "GM_Solid" or geomtype = "GM_CompositeSolid" then
 			'getSosiGeometritype = "NO GO"
