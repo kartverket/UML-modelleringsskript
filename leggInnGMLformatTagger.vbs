@@ -13,7 +13,7 @@ option explicit
 
 ' Date: 		2021-02-09  Går nå gjennom alle underpakker
 '							setter inn sequenceNumber på alle navigerbare assosiasjonsender (med roller)
-'							setter inn inLineOrByReference = byReference på navigerbare assosiasjonsender mot FeatureTypes
+'							setter inn inlineOrByReference = byReference på navigerbare assosiasjonsender mot FeatureTypes
 '
 '
 '	TBD: ta bort unødvendig utskrift av tagger som allerede finnes
@@ -209,14 +209,14 @@ sub FindElementsWithMissingTagsInPackage(package)
 							if conn.SupplierEnd.Navigable = "Navigable" then
 								Call TVSetEndTaggedValue(currentElement.Name, conn.SupplierEnd, "sequenceNumber", "")
 								if LCase(Repository.GetElementByID(conn.SupplierID).Stereotype) = "featuretype" then 
-									Call TVSetEndTaggedValue(currentElement.Name, conn.SupplierEnd, "inLineOrByReference", "byReference")
+									Call TVSetEndTaggedValue(currentElement.Name, conn.SupplierEnd, "inlineOrByReference", "byReference")
 								end if
 								conn.SupplierEnd.Update()
 							end if
 							if conn.ClientEnd.Navigable = "Navigable" then
 								Call TVSetEndTaggedValue(currentElement.Name, conn.ClientEnd, "sequenceNumber", "")
 								if LCase(Repository.GetElementByID(conn.ClientID).Stereotype) = "featuretype" then 
-									Call TVSetEndTaggedValue(currentElement.Name, conn.ClientEnd, "inLineOrByReference", "byReference")
+									Call TVSetEndTaggedValue(currentElement.Name, conn.ClientEnd, "inlineOrByReference", "byReference")
 								end if
 								conn.ClientEnd.Update()
 							end if
