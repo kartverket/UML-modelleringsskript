@@ -15,6 +15,7 @@ option explicit
 ' version:		2020-11-19 able to select 2D epsg/0/4326 or 3D epsg/0/5972 (25832+NN2000) geometries (and temporary test of SOSI-format-example)
 ' version:		2020-11-20 elaborate on the CompositeXxx 
 ' version:		2020-11-21 gml:id only on content of CompositeXxx and EPSG/0/4326
+' version:		2021-04-28/29 each new geometry example to move aside from the previous
 ' author: 		Kent Jonsrud
 '
 ' 				candidates for manual improvement:
@@ -33,10 +34,20 @@ option explicit
 
 ' TBN:          Important vbs-snag: decimal point character for numbers need to be set to "." in the regional settings
 
-		DIM epsg, debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller
-		debug = false
-		epsg = 5972
+	DIM epsg, debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller, eastoffset, eastdelta
+	'roof - astarting on 1
+	dim p1(18,2)
+	'walls - starting on 1
+	dim b1(29,2)
+	'surface - starting on 0
+	dim s1(7,2)
+	'point
+	dim r1, r2, r3
+	'curve - starting on 1
+	dim q1(5), q2(5), q3(5)
 		
+
+
 sub listGMLExample()
 	' Show and clear the script output window
 	Repository.EnsureOutputVisible "Script"
@@ -90,50 +101,11 @@ sub listGMLExample()
 					'SessionOutput("  timeStamp=""" & Year(Date) & "-" & LPad(Month(Date),"0",2) & "-" & Day(Date) & "T" & Hour(Time) & ":" & Minute(Time) & ":" & Second(Time) & "Z""")
 
 
-					' I just wanted a correct xml timestamp to document when the script was run
-					dim m,d,t,min,sek,tm,td,tt,tmin,tsek
-					m = Month(Date)
-					if m < 10 then
-						tm = "0" & FormatNumber(m,0,0,0,0)
-					else
-						tm = FormatNumber(m,0,0,0,0)
-					end if
-					d = Day(Date)
-					if d < 10 then
-						td = "0" & FormatNumber(d,0,0,0,0)
-					else
-						td = FormatNumber(d,0,0,0,0)
-					end if
-					t = Hour(Time)
-					if t < 10 then
-						tt = "0" & FormatNumber(t,0,0,0,0)
-					else
-						tt = FormatNumber(t,0,0,0,0)
-					end if
-					if t = 0 then tt = "00"
-					min = Minute(Time)
-					if min < 10 then
-						tmin = "0" & FormatNumber(min,0,0,0,0)
-					else
-						tmin = FormatNumber(min,0,0,0,0)
-					end if
-					if min = 0 then tmin = "00"
-					sek = Second(Time)
-					if sek < 10 then
-						tsek = "0" & FormatNumber(sek,0,0,0,0)
-					else
-						tsek = FormatNumber(sek,0,0,0,0)
-					end if
-					if sek = 0 then tsek = "00"
-					SessionOutput("  timeStamp=""" & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z""")
+					SessionOutput("  timeStamp=""" & nao() & """")
 					SessionOutput("  numberMatched=""unknown""")
 					SessionOutput("  numberReturned=""0"">")
-					pnteller=0
-					cuteller=0
-					suteller=0
-					soteller=0
-					obteller=0
 
+					call initCoord()
 					call listFeatureTypes(theElement)
 
 					SessionOutput("</wfs:FeatureCollection>")
@@ -158,15 +130,13 @@ sub listGMLExample()
 					Repository.ClearOutput "Error"
 					namespace = "http://schemas.someserver.org/someproduct"
 					kortnavn = "shortNamespace"
-					pnteller=0
-					cuteller=0
-					suteller=0
-					soteller=0
-					obteller=0
+					
+					SessionOutput("  <!-- timeStamp=""" & nao() & """-->")
 					SessionOutput("  <wfs:member>")
 					SessionOutput("    <" & utf8(theElement.Name) & " gml:id="""& utf8(theElement.Name) & ".1"">")
 					indent = "      "
 					
+					call initCoord()
 					call listDatatypes(theElement.Name,theElement,indent)
 					
 					SessionOutput("    </" & utf8(theElement.Name) & ">")
@@ -333,6 +303,7 @@ sub listDatatypes(ftname,element,indent)
 					call listGeometryType(ftname, attr.Type, indent & "  ")			
 					SessionOutput(indent & "</" & utf8(attr.Name) & ">")
 				end if
+				eastoffset = eastoffset + eastdelta
 			end if
 
 			'if Union then jump out of the loop after first(!) variant, this does not support well Unions having several different datatypes 
@@ -473,7 +444,7 @@ function listBaseType(ftname,umlname, umltype)
 			if umlname = "lokalId" or umlname = "localId" then
 				listBaseType = ftname & ".1"
 			else
-				listBaseType = "Some text"
+				listBaseType = "Some meaningful text"
 			end if
 		end if
 	end if
@@ -481,16 +452,16 @@ function listBaseType(ftname,umlname, umltype)
 		listBaseType = "true"
 	end if
 	if umltype = "Date" then
-		listBaseType = "2020-11-19"
+		listBaseType = "2021-04-29"
 	end if
 	if umltype = "DateTime" then
-		listBaseType = "2020-11-19T21:08:00Z"
+		listBaseType = "2021-04-29T21:08:00Z"
 	end if
 	if umltype = "Integer" then
 		listBaseType = "42"
 	end if
 	if umltype = "Real" then
-		listBaseType = "92.92"
+		listBaseType = "21.21"
 	end if
 end function
 
@@ -498,11 +469,15 @@ end function
 function listCodeType(element)
 	listCodeType = "*"
 	dim attr as EA.Attribute
-	for each attr in element.Attributes
-		listCodeType = attr.Name
-		if attr.Default <> "" then listCodeType = attr.Default
-		exit for
-	next
+	if element.Attributes.Count = 0 then
+		listCodeType = "someExternalRegistryCode"
+	else
+		for each attr in element.Attributes
+			listCodeType = attr.Name
+			if attr.Default <> "" then listCodeType = attr.Default
+			exit for
+		next
+	end if
 end function
 
 
@@ -513,7 +488,8 @@ sub listGeometryType(elementName, geomtype, indent)
 				if epsg = 5972 then
 '					SessionOutput(indent & "<gml:Point gml:id=""" & elementName & ".pn." & pnteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
 					SessionOutput(indent & "<gml:Point srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
-					SessionOutput(indent & "  <gml:pos>568497.68 6662024.15 90.67</gml:pos>")
+'					SessionOutput(indent & "  <gml:pos>568497.68 6662024.15 90.67</gml:pos>")
+					SessionOutput(indent & "  <gml:pos>"&r1+eastoffset&" "&r2&" "&r3&"</gml:pos>")
 				else
 					SessionOutput(indent & "<gml:Point gml:id=""" & elementName & ".pn." & pnteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
 					SessionOutput(indent & "  <gml:pos>60.02 10.1</gml:pos>")
@@ -523,12 +499,16 @@ sub listGeometryType(elementName, geomtype, indent)
 		if geomtype = "Sverm" or geomtype = "GM_MultiPoint" then
 			'getSosiGeometritype = "SVERM"
 		end if
+
+
+		
 		if geomtype = "Kurve" or geomtype = "GM_Curve" then
 				cuteller = cuteller + 1
 				if epsg = 5972 then
 '					SessionOutput(indent & "<gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
 					SessionOutput(indent & "<gml:LineString srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
-					SessionOutput(indent & "  <gml:posList>568597.68 6662024.15 90.67 568497.68 6662024.15 90.67</gml:posList>")
+'					SessionOutput(indent & "  <gml:posList>568597.68 6662024.15 90.67 568497.68 6662024.15 90.67</gml:posList>")
+					SessionOutput(indent & "  <gml:posList>"&q1(1)+eastoffset&" "&q2(1)&" "&q3(1)&" "&q1(2)+eastoffset&" "&q2(2)&" "&q3(2)&" "&q1(3)+eastoffset&" "&q2(3)&" "&q3(3)&" "&q1(4)+eastoffset&" "&q2(4)&" "&q3(4)&"</gml:posList>")
 				else
 					SessionOutput(indent & "<gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
 					SessionOutput(indent & "  <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2</gml:posList>")
@@ -544,7 +524,8 @@ sub listGeometryType(elementName, geomtype, indent)
 
 				if epsg = 5972 then
 					SessionOutput(indent & "    <gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
-					SessionOutput(indent & "     <gml:posList>568597.68 6662024.15 90.67 568497.68 6662024.15 90.67</gml:posList>")
+'					SessionOutput(indent & "     <gml:posList>568597.68 6662024.15 90.67 568497.68 6662024.15 90.67</gml:posList>")
+					SessionOutput(indent & "    <gml:posList>"&q1(1)+eastoffset&" "&q2(1)&" "&q3(1)&" "&q1(2)+eastoffset&" "&q2(2)&" "&q3(2)&" "&q1(3)+eastoffset&" "&q2(3)&" "&q3(3)&" "&q1(4)+eastoffset&" "&q2(4)&" "&q3(4)&"</gml:posList>")
 				else
 					SessionOutput(indent & "    <gml:LineString gml:id=""" & elementName & ".cu." & cuteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
 					SessionOutput(indent & "      <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2</gml:posList>")
@@ -571,20 +552,22 @@ sub listGeometryType(elementName, geomtype, indent)
 				suteller = suteller + 1
 				if epsg = 5972 then
 '					SessionOutput(indent & "<gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
-					SessionOutput(indent & "<gml:Polygon srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+		'			call generateSurfaceExample(elementName, indent, height)
+					call generatePolygonExample(elementName, indent, height)
+'					SessionOutput(indent & "<gml:Polygon srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
 				else
 					SessionOutput(indent & "<gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
-				end if
-				SessionOutput(indent & "  <gml:exterior>")
-				SessionOutput(indent & "    <gml:LinearRing>")
-				if epsg = 5972 then
-					SessionOutput(indent & "      <gml:posList>568444.03 6661981.48 89.20 568506.41 6662009.49 91.20 568525.84 6661998.97 90.80 568529.64 6662001.85 91.00 568535.02 6662054.94 91.50 568476.33 6662067.85 90.50 568466.50 6662054.49 90.50 568444.03 6661981.48 89.20</gml:posList>")
-				else
+					SessionOutput(indent & "  <gml:exterior>")
+					SessionOutput(indent & "    <gml:LinearRing>")
 					SessionOutput(indent & "      <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2 60.02 10.1</gml:posList>")
+					SessionOutput(indent & "    </gml:LinearRing>")
+					SessionOutput(indent & "  </gml:exterior>")
+					SessionOutput(indent & "</gml:Polygon>")
 				end if
-				SessionOutput(indent & "    </gml:LinearRing>")
-				SessionOutput(indent & "  </gml:exterior>")
-				SessionOutput(indent & "</gml:Polygon>")
+'				if epsg = 5972 then
+'					SessionOutput(indent & "      <gml:posList>568444.03 6661981.48 89.20 568506.41 6662009.49 91.20 568525.84 6661998.97 90.80 568529.64 6662001.85 91.00 568535.02 6662054.94 91.50 568476.33 6662067.85 90.50 568466.50 6662054.49 90.50 568444.03 6661981.48 89.20</gml:posList>")
+'				end if
+
 '				SessionOutput(indent & "</gml:Surface>")
 
 '
@@ -607,27 +590,10 @@ sub listGeometryType(elementName, geomtype, indent)
 
 		end if
 		if geomtype = "GM_CompositeSurface" then
-' 				SessionOutput(indent & "<gml:CompositeSurface gml:id = """ & elementName & ".cs." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
- 				SessionOutput(indent & "<gml:CompositeSurface>")
- 				SessionOutput(indent & "  <gml:surfaceMember>")
-				suteller = suteller + 1
-				if epsg = 5972 then
-					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
-				else
-					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/4258"">")
-				end if
-				SessionOutput(indent & "      <gml:exterior>")
-				SessionOutput(indent & "        <gml:LinearRing>")
-				if epsg = 5972 then
-					SessionOutput(indent & "          <gml:posList>568444.03 6661981.48 89.20 568506.41 6662009.49 91.20 568525.84 6661998.97 90.80 568529.64 6662001.85 91.00 568535.02 6662054.94 91.50 568476.33 6662067.85 90.50 568466.50 6662054.49 90.50 568444.03 6661981.48 89.20</gml:posList>")
-				else
-					SessionOutput(indent & "          <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2 60.02 10.1</gml:posList>")
-				end if
-				SessionOutput(indent & "        </gml:LinearRing>")
-				SessionOutput(indent & "      </gml:exterior>")
-				SessionOutput(indent & "    </gml:Polygon>")
- 				SessionOutput(indent & "  </gml:surfaceMember>")
- 				SessionOutput(indent & "</gml:CompositeSurface>")
+		
+			call generateCompositeSurfaceExample(elementName, indent)
+			
+
 
 'eller delt mellom flere objekter
 '        <gml:CompositeSurface gml:id = "PblTiltak.cs.0" srsName="http://www.opengis.net/def/crs/epsg/0/5972" srsDimension="3">
@@ -815,8 +781,231 @@ function utf8(str)
 
 End function
 
+sub generateCompositeSurfaceExample(elementName, indent)
+
+
+	'			if epsg = 5972 then
+				SessionOutput(indent & "<gml:CompositeSurface>")
+ 				SessionOutput(indent & "  <gml:surfaceMember>")
+				if epsg = 5972 then
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".northroof." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&p1(1,0)+eastoffset&" "&p1(1,1)&" "&p1(1,2)&" "&p1(2,0)+eastoffset&" "&p1(2,1)&" "&p1(2,2)&" "&p1(7,0)+eastoffset&" "&p1(7,1)&" "&p1(7,2)&" "&p1(3,0)+eastoffset&" "&p1(3,1)&" "&p1(3,2)&" "&p1(4,0)+eastoffset&" "&p1(4,1)&" "&p1(4,2)&" "&p1(1,0)+eastoffset&" "&p1(1,1)&" "&p1(1,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".southroof1." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&p1(2,0)+eastoffset&" "&p1(2,1)&" "&p1(2,2)&" "&p1(5,0)+eastoffset&" "&p1(5,1)&" "&p1(5,2)&" "&p1(6,0)+eastoffset&" "&p1(6,1)&" "&p1(6,2)&" "&p1(7,0)+eastoffset&" "&p1(7,1)&" "&p1(7,2)&" "&p1(2,0)+eastoffset&" "&p1(2,1)&" "&p1(2,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".southroof2." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&p1(7,0)+eastoffset&" "&p1(7,1)&" "&p1(7,2)&" "&p1(8,0)+eastoffset&" "&p1(8,1)&" "&p1(8,2)&" "&p1(3,0)+eastoffset&" "&p1(3,1)&" "&p1(3,2)&" "&p1(7,0)+eastoffset&" "&p1(7,1)&" "&p1(7,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".westroof." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&p1(6,0)+eastoffset&" "&p1(6,1)&" "&p1(6,2)&" "&p1(9,0)+eastoffset&" "&p1(9,1)&" "&p1(9,2)&" "&p1(10,0)+eastoffset&" "&p1(10,1)&" "&p1(10,2)&" "&p1(7,0)+eastoffset&" "&p1(7,1)&" "&p1(7,2)&" "&p1(6,0)+eastoffset&" "&p1(6,1)&" "&p1(6,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".eastroof." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&p1(10,0)+eastoffset&" "&p1(10,1)&" "&p1(10,2)&" "&p1(11,0)+eastoffset&" "&p1(11,1)&" "&p1(11,2)&" "&p1(8,0)+eastoffset&" "&p1(8,1)&" "&p1(8,2)&" "&p1(7,0)+eastoffset&" "&p1(7,1)&" "&p1(7,2)&" "&p1(10,0)+eastoffset&" "&p1(10,1)&" "&p1(10,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+		
+				else
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2 60.02 10.1</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+				end if
+ 				SessionOutput(indent & "  </gml:surfaceMember>")
+				
+				
+				
+				
+ 				SessionOutput(indent & "</gml:CompositeSurface>")
+
+end sub
+
+sub generateHouseCompositeSurfaceExample(elementName, indent)
+
+
+	'			if epsg = 5972 then
+				SessionOutput(indent & "<gml:CompositeSurface>")
+ 				SessionOutput(indent & "  <gml:surfaceMember>")
+				if epsg = 5972 then
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".northroof." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&b1(1,0)+eastoffset&" "&b1(1,1)&" "&b1(1,2)&" "&b1(2,0)+eastoffset&" "&b1(2,1)&" "&b1(2,2)&" "&b1(7,0)+eastoffset&" "&b1(7,1)&" "&b1(7,2)&" "&b1(3,0)+eastoffset&" "&b1(3,1)&" "&b1(3,2)&" "&b1(4,0)+eastoffset&" "&b1(4,1)&" "&b1(4,2)&" "&b1(1,0)+eastoffset&" "&b1(1,1)&" "&b1(1,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".northwall." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&b1(1,0)+eastoffset&" "&b1(1,1)&" "&b1(1,2)&" "&b1(4,0)+eastoffset&" "&b1(4,1)&" "&b1(4,2)&" "&b1(4,0)+eastoffset&" "&b1(4,1)&" "&b1(4,2)-5.00&" "&b1(1,0)+eastoffset&" "&b1(1,1)&" "&b1(1,2)-5.00&" "&b1(1,0)+eastoffset&" "&b1(1,1)&" "&b1(1,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".northwestwall." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&b1(1,0)+eastoffset&" "&b1(1,1)&" "&b1(1,2)&" "&b1(1,0)+eastoffset&" "&b1(1,1)&" "&b1(1,2)-5.00&" "&b1(5,0)+eastoffset&" "&b1(5,1)&" "&b1(5,2)-5.00&" "&b1(5,0)+eastoffset&" "&b1(5,1)&" "&b1(5,2)&" "&b1(2,0)+eastoffset&" "&b1(2,1)&" "&b1(2,2)&" "&b1(1,0)+eastoffset&" "&b1(1,1)&" "&b1(1,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".southroof1." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&p1(2,0)+eastoffset&" "&p1(2,1)&" "&p1(2,2)&" "&p1(5,0)+eastoffset&" "&p1(5,1)&" "&p1(5,2)&" "&p1(6,0)+eastoffset&" "&p1(6,1)&" "&p1(6,2)&" "&p1(7,0)+eastoffset&" "&p1(7,1)&" "&p1(7,2)&" "&p1(2,0)+eastoffset&" "&p1(2,1)&" "&p1(2,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".southroof2." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&p1(7,0)+eastoffset&" "&p1(7,1)&" "&p1(7,2)&" "&p1(8,0)+eastoffset&" "&p1(8,1)&" "&p1(8,2)&" "&p1(3,0)+eastoffset&" "&p1(3,1)&" "&p1(3,2)&" "&p1(7,0)+eastoffset&" "&p1(7,1)&" "&p1(7,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".westroof." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&p1(6,0)+eastoffset&" "&p1(6,1)&" "&p1(6,2)&" "&p1(9,0)+eastoffset&" "&p1(9,1)&" "&p1(9,2)&" "&p1(10,0)+eastoffset&" "&p1(10,1)&" "&p1(10,2)&" "&p1(7,0)+eastoffset&" "&p1(7,1)&" "&p1(7,2)&" "&p1(6,0)+eastoffset&" "&p1(6,1)&" "&p1(6,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".eastroof." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>"&p1(10,0)+eastoffset&" "&p1(10,1)&" "&p1(10,2)&" "&p1(11,0)+eastoffset&" "&p1(11,1)&" "&p1(11,2)&" "&p1(8,0)+eastoffset&" "&p1(8,1)&" "&p1(8,2)&" "&p1(7,0)+eastoffset&" "&p1(7,1)&" "&p1(7,2)&" "&p1(10,0)+eastoffset&" "&p1(10,1)&" "&p1(10,2)&"</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+		
+				else
+					suteller = suteller + 1
+					SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".su." & suteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+					SessionOutput(indent & "      <gml:exterior>")
+					SessionOutput(indent & "        <gml:LinearRing>")
+					SessionOutput(indent & "          <gml:posList>60.02 10.1 60.02 10.3 60.03 10.2 60.02 10.1</gml:posList>")
+					SessionOutput(indent & "        </gml:LinearRing>")
+					SessionOutput(indent & "      </gml:exterior>")
+					SessionOutput(indent & "    </gml:Polygon>")
+				end if
+ 				SessionOutput(indent & "  </gml:surfaceMember>")
+				
+				
+				
+				
+ 				SessionOutput(indent & "</gml:CompositeSurface>")
+
+end sub
+
+sub generateSurfaceExample(elementName, indent, height)
+
+	dim c1(2), z1(2), h1, posNum, i
+	h1 = height
+
+	posNum = 8
+	z1(0) =0.0
+	z1(1) =0.0
+	z1(2) =0.0
+	
+'	calculate the central point and mean height
+
+	for i = 0 to posNum - 2
+		s1(i,0) = s1(i,0) + eastoffset
+		z1(0) = z1(0) + s1(i,0)
+		z1(1) = z1(1) + s1(i,1)
+		z1(2) = z1(2) + s1(i,2)
+	next
+	
+	c1(0) = Round( z1(0) / (posNum - 1),2)
+	c1(1) = Round( z1(1) / (posNum - 1),2)
+	c1(2) = Round( z1(2) / (posNum - 1),2)
+	
+	soteller = soteller + 1	
+	
+	'				correct use of non-planar surface
+		SessionOutput(indent & "<gml:Surface gml:id=""" & elementName & ".0612.202.27" & ".so." & soteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+		for i = 0 to posNum - 2
+		
+			suteller = suteller + 1	
+			SessionOutput(indent & "  <gml:surfaceMember>")
+			SessionOutput(indent & "    <gml:Polygon gml:id=""" & elementName & ".0612.202.27" & ".so."  & soteller & ".sh.1.su." & suteller & """>")
+			SessionOutput(indent & "      <gml:exterior>")
+			SessionOutput(indent & "        <gml:LinearRing>")
+			
+			SessionOutput(indent & "          <gml:posList>" & c1(0) & " " & c1(1) & " " & c1(2) & " " & s1(i+1,0) & " " & s1(i+1,1) & " " & s1(i+1,2) & " " & s1(i,0) & " " & s1(i,1) & " " & s1(i,2) & " " & c1(0) & " " & c1(1) & " " & c1(2) & "</gml:posList>")
+			
+			SessionOutput(indent & "        </gml:LinearRing>")
+			SessionOutput(indent & "      </gml:exterior>")
+			SessionOutput(indent & "    </gml:Polygon>")
+			SessionOutput(indent & "  </gml:surfaceMember>")
+
+		next
+		SessionOutput(indent & "</gml:Surface>")
+
+end sub
+
+sub generatePolygonExample(elementName, indent, height)
+
+	soteller = soteller + 1	
+	
+	'				best practice is use of gml:Polygon even if all values are not on the same plane (not airplane)
+		SessionOutput(indent & "<gml:Polygon gml:id=""" & elementName & ".0612.202.27" & ".so." & soteller & """ srsName=""http://www.opengis.net/def/crs/epsg/0/5972"" srsDimension=""3"">")
+
+			SessionOutput(indent & "  <gml:exterior>")
+			SessionOutput(indent & "    <gml:LinearRing>")
+			SessionOutput(indent & "      <gml:posList>"&s1(0,0)+eastoffset&" "&s1(0,1)&" "&s1(0,2)&" "&s1(1,0)+eastoffset&" "&s1(1,1)&" "&s1(1,2)&" "&s1(2,0)+eastoffset&" "&s1(2,1)&" "&s1(2,2)&" "&s1(3,0)+eastoffset&" "&s1(3,1)&" "&s1(3,2)&" "&s1(4,0)+eastoffset&" "&s1(4,1)&" "&s1(4,2)&" "&s1(5,0)+eastoffset&" "&s1(5,1)&" "&s1(5,2)&" "&s1(6,0)+eastoffset&" "&s1(6,1)&" "&s1(6,2)&" "&s1(0,0)+eastoffset&" "&s1(0,1)&" "&s1(0,2)&"</gml:posList>")
+			SessionOutput(indent & "    </gml:LinearRing>")
+			SessionOutput(indent & "  </gml:exterior>")
+			
+		SessionOutput(indent & "</gml:Polygon>")
+
+end sub
+
 sub generateSolidExample(elementName, indent, height)
 
+'
 '	start with a small surface with different elevations in each coordinate position, and with no interiors
 
 '	test whether the whole surface is in a single plane, and if so consider skipping the center point part(?)
@@ -844,32 +1033,9 @@ sub generateSolidExample(elementName, indent, height)
 '	568476.33 6662067.85 90.50
 '	568466.50 6662054.49 90.50
 '	568444.03 6661981.48 89.20
-	dim s1(7,2), c1(2), z1(2), h1, posNum, i
+	dim c1(2), z1(2), h1, posNum, i
 	h1 = height
-	s1(0,0) = 568444.03
-	s1(0,1) = 6661981.48 
-	s1(0,2) = 89.20
-	s1(1,0) = 568506.41 
-	s1(1,1) = 6662009.49 
-	s1(1,2) = 91.20
-	s1(2,0) = 568525.84 
-	s1(2,1) = 6661998.97
-	s1(2,2) = 90.80
-	s1(3,0) = 568529.64 
-	s1(3,1) = 6662001.85 
-	s1(3,2) = 91.00
-	s1(4,0) = 568535.02 
-	s1(4,1) = 6662054.94 
-	s1(4,2) = 91.50
-	s1(5,0) = 568476.33 
-	s1(5,1) = 6662067.85 
-	s1(5,2) = 90.50
-	s1(6,0) = 568466.50 
-	s1(6,1) = 6662054.49 
-	s1(6,2) = 90.50
-	s1(7,0) = 568444.03 
-	s1(7,1) = 6661981.48 
-	s1(7,2) = 89.20
+
 	posNum = 8
 	z1(0) =0.0
 	z1(1) =0.0
@@ -878,6 +1044,7 @@ sub generateSolidExample(elementName, indent, height)
 '	calculate the central point and mean height
 
 	for i = 0 to posNum - 2
+		s1(i,0) = s1(i,0) + eastoffset
 		z1(0) = z1(0) + s1(i,0)
 		z1(1) = z1(1) + s1(i,1)
 		z1(2) = z1(2) + s1(i,2)
@@ -989,32 +1156,10 @@ sub generateSOSISolidExample(elementName, indent, height)
 '	568476.33 6662067.85 90.50
 '	568466.50 6662054.49 90.50
 '	568444.03 6661981.48 89.20
-	dim s1(7,2), c1(2), z1(2), h1, posNum, i
+	dim h1, posNum, i, c1(2), z1(2)
 	h1 = height*100
-	s1(0,1) = 56844403
-	s1(0,0) = 666198148 
-	s1(0,2) = 8920
-	s1(1,1) = 56850641 
-	s1(1,0) = 666200949 
-	s1(1,2) = 9120
-	s1(2,1) = 56852584 
-	s1(2,0) = 666199897
-	s1(2,2) = 9080
-	s1(3,1) = 56852964 
-	s1(3,0) = 666200185 
-	s1(3,2) = 9100
-	s1(4,1) = 56853502 
-	s1(4,0) = 666205494 
-	s1(4,2) = 9150
-	s1(5,1) = 56847633 
-	s1(5,0) = 666206785 
-	s1(5,2) = 9050
-	s1(6,1) = 56846650 
-	s1(6,0) = 666205449 
-	s1(6,2) = 9050
-	s1(7,1) = 56844403 
-	s1(7,0) = 666198148 
-	s1(7,2) = 8920
+
+	
 	posNum = 8
 	z1(0) =0.0
 	z1(1) =0.0
@@ -1162,5 +1307,197 @@ function getFirstConcreteSubtypeID(datatype)
 	getFirstConcreteSubtypeID = subID
 	
 end function
+
+function nao()
+					' I just wanted a correct xml timestamp to document when the script was run
+					dim m,d,t,min,sek,tm,td,tt,tmin,tsek
+					m = Month(Date)
+					if m < 10 then
+						tm = "0" & FormatNumber(m,0,0,0,0)
+					else
+						tm = FormatNumber(m,0,0,0,0)
+					end if
+					d = Day(Date)
+					if d < 10 then
+						td = "0" & FormatNumber(d,0,0,0,0)
+					else
+						td = FormatNumber(d,0,0,0,0)
+					end if
+					t = Hour(Time)
+					if t < 10 then
+						tt = "0" & FormatNumber(t,0,0,0,0)
+					else
+						tt = FormatNumber(t,0,0,0,0)
+					end if
+					if t = 0 then tt = "00"
+					min = Minute(Time)
+					if min < 10 then
+						tmin = "0" & FormatNumber(min,0,0,0,0)
+					else
+						tmin = FormatNumber(min,0,0,0,0)
+					end if
+					if min = 0 then tmin = "00"
+					sek = Second(Time)
+					if sek < 10 then
+						tsek = "0" & FormatNumber(sek,0,0,0,0)
+					else
+						tsek = FormatNumber(sek,0,0,0,0)
+					end if
+					if sek = 0 then tsek = "00"
+					'SessionOutput("  timeStamp=""" & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z""")
+					nao = Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z"
+end function
+
+sub initCoord()
+	pnteller=0
+	cuteller=0
+	suteller=0
+	soteller=0
+	obteller=0
+	debug = false
+	epsg = 5972
+	eastdelta = 100.00
+	eastoffset = 0.00
+	'epsg = 4259
+	'eastdelta = 0.0003 ?TBD
+	
+	p1(0,0) = 568000.00
+	p1(0,1) = 6660000.00 
+	p1(0,2) = 80.00
+
+	p1(1,0) = 568491.54
+	p1(1,1) = 6662044.12
+	p1(1,2) = 94.48
+	p1(2,0) = 568489.13
+	p1(2,1) = 6662039.14 
+	p1(2,2) = 97.70
+	p1(3,0) = 568503.65
+	p1(3,1) = 6662032.15
+	p1(3,2) = 97.77
+	p1(4,0) = 568506.07
+	p1(4,1) = 6662037.43
+	p1(4,2) = 94.50
+	p1(5,0) = 568487.11
+	p1(5,1) = 6662034.97
+	p1(5,2) = 95.11
+	p1(6,0) = 568493.32
+	p1(6,1) = 6662031.98
+	p1(6,2) = 95.10
+	p1(7,0) = 568499.55
+	p1(7,1) = 6662034.12
+	p1(7,2) = 97.77
+	p1(8,0) = 568501.71
+	p1(8,1) = 6662028.04
+	p1(8,2) = 95.07
+	p1(9,0) = 568489.40
+	p1(9,1) = 6662023.88
+	p1(9,2) = 95.18
+	p1(10,0) = 568493.58
+	p1(10,1) = 6662021.85
+	p1(10,2) = 97.77
+	p1(11,0) = 568499.39
+	p1(11,1) = 6662023.37
+	p1(11,2) = 95.07
+	p1(12,0) = 568491.32
+	p1(12,1) = 6662023.64
+	p1(12,2) = 95.48
+	p1(13,0) = 568487.15
+	p1(13,1) = 6662015.14
+	p1(13,2) = 95.48
+	p1(14,0) = 568490.11
+	p1(14,1) = 6662013.64 
+	p1(14,2) = 93.53
+	p1(15,0) = 568494.22
+	p1(15,1) = 6662022.27 
+	p1(15,2) = 93.53
+	p1(16,0) = 568488.52
+	p1(16,1) = 6662024.94
+	p1(16,2) = 93.53
+	p1(17,0) = 568484.40
+	p1(17,1) = 6662016.53
+	p1(17,2) = 93.68
+
+	q1(1) = 568525.84
+	q2(1) = 6661998.97
+	q3(1) = 90.80
+	q1(2) = 568520.52
+	q2(2) = 6662017.57
+	q3(2) = 90.80
+	q1(3) = 568517.55
+	q2(3) = 6662029.69
+	q3(3) = 90.80
+	q1(4) = 568511.79
+	q2(4) = 6662034.72
+	q3(4) = 90.80
+		
+	r1 = 568458.83
+	r2 = 6662075.36
+	r3 = 90.67	
+	
+	s1(0,0) = 568444.03
+	s1(0,1) = 6661981.48 
+	s1(0,2) = 89.20
+	s1(1,0) = 568506.41 
+	s1(1,1) = 6662009.49 
+	s1(1,2) = 91.20
+	s1(2,0) = 568525.84 
+	s1(2,1) = 6661998.97
+	s1(2,2) = 90.80
+	s1(3,0) = 568529.64 
+	s1(3,1) = 6662001.85 
+	s1(3,2) = 91.00
+	s1(4,0) = 568535.02 
+	s1(4,1) = 6662054.94 
+	s1(4,2) = 91.50
+	s1(5,0) = 568476.33 
+	s1(5,1) = 6662067.85 
+	s1(5,2) = 90.50
+	s1(6,0) = 568466.50 
+	s1(6,1) = 6662054.49 
+	s1(6,2) = 90.50
+	s1(7,0) = 568444.03 
+	s1(7,1) = 6661981.48 
+	s1(7,2) = 89.20
+	
+	b1(1,0) = 568492.07
+	b1(1,1) = 6662041.11
+	b1(1,2) = 96.00
+	b1(2,0) = 568490.32
+	b1(2,1) = 6662038.50
+	b1(2,2) = 97.50
+	b1(3,0) = 568502.81
+	b1(3,1) = 6662032.53
+	b1(3,2) = 97.50
+	b1(4,0) = 568504.15
+	b1(4,1) = 6662035.87
+	b1(4,2) = 96.0
+	b1(5,0) = 568489.11
+	b1(5,1) = 6662035.60
+	b1(5,2) = 96.00
+	b1(6,0) = 568494.91
+	b1(6,1) = 6662032.53
+	b1(6,2) = 96.00
+	b1(7,0) = 568499.55
+	b1(7,1) = 6662034.12
+	b1(7,2) = 97.50
+	b1(8,0) = 568501.19
+	b1(8,1) = 6662029.51
+	b1(8,2) = 96.00
+	b1(9,0) = 568492.12
+	b1(9,1) = 6662026.50
+	b1(9,2) = 96.00
+	b1(10,0) = 568495.18
+	b1(10,1) = 6662025.07
+	b1(10,2) = 97.50
+	b1(11,0) = 568498.19
+	b1(11,1) = 6662023.81
+	b1(11,2) = 96.00
+	
+
+	
+	
+	
+	
+end sub
 
 listGMLExample
