@@ -7,6 +7,8 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Date: 08.04.2021
 '
+' Version: 0.5 Date: 2021-06-29 Kent Jonsrud: error if role list is not shown
+'
 ' Version: 0.4
 ' Date: 2021-06-14 Kent Jonsrud: case-insensitiv test på navnet på tagged value SOSI_bildeAvModellelement
 ' Date: 2021-06-24 Kent Jonsrud: endra navn
@@ -419,8 +421,8 @@ skrivRoller = false
 'assosiasjoner
 For Each con In element.Connectors
 	If con.Type = "Association" or con.Type = "Aggregation" Then
-		Session.Output("[cols=""20,80""]")
-		Session.Output("|===")
+'		Session.Output("[cols=""20,80""]")
+'		Session.Output("|===")
 		set supplier = Repository.GetElementByID(con.SupplierID)
 		set client = Repository.GetElementByID(con.ClientID)
 	'	Session.Output("|Type: ")
@@ -440,6 +442,8 @@ For Each con In element.Connectors
 		'	Session.Output(" ")
 			If con.ClientEnd.Role <> "" Then
 				if skrivRoller = false then
+					Session.Output("[cols=""20,80""]")
+					Session.Output("|===")
 					Session.Output("===== Roller")
 					skrivRoller = true
 				end if
@@ -490,6 +494,8 @@ For Each con In element.Connectors
 		'	Session.Output("|«" & supplier.Stereotype&"» "&supplier.Name)
 			If con.SupplierEnd.Role <> "" Then
 				if skrivRoller = false then
+					Session.Output("[cols=""20,80""]")
+					Session.Output("|===")
 					Session.Output("===== Roller")
 					skrivRoller = true
 				end if
@@ -533,119 +539,7 @@ For Each con In element.Connectors
 		end if
 	End If
 Next
-if false then
-'aggregeringer
-For Each con In element.Connectors
-	If con.Type = "Aggregation" Then
-		Session.Output("[cols=""20,80""]")
-		Session.Output("|===")
-		set supplier = Repository.GetElementByID(con.SupplierID)
-		set client = Repository.GetElementByID(con.ClientID)
-		Session.Output("|Type: ")
-		If con.clientend.aggregation = 1 Or con.supplierend.aggregation = 1 Then
-			Session.Output("|Aggregering")
-		ElseIf con.clientend.aggregation = 2 Or con.supplierend.aggregation = 2 Then
-			Session.Output("|Komposisjon")
-		End If
-		Session.Output(" ")
-		If supplier.elementID = element.elementID Then 'dette elementet er suppliersiden - implisitt at fraklasse er denne klassen
-			textVar="|Til klasse"
-			If con.clientend.aggregation = 0 Then 'motsatt side er komponent i denne klassen
-				textVar=textVar+" _(del"
-			Else
-				textVar=textVar+" _(helhet"
-			End If
-			If con.ClientEnd.Navigable = "Navigable" Then 'Legg til info om klassen er navigerbar eller spesifisert ikke-navigerbar.
-				textVar=textVar+", navigerbar)_:"
-			ElseIf con.ClientEnd.Navigable = "Non-Navigable" Then 
-				textVar=textVar+", ikke navigerbar)_:"
-			Else 
-				textVar=textVar+")_:" 
-			End If
-			Session.Output(textVar)
-			Session.Output("|«" & client.Stereotype&"» "&client.Name)
-			Session.Output(" ")
-			If con.ClientEnd.Role <> "" Then
-				Session.Output("|Til rolle: ")
-				Session.Output("|" & con.ClientEnd.Role)
-				Session.Output(" ")
-			End If
-			If con.ClientEnd.RoleNote <> "" Then
-				Session.Output("|Til rolle definisjon: ")
-				Session.Output("|" & con.ClientEnd.RoleNote)
-				Session.Output(" ")
-			End If
-			If con.ClientEnd.Cardinality <> "" Then
-				Session.Output("|Til multiplisitet: ")
-				Session.Output("|[" & con.ClientEnd.Cardinality&"]")
-				Session.Output(" ")
-			End If
-			If con.SupplierEnd.Role <> "" Then
-				Session.Output("|Fra rolle: ")
-				Session.Output("|" & con.SupplierEnd.Role)
-				Session.Output(" ")
-			End If
-			If con.SupplierEnd.RoleNote <> "" Then
-				Session.Output("|Fra rolle definisjon: ")
-				Session.Output("|" & con.SupplierEnd.RoleNote)
-				Session.Output(" ")
-			End If
-			If con.SupplierEnd.Cardinality <> "" Then
-				Session.Output("|Fra multiplisitet: ")
-				Session.Output("|[" & con.SupplierEnd.Cardinality&"]")
-				Session.Output(" ")
-			End If
-		Else 'dette elementet er clientsiden
-			textVar="|Til klasse"
-			If con.supplierEnd.aggregation = 0 Then 'motsatt side er komponent i denne klassen
-				textVar=textVar+" _(del"
-			Else
-				textVar=textVar+" _(helhet"
-			End If
-			If con.SupplierEnd.Navigable = "Navigable" Then 'Legg til info om klassen er navigerbar eller spesifisert ikke-navigerbar.
-				textVar=textVar+", navigerbar)_:"
-			ElseIf con.SupplierEnd.Navigable = "Non-Navigable" Then 
-				textVar=textVar+", ikke navigerbar)_:"
-			Else 
-				textVar=textVar+")_:" 
-			End If
-			Session.Output(textVar)
-			Session.Output("|«" & supplier.Stereotype&"» "&supplier.Name)
-			If con.SupplierEnd.Role <> "" Then
-				Session.Output("|Til rolle: ")
-				Session.Output("|" & con.SupplierEnd.Role)
-				Session.Output(" ")
-			End If
-			If con.SupplierEnd.RoleNote <> "" Then
-				Session.Output("|Til rolle definisjon: ")
-				Session.Output("|" & con.SupplierEnd.RoleNote)
-				Session.Output(" ")
-			End If
-			If con.SupplierEnd.Cardinality <> "" Then
-				Session.Output("|Til multiplisitet: ")
-				Session.Output("|[" & con.SupplierEnd.Cardinality&"]")
-				Session.Output(" ")
-			End If
-			If con.ClientEnd.Role <> "" Then
-				Session.Output("|Fra rolle: ")
-				Session.Output("|" & con.ClientEnd.Role)
-				Session.Output(" ")
-			End If
-			If con.ClientEnd.RoleNote <> "" Then
-				Session.Output("|Fra rolle definisjon: ")
-				Session.Output("|" & con.ClientEnd.RoleNote)
-				Session.Output(" ")
-			End If
-			If con.ClientEnd.Cardinality <> "" Then
-				Session.Output("|Fra multiplisitet: ")
-				Session.Output("|[" & con.ClientEnd.Cardinality&"]")
-				Session.Output(" ")
-			End If
-		End If
-		Session.Output("|===")
-	End If
-Next
-end if	'false
+
 
 ' Generaliseringer av pakken
 generalizations = False
