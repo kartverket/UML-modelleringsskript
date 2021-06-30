@@ -4,20 +4,24 @@ Option Explicit
 
 ' Script Name: listAdocFraRegistreringsinstruks
 ' Original Author: Tore Johnsen, Åsmund Tjora
-' Purpose: lister ut adoc-dokumentasjon for FKB registreringsinstruks
+' Purpose: Generate documentation in AsciiDoc syntax
 ' Date: 08.04.2021
+' Version: 0.1ish
+
+' Version 0.5 2021-06-30 vise egenskapsnavn foran datatypeegenskapsnavn (informasjon.navnerom)
+'						vise stereotypenavn foran datatyper og kodelister
+'
+' Version 0.4 2021-06-14/23 Nøste utover i datatypene og vise alle egenskaper (og roller TBD)
+'							Endra navn
+'
+' Version 0.3 2021-05-25/31 Collects guidance parameters from both tagged values and from special attributes 
+' Date: 2021-06-01 Kent Jonsrud: retta bildesti til app_img
 '
 ' Version: 0.2
 ' Date: 2021-04-16 Kent Jonsrud:
 ' Use Case: Guidance for photogrammetric data collection
 ' Actor is a person digitizing from aeriel photos
 ' Design Goal: compact summary of all guiding requirements
-'
-' Version 0.3 2021-05-25/31 Collects guidance parameters from both tagged values and from special attributes 
-' Date: 2021-06-01 Kent Jonsrud: retta bildesti til app_img
-'
-' Version 0.4 2021-06-14/23 Nøste utover i datatypene og vise alle egenskaper (og roller TBD)
-'							Endra navn
 '
 ' TBD: navnekræsj mellom diagrammer?
 ' TBD: feature type: table of tags from supertypes as FKB-standard A/B/C/D
@@ -408,9 +412,11 @@ if element.AttributesEx.Count > 0 then
 '	Session.Output("|*FKB-C:* ")
 '	Session.Output("|*FKB-D:* ")
 	Session.Output(" ")
+	if false then
 	for each att in element.AttributesEx
 		if att.name = "Registreringsmetode" or att.name = "Tilleggsbeskrivelse" or att.name = "Grunnrissreferanse" or att.name = "Høydereferanse" then
 		else
+
 			if att.Type = "Punkt" or att.Type = "Kurve" or att.Type = "Flate" then
 			' GM_Curve etc. TBD
 				Session.Output("|"&att.name&"")
@@ -434,15 +440,17 @@ if element.AttributesEx.Count > 0 then
 '			Session.Output("|"&getTaggedValue(att,"FKB-D")&"")
 			end if
 			Session.Output(" ")	
-			
+
 			'nøste seg ut i datatypen?
 			if att.ClassifierID <> 0 then
 				punktum = "..."
-				call listDatatype(punktum, att)
+				call listDatatype("", punktum, att)
 			end if
 			
 		end if
 	next
+	end if 'false	
+	call listDatatype("", "..", element)	
 	Session.Output("|===")
 end if
 
@@ -812,36 +820,50 @@ end sub
 
 
 '--------------------Start Sub-------------
-sub listDatatype(punktum, attr)
-Dim pktum
-Dim element As EA.Element
+sub listDatatype(egenskap, punktum, element)
+Dim pktum, eskap, stereo
+'Dim element As EA.Element
+Dim datatype As EA.Element
 Dim att As EA.Attribute
 '			Session.Output("|attr.ClassifierID="&attr.ClassifierID&"")
-set element = Repository.GetElementByID(attr.ClassifierID)
+	'		Session.Output("DEBUG: (egenskap, punktum, element.Name: " & egenskap & " , " & punktum & " , " & element.Name )
+'set element = Repository.GetElementByID(attr.ClassifierID)
 if element.AttributesEx.Count > 0 then
 
 	for each att in element.AttributesEx
-
-		if att.Type = "Punkt" or att.Type = "Kurve" or att.Type = "Flate" then
-		' GM_Curve etc. TBD
-			Session.Output("|"&att.name&"")
-			Session.Output("|"&att.Type&"")
-			Session.Output("|"&punktum&UCase(getTaggedValue(att,"SOSI_navn"))&"")
-			Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+		if att.name = "Registreringsmetode" or att.name = "Tilleggsbeskrivelse" or att.name = "Grunnrissreferanse" or att.name = "Høydereferanse" then
 		else
-			Session.Output("|"&att.name&"")
-			Session.Output("|"&att.Type&"")
-			Session.Output("|"&punktum&getTaggedValue(att,"SOSI_navn")&"")
-			Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+			stereo = ""
+			if att.Type = "Punkt" or att.Type = "Kurve" or att.Type = "Flate" then
+			' GM_Curve etc. TBD
+				Session.Output("|"&egenskap&att.name&"")
+				Session.Output("|"&att.Type&"")
+				if getTaggedValue(att,"SOSI_navn") = "" then
+					Session.Output("|."&UCase(att.Type)&"")
+				else
+					Session.Output("|."&UCase(getTaggedValue(att,"SOSI_navn"))&"")
+				end if
+				Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+			else
+				Session.Output("|"&egenskap&att.name&"")
+				if att.ClassifierID <> 0 then
+					set datatype = Repository.GetElementByID(att.ClassifierID)
+					stereo = "«" & datatype.Stereotype & "» "
+				end if
+				Session.Output("|"&stereo&att.Type&"")			
+				Session.Output("|"&punktum&getTaggedValue(att,"SOSI_navn")&"")
+				Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+			end if
+			Session.Output(" ")	
+			
+			'nøste seg utover i nye datatyper?
+			if att.ClassifierID <> 0 and LCase(stereo) = "«datatype» " then
+				pktum = punktum & "."
+				eskap = egenskap & att.Name & "."
+'				Session.Output("DEBUG2: (eskap, pktum, datatype.Name: " & eskap & " , " & pktum & " , " & datatype.Name )
+				call listDatatype(eskap, pktum, datatype)
+			end if
 		end if
-		Session.Output(" ")	
-		
-		'nøste seg utover i nye datatyper?
-		if att.ClassifierID <> 0 then
-			pktum = punktum & "."
-			call listDatatype(pktum, att)
-		end if
-		
 	next
 
 end if
