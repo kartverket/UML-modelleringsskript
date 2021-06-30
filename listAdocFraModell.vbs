@@ -7,6 +7,8 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Date: 08.04.2021
 '
+' Version: 0.6 Date: 2021-06-30 Kent Jonsrud: leser kodelister fra levende register
+'
 ' Version: 0.5 Date: 2021-06-29 Kent Jonsrud: error if role list is not shown
 '
 ' Version: 0.4
@@ -102,7 +104,11 @@ set projectclass = Repository.GetProjectInterface()
 Dim listTags
 listTags = false
 	
-Session.Output("=== "&thePackage.Name&"")
+if thePackage.Element.Stereotype <> "" then
+	Session.Output("=== «"&thePackage.Element.Stereotype&"» "&thePackage.Name&"")
+else
+	Session.Output("=== Pakke: "&thePackage.Name&"")
+end if
 Session.Output("Definisjon: "&getCleandefinition(thePackage.Notes)&"")
 
 if thePackage.element.TaggedValues.Count > 0 then
@@ -312,7 +318,7 @@ End sub
 Sub Kodelister(element)
 Dim att As EA.Attribute
 dim tag as EA.TaggedValue
-dim utvekslingsalias
+dim utvekslingsalias, codeListUrl
 Session.Output(" ")
 Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
 Session.Output("Definisjon: "&getCleanDefinition(element.Notes)&"")
@@ -335,6 +341,7 @@ if element.TaggedValues.Count > 0 then
 	next
 	Session.Output("|===")
 		
+	codeListUrl = ""	
 	for each tag in element.TaggedValues								
 '		if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
@@ -343,10 +350,88 @@ if element.TaggedValues.Count > 0 then
 		'	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
 			Session.Output("image::"&tag.Value&"["&tag.Value&"]")
 		end if
+		if LCase(tag.Name) = "codelist" and tag.Value <> "" then
+			codeListUrl = tag.Value
+		end if
 	next
 end if
+' testing http get
+if codeListUrl <> "" then
+'	Session.Output("DEBUG codeListUrl: " & codeListUrl & "")
+	Dim httpObject
+	Dim parseText, line, linepart, part, kodenavn, kodedef, ualias, kodelistenavn
+	Set httpObject = CreateObject("MSXML2.XMLHTTP")
+'	httpObject.open "GET", "http://skjema.geonorge.no/SOSI/basistype/Integer.html", false
+	httpObject.open "GET", codeListUrl & ".gml", false
+	httpObject.send
+	if httpObject.status = 200 then
+'		Session.Output("DEBUG gml:Dictionary: "&httpObject.responseText&"")
+''		parseText = split(split(split(ResponseXML,SearchTag)(1),"</")(0),">")(1)
+		parseText = split(httpObject.responseText,"<",-1,1)
+		
+
+		kodelistenavn = ""
+		for each line in parseText
+'			Session.Output("DEBUG line: "&line&"")
+			if mid(line,1,25) = "gml:identifier codeSpace=" then
+				linepart = split(line,">",-1,1)
+				for each part in linepart
+					ualias = part
+				next
+			end if
+			if mid(line,1,16) = "gml:description>" then
+			linepart = split(line,">",-1,1)
+				for each part in linepart
+					kodedef = part
+				next
+			end if		
+			if mid(line,1,9) = "gml:name>" then
+			linepart = split(line,">",-1,1)
+				for each part in linepart
+					kodenavn = part
+				next
+			end if					
+			
+			if mid(line,1,16) = "/gml:identifier>" and kodelistenavn = "" then
+			' trigger utskrift
+				'	første element
+					Session.Output("Kodeliste hentet fra register: "&codeListUrl&"")	
+					Session.Output(" ")	
+					Session.Output("Kodeliste hentet på tidspunkt: "&nao()&"")
+					Session.Output(" ")	
+					Session.Output("Kodelistens navn i registeret: "&ualias&"")	
+					Session.Output(" ")	
+
+
+					Session.Output("===== Koder")
+					Session.Output("[cols=""25,60,15""]")
+					Session.Output("|===")
+					Session.Output("|*Kodenavn:* ")
+					Session.Output("|*Definisjon:* ")
+					Session.Output("|*Utvekslingsalias:* ")
+					Session.Output(" ")				
+				
+					kodelistenavn = ualias
+			end if
+			if mid(line,1,16) = "/gml:Definition>" and kodelistenavn <> "" then
+			' trigger utskrift
+					'koder
+					Session.Output("|"&kodenavn&"")
+					Session.Output("|"&kodedef&"")
+					Session.Output("|"&ualias&"")					
+			end if
+
+		next
+		Session.Output("|===")
+	else
+		Session.Output("Kodeliste kunne ikke hentes fra register: "&codeListUrl&"")	
+		Session.Output(" ")		
+'		Session.Output("DEBUG feil ved lesing av kodeliste: "&httpObject.status&"")
+	end if
+end if
+
 if element.Attributes.Count > 0 then
-Session.Output("===== Koder")
+	Session.Output("===== Koder")
 end if
 utvekslingsalias = false
 for each att in element.Attributes
@@ -355,52 +440,53 @@ for each att in element.Attributes
 	end if
 next
 if element.Attributes.Count > 1 then
-if utvekslingsalias then
-	Session.Output("[cols=""15,25,60""]")
-	Session.Output("|===")
-	Session.Output("|*Utvekslingsalias:* ")
-	Session.Output("|*Kodenavn:* ")
-	Session.Output("|*Definisjon:* ")
-	Session.Output(" ")
-	for each att in element.Attributes
-		if att.Default <> "" then
-			Session.Output("|"&att.Default&"")
-		else
-			Session.Output("|")
-		end if
-		Session.Output("|"&att.Name&"")
-		Session.Output("|"&getCleanDefinition(att.Notes)&"")
-	next
-	Session.Output("|===")
-else
-	Session.Output("[cols=""20,80""]")
-	Session.Output("|===")
-	Session.Output("|*Navn:* ")
-	Session.Output("|*Definisjon:* ")
-	Session.Output(" ")
-	for each att in element.Attributes
-		Session.Output("|"&att.Name&"")
-		Session.Output("|"&getCleanDefinition(att.Notes)&"")
-	next
-	Session.Output("|===")
-end if
-else
-for each att in element.Attributes
-	Session.Output("[cols=""20,80""]")
-	Session.Output("|===")
-	Session.Output("|Navn: ")
-	Session.Output("|"&att.name&"")
-	Session.Output(" ")
-	Session.Output("|Definisjon: ")
-	Session.Output("|"&getCleanDefinition(att.Notes)&"")
-	if not att.Default = "" then
+	if utvekslingsalias then
+		Session.Output("[cols=""25,60,15""]")
+		Session.Output("|===")
+		Session.Output("|*Kodenavn:* ")
+		Session.Output("|*Definisjon:* ")
+		Session.Output("|*Utvekslingsalias:* ")
 		Session.Output(" ")
-		Session.Output("|Utvekslingsalias: ")
-		Session.Output("|"&att.Default&"")
+		for each att in element.Attributes
+
+			Session.Output("|"&att.Name&"")
+			Session.Output("|"&getCleanDefinition(att.Notes)&"")
+			if att.Default <> "" then
+				Session.Output("|"&att.Default&"")
+			else
+				Session.Output("|")
+			end if
+		next
+		Session.Output("|===")
+	else
+		Session.Output("[cols=""20,80""]")
+		Session.Output("|===")
+		Session.Output("|*Navn:* ")
+		Session.Output("|*Definisjon:* ")
+		Session.Output(" ")
+		for each att in element.Attributes
+			Session.Output("|"&att.Name&"")
+			Session.Output("|"&getCleanDefinition(att.Notes)&"")
+		next
+		Session.Output("|===")
 	end if
-	Session.Output("|===")
-	' Hva med tagged values på koder? TBD
-next
+else
+	for each att in element.Attributes
+		Session.Output("[cols=""20,80""]")
+		Session.Output("|===")
+		Session.Output("|Navn: ")
+		Session.Output("|"&att.name&"")
+		Session.Output(" ")
+		Session.Output("|Definisjon: ")
+		Session.Output("|"&getCleanDefinition(att.Notes)&"")
+		if not att.Default = "" then
+			Session.Output(" ")
+			Session.Output("|Utvekslingsalias: ")
+			Session.Output("|"&att.Default&"")
+		end if
+		Session.Output("|===")
+		' Hva med tagged values på koder? TBD
+	next
 end if
 End sub
 '-----------------CodeList End-----------------
@@ -624,5 +710,48 @@ function getCleanDefinition(txt)
 
 end function
 '-----------------Function getCleanDefinition End-----------------
+
+
+'-----------------Function nao Start-----------------
+function nao()
+					' I just want a correct xml timestamp to document when the script was run
+					dim m,d,t,min,sek,tm,td,tt,tmin,tsek
+					m = Month(Date)
+					if m < 10 then
+						tm = "0" & FormatNumber(m,0,0,0,0)
+					else
+						tm = FormatNumber(m,0,0,0,0)
+					end if
+					d = Day(Date)
+					if d < 10 then
+						td = "0" & FormatNumber(d,0,0,0,0)
+					else
+						td = FormatNumber(d,0,0,0,0)
+					end if
+					t = Hour(Time)
+					if t < 10 then
+						tt = "0" & FormatNumber(t,0,0,0,0)
+					else
+						tt = FormatNumber(t,0,0,0,0)
+					end if
+					if t = 0 then tt = "00"
+					min = Minute(Time)
+					if min < 10 then
+						tmin = "0" & FormatNumber(min,0,0,0,0)
+					else
+						tmin = FormatNumber(min,0,0,0,0)
+					end if
+					if min = 0 then tmin = "00"
+					sek = Second(Time)
+					if sek < 10 then
+						tsek = "0" & FormatNumber(sek,0,0,0,0)
+					else
+						tsek = FormatNumber(sek,0,0,0,0)
+					end if
+					if sek = 0 then tsek = "00"
+					'SessionOutput("  timeStamp=""" & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z""")
+					nao = Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z"
+end function
+'-----------------Function nao End-----------------
 
 OnProjectBrowserScript
