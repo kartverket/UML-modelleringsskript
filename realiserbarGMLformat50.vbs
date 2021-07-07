@@ -3,10 +3,12 @@ option explicit
  !INC Local Scripts.EAConstants-VBScript 
  
 '  
-' Script Name: realiserbarGML50 
-' Author: Section for standardization and technology development - Norwegian Mapping Authority
-
-
+' Script Name: realiserbarGMLformat50 
+' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
+'
+' Version: alfa0.3
+' Date: 2021-07-07	renamed from realiserbarGML50.vb to realiserbarGMLformat50.vb
+'
 ' Version: alfa0.2
 ' Date: 2018-03-27
 
