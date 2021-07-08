@@ -7,8 +7,8 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Date: 08.04.2021
 '
+' Version: 0.7 Date: 2021-07-08 Kent Jonsrud: retta en feil ved utskrift av roller
 ' Version: 0.6 Date: 2021-06-30 Kent Jonsrud: leser kodelister fra levende register
-'
 ' Version: 0.5 Date: 2021-06-29 Kent Jonsrud: error if role list is not shown
 '
 ' Version: 0.4
@@ -528,10 +528,14 @@ For Each con In element.Connectors
 		'	Session.Output(" ")
 			If con.ClientEnd.Role <> "" Then
 				if skrivRoller = false then
+					Session.Output("")
+					Session.Output("===== Roller")
 					Session.Output("[cols=""20,80""]")
 					Session.Output("|===")
-					Session.Output("===== Roller")
 					skrivRoller = true
+				else
+					Session.Output("[cols=""20,80""]")
+					Session.Output("|===")
 				end if
 				Session.Output("|*Rollenavn:* ")
 				Session.Output("|*" & con.ClientEnd.Role & "*")
@@ -580,10 +584,15 @@ For Each con In element.Connectors
 		'	Session.Output("|«" & supplier.Stereotype&"» "&supplier.Name)
 			If con.SupplierEnd.Role <> "" Then
 				if skrivRoller = false then
+					Session.Output("")
+					Session.Output("===== Roller")
 					Session.Output("[cols=""20,80""]")
 					Session.Output("|===")
-					Session.Output("===== Roller")
 					skrivRoller = true
+				else
+					Session.Output("[cols=""20,80""]")
+					Session.Output("|===")
+					
 				end if
 				Session.Output("|*Rollenavn:* ")
 				Session.Output("|*" & con.SupplierEnd.Role & "*")
