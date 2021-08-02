@@ -4,15 +4,15 @@ option explicit
  
 '  
 ' Script Name: realiserbarSOSIformat50 
-' Author: Section for standardization and technology development - Norwegian Mapping Authority
+' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
 
-
+' Version: alfa0.4 Date: 2021-07-16 geometriegenskaper kan mangle tag SOSI_navn, men alle roller blir testet
 ' Version: alfa0.3
 ' Date: 2018-03-28
 
-' Purpose: Valider om pakke er realiserbar etter SOSI Realisering i SOSIformat v.5.0 
+' Purpose: Validere om pakke er realiserbar etter SOSI Realisering i SOSIformat v.5.0 
 ' Purpose: Validate model elements according to rules defined in the standard SOSI Realisering i SOSIformat v.5.0 
-' Implemented rules: 
+' *Implemented rules: 
 ' KRAV
 ' /krav/konteiner	Datafiler som skal brukes til å utveksle geografisk informasjon på SOSI-format skal inneholde et standard filhode og et standard filsluttmerke. Det skal ikke være datainnhold etter filsluttmerket. Filhodet skal inneholde angivelse av tegnsett, formatversjon, koordinatsystem, horisontal datautstrekning og angivelse av datasettets beskrivelse.  I tillegg kan filhodet inneholde datasettets produsent, eier, prosesshistorie og lenke til andre datasettmetadata.	20
 ' --/krav/formatversjon	 UML modeller som realiseres i SOSI syntaks i henhold til denne versjonen av standarden skal ha SOSI-VERSJON 5.0.	24
@@ -21,12 +21,12 @@ option explicit
 ' /krav/geokoord	For geografiske koordinater benyttes sekunder (buesekunder). For kartprojeksjonene benyttes meter.	30
 ' /krav/akserekkefølge	Rekkefølgen på aksene skal alltid være NØ, NØH (Nord-Øst-Høyde) eller NØD (Nord-Øst-Dybde) uansett hva akserekkefølgen i koordinatsystembeskrivelsen angir.	30
 ' /krav/høyderef	 Informasjon om høydereferansen skal alltid spesifiseres i SOSI-filen.	33
-' --/krav/produktnavn	Tagged value SOSI_kortnavn skal realiseres som første verdi under SOSI-elementnavnet ..OBJEKTKATALOG	43
-' --/krav/produktversjon	Tagged value version skal realiseres som andre verdi under SOSI-elementnavnet ..OBJEKTKATALOG	43
+' *--/krav/produktnavn	Tagged value SOSI_kortnavn skal realiseres som første verdi under SOSI-elementnavnet ..OBJEKTKATALOG	43
+' *--/krav/produktversjon	Tagged value version skal realiseres som andre verdi under SOSI-elementnavnet ..OBJEKTKATALOG	43
 ' ----/krav/stereotyper	Klasser uten stereotype og klasser med andre stereotyper enn de som er beskrevet i regler for UML-modellering skal ignoreres ved realisering i SOSI-format.	43
 ' --/krav/objekttype	Navn på objekttyper med stereotype «FeatureType» i UML-modellen er modellelementnavn som skal realiseres direkte som verdi på SOSI-elementnavn ..OBJTYPE	43
-' --/krav/objektegenskap	Navn på egenskaper i klasser med stereotype «FeatureType» er modellelementnavn som skal realiseres via verdien i en tagged value SOSI_navn som inneholder det SOSI-elementnavnet som skal benyttes. Applikasjonsskjema der objekttyper har egenskapene uten SOSI_navn skal ikke realiseres.	44
-' ----/krav/objektegenskapstype	 Egenskaper der datatypen er en brukerdefinert klasse skal realiseres som SOSI-gruppeelement med innhold fra denne klassen. Egenskaper der typen er basistype skal realiseres som angitt SOSI basistype. Det er tillatt å angi lengde på elementverdien i SOSI-format, men man må likevel styre oppløsningen i mottagersystemet. Lengde på mantisse og eksponent for tall, og lengde på tekster er implementasjonsavhengige, men slike begrensninger skal ikke styre modellering eller begrense interoperabilitet. Se Tabell 8.1 Realisering av datatyper.	44
+' *--/krav/objektegenskap	Navn på egenskaper i klasser med stereotype «FeatureType» er modellelementnavn som skal realiseres via verdien i en tagged value SOSI_navn som inneholder det SOSI-elementnavnet som skal benyttes. Applikasjonsskjema der objekttyper har egenskapene uten SOSI_navn skal ikke realiseres.	44
+' *----/krav/objektegenskapstype	 Egenskaper der datatypen er en brukerdefinert klasse skal realiseres som SOSI-gruppeelement med innhold fra denne klassen. Egenskaper der typen er basistype skal realiseres som angitt SOSI basistype. Det er tillatt å angi lengde på elementverdien i SOSI-format, men man må likevel styre oppløsningen i mottagersystemet. Lengde på mantisse og eksponent for tall, og lengde på tekster er implementasjonsavhengige, men slike begrensninger skal ikke styre modellering eller begrense interoperabilitet. Se Tabell 8.1 Realisering av datatyper.	44
 ' Integer	realiseres som H, det anbefales å ta høyde for store heltall (H16)
 ' Real	realiseres som D, det anbefales å ta høyde for dobbel presisjon (D16.11)
 ' CharacterString	realiseres som T, det anbefales å ta høyde for variabel lengde på tekster
@@ -47,14 +47,14 @@ option explicit
 ' GM_Surface	.FLATE 	tilstøtende flater peker til samme kurve
 ' GM_CompositeSurface	.FLATE 	tilstøtende flater peker til samme kurve
 ' 
-' --8.5/krav/SOSIGeometri	 Geometri i SOSI format skal kun benytte realiseringer angitt i Tabell 8.2 Geometrityper.	46
+' *--8.5/krav/SOSIGeometri	 Geometri i SOSI format skal kun benytte realiseringer angitt i Tabell 8.2 Geometrityper.	46
 ' Punkt GM_Point Sverm GM_MultiPoint Kurve GM_Curve GM_CompositeCurve Flate GM_Surface	 GM_CompositeSurface
 ' 
 ' 8.5/krav/koordinatsystem	Alle koordinater i datafila skal være i samme koordinatsystem som det som er beskrevet i filhodet.	46
 ' 8.5/krav/akseenhetsfaktor	Koordinaters måleenhet for hver akse skal være den enheten som er beskrevet i koordinatsystembeskrivelsen multiplisert med konteinerens enhetsfaktor ..ENHET. Dersom enhet for høyde er ulik enhet for grunnriss skal ..ENHET-D eller ..ENHET-H benyttes på disse. Enhetsfaktoren skal ikke brukes på områdebeskrivelsen i filhodet.	46
 ' --8.5/krav/flateavgrensning	Objektyper med geometriegenskaper av type Flate eller GM_Surface skal enten benytte standardmekanisme for avgrensning ved å peke til et eget SOSI-format-objekt med objekttype Flateavgrensning, eller til et objekt av en type som er angitt i navnet til en restriksjon som starter med kanAvgrensesAv....	47
-' --/krav/objektrolle	Navn på assosiasjonsroller til objekttyper med stereotype «FeatureType» er modellelementnavn som skal realiseres via en tagged value SOSI_navn som inneholder det SOSI-elementnavnet som skal benyttes. Assosiasjonsroller til objekttyper der rollen er uten denne tagged value skal ignoreres ved realisering i SOSI-format.	47
-' /krav/objektrolletype	Dersom klassen som rollen peker på er en objekttype skal SOSI-formattypen til assosiasjonsroller alltid være REF.	47
+' *--/krav/objektrolle	Navn på assosiasjonsroller til objekttyper med stereotype «FeatureType» er modellelementnavn som skal realiseres via en tagged value SOSI_navn som inneholder det SOSI-elementnavnet som skal benyttes. Assosiasjonsroller til objekttyper der rollen er uten denne tagged value skal ignoreres ved realisering i SOSI-format.	47
+' *--/krav/objektrolletype	Dersom klassen som rollen peker på er en objekttype skal SOSI-formattypen til assosiasjonsroller alltid være REF.	47
 ' /krav/objektrollemål	 Verdien til SOSI-elementer med SOSI-formattype REF skal være referanse til et serienummer for et reelt objekt som finnes i samme datafila og er av samme klasse som den rollen står til i modellen.	47
 ' --/krav/datatyperolle	Navn på assosiasjonsroller til klasser med stereotype «Union» eller «dataType» er modellelementnavn som skal realiseres direkte som SOSI gruppeelement, navn fra en tagged value SOSI_navn på rollen inneholder det SOSI-elementnavnet som skal benyttes.	48
 ' ---/krav/datatype	Modellelementet skal realiseres direkte via en tagged value SOSI_navn på egenskapen eller komposisjonsassisiasjonerollen som peker til datatypeklassen.  Egenskaper i datatypen skal realiseres på samme måte som objektegenskaper. Assosiasjonsroller i datatypen skal realiseres på samme måte som vanlige roller. Dersom egenskaper eller assosiasjonsroller i datatyper mangler en tagged value SOSI_navn skal applikasjonsskjemaet ikke realisering i SOSI-format.	49
@@ -127,7 +127,7 @@ sub OnProjectBrowserScript()
 					mess = mess + ""&Chr(13)&Chr(10)
 					mess = mess + "Starter validering av pakke [" & thePackage.Name &"]."&Chr(13)&Chr(10)
 
-					box = Msgbox (mess, vbOKCancel, "realiserbarSOSIformat50 alfa0.3-2018-03-28")
+					box = Msgbox (mess, vbOKCancel, "realiserbarSOSIformat50 alfa0.4-2021-07-16")
 					select case box
 						case vbOK
 							dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
@@ -168,7 +168,7 @@ sub OnProjectBrowserScript()
 
 							if not abort then
 								'give an initial feedback in system output 
-								Session.Output("realiserbarSOSIformat50 alfa0.3 startet. "&Now())
+								Session.Output("realiserbarSOSIformat50 alfa0.4-2021-07-16 startet. "&Now())
 								'Check model for script breaking structures
 								if scriptBreakingStructuresInModel(thePackage) then
 									Session.Output("Kritisk feil: Kan ikke validere struktur og innhold før denne feilen er rettet.")
@@ -200,6 +200,8 @@ sub OnProjectBrowserScript()
 								Dim StartTime, EndTime, Elapsed
 								StartTime = timer 
 								startPackageName = thePackage.Name
+								Session.Output("-----Start test av pakke ["&startPackageName&"]-----") 		
+								
 								FindInvalidElementsInASPackage(thePackage) 
 								Elapsed = formatnumber((Timer - StartTime),2)
 
@@ -247,7 +249,7 @@ end sub
 
 
 '------------------------------------------------------------START-------------------------------------------------------------------------------------------
-' Sub Name: FindInvalidElementsInPackage
+' Sub Name: FindInvalidElementsInASPackage
 ' Author: Kent Jonsrud
 ' Date: 2018-02-09
 ' Purpose: Test the content of the top level package
@@ -314,7 +316,17 @@ sub FindInvalidElementsInPackage(package)
 
 					next
 				end if
-						'if debug then Session.Output("Debug: role to be tested: [«" &role.Stereotype& "» " &role.Name& "].")
+				if currentElement.Connectors.Count > 0 then
+				 	dim conn as EA.Collection
+					for each conn in currentElement.Connectors
+						'TBD
+						if conn.Type = "Generalization" or conn.Type = "Realisation" or conn.Type = "NoteLink" then
+						else
+							if debug then Session.Output("Debug: roles to be tested: [" &conn.ClientEnd.Role& "] and [" &conn.SupplierEnd.Role& "].")
+							call kravObjektrolle(currentElement,conn)
+						end if
+					next
+				end if
 						'if debug then Session.Output("Debug: operation to be tested: [«" &operation.Stereotype& "» " &operation.Name& "].")
 						'if debug then Session.Output("Debug: constraint to be tested: [«" &constraint.Stereotype& "» " &constraint.Name& "].")
 			end if
@@ -417,26 +429,57 @@ end sub
 '-------------------------------------------------------------END--------------------------------------------------------------------------------------------
 
 
+
+
 '------------------------------------------------------------START-------------------------------------------------------------------------------------------
 ' Sub Name: kravObjektegenskap
 ' Author: Kent Jonsrud
-' Date: 2018-03-28
-' Purpose: Test om egenskap har tagged value SOSI_navn med gyldig verdi.
+' Date: 2018-03-28 / 2021-07-16
+' Purpose: Test om egenskap har tagged value SOSI_navn med gyldig verdi. /krav/objektegenskap /krav/objektegenskapstype /krav/geometriegenskap /krav/SOSIGeometri
 
 sub kravObjektegenskap(attr)
-
-	if getTaggedValue(attr,"SOSI_navn") = "" then
-		'Session.Output("Error: Attribute named [" & attr.Name & "] in class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] missing tagged value SOSI_navn. [/krav/objektegenskap]")
-		Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" & attr.Name & "] is missing tagged value SOSI_navn. [/krav/objektegenskap]")
-		globalErrorCounter = globalErrorCounter + 1
-	else
-		if getTaggedValue(attr,"SOSI_navn") <> getNCNameY(getTaggedValue(attr,"SOSI_navn")) then
-			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" & attr.Name & "] tagged value SOSI_navn is not legal SOSI-name: [" &getTaggedValue(attr,"SOSI_navn")& "]. [/krav/objektegenskap]")
-			globalErrorCounter = globalErrorCounter + 1
+	Dim t
+	if attr.ClassifierID <> 0 then
+		if isElement(attr.ClassifierID) then
+			dim datatype as EA.Element
+			set datatype = Repository.GetElementByID(attr.ClassifierID)
+			if datatype.Name <> attr.Type then
+				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"].")
+			end if
+			t = attr.Type
+			if t="Punkt" or t="Kurve" or t="Flate" or t="Sverm" or t="GM_Point" or t="GM_Curve" or t="GM_Surface" or t="GM_MultiPoint" or t="GM_CompositeCurve" or t="GM_CompositeSurface" then
+				' geometritypen er hovedobjektet i SOSI-format og trenger derfor ikke SOSI_navn (???)
+			else
+				if getTaggedValue(attr,"SOSI_navn") = "" then
+					'Session.Output("Error: Attribute named [" & attr.Name & "] in class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] missing tagged value SOSI_navn. [/krav/objektegenskap]")
+					Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" & attr.Name & "] is missing tagged value SOSI_navn. [/krav/objektegenskap]")
+					globalErrorCounter = globalErrorCounter + 1
+				else
+					if getTaggedValue(attr,"SOSI_navn") <> getNCNameY(getTaggedValue(attr,"SOSI_navn")) then
+						Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" & attr.Name & "] tagged value SOSI_navn is not legal SOSI-name: [" &getTaggedValue(attr,"SOSI_navn")& "]. [/krav/objektegenskap]")
+						globalErrorCounter = globalErrorCounter + 1
+					end if
+				end if
+			end if
+		else
+			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
 		end if
 	end if
-
 end sub
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Func Name: isElement
+' Author: Kent Jonsrud
+' Date: 2021-07-13
+' Purpose: tester om det finnes et element med denne ID-en.
+
+function isElement(ID)
+	isElement = false
+	if 	Mid(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 113, 1) <> 0 then
+		isElement = true
+	end if
+end function
 '-------------------------------------------------------------END--------------------------------------------------------------------------------------------
 
 
@@ -451,15 +494,18 @@ sub kravObjektegenskapstype(attr)
 	'Iso 19109 Requirement /req/uml/profile - well known types. Including Iso 19103 Requirements 22 and 25
 	if debug then Session.Output("Debug: datatype to be tested: [" &attr.Type& "].")
 	if attr.ClassifierID <> 0 then
-		dim datatype as EA.Element
-		set datatype = Repository.GetElementByID(attr.ClassifierID)
-		if datatype.Name <> attr.Type then
-			Session.Output("Error: attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"].")
+		if isElement(attr.ClassifierID) then
+			dim datatype as EA.Element
+			set datatype = Repository.GetElementByID(attr.ClassifierID)
+			if datatype.Name <> attr.Type then
+				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"].")
+			end if
+		else
+			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
 		end if
 	else
 		call reqUmlProfile(attr)
 	end if
-	
 end sub
 '-------------------------------------------------------------END--------------------------------------------------------------------------------------------
 
@@ -484,7 +530,7 @@ sub reqUmlProfile(attr)
 				if ExtensionTypes.IndexOf(attr.Type,0) = -1 then	
 					if CoreTypes.IndexOf(attr.Type,0) = -1 then	
 						'Session.Output("Error: Class [«" &theElement.Stereotype& "» " &theElement.Name& "] has unknown type for attribute ["&attr.Name&" : "&attr.Type&"]. [/req/uml/profile] & krav/25 & krav/22")
-						Session.Output("Error: unknown type for attribute ["&attr.Name&" : "&attr.Type&"]. [/krav/objektegenskapstype & '/krav/SOSIGeometri]")
+						Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] unknown type for attribute ["&attr.Name&" : "&attr.Type&"]. [/krav/objektegenskapstype & '/krav/SOSIGeometri]")
 						globalErrorCounter = globalErrorCounter + 1 
 					end if
 				end if
@@ -499,11 +545,11 @@ sub reqUmlProfileLoad()
 	
 	'iso 19103:2015 Core types
 	CoreTypes.Add "Date"
-	CoreTypes.Add "Time"
+'	CoreTypes.Add "Time"
 	CoreTypes.Add "DateTime"
 	CoreTypes.Add "CharacterString"
-	CoreTypes.Add "Number"
-	CoreTypes.Add "Decimal"
+'	CoreTypes.Add "Number"
+'	CoreTypes.Add "Decimal"
 	CoreTypes.Add "Integer"
 	CoreTypes.Add "Real"
 	CoreTypes.Add "Boolean"
@@ -522,10 +568,10 @@ sub reqUmlProfileLoad()
 
 	CoreTypes.Add "Any"
 
-	CoreTypes.Add "Record"
-	CoreTypes.Add "RecordType"
-	CoreTypes.Add "Field"
-	CoreTypes.Add "FieldType"
+'	CoreTypes.Add "Record"
+'	CoreTypes.Add "RecordType"
+'	CoreTypes.Add "Field"
+'	CoreTypes.Add "FieldType"
 	
 	'iso 19103:2015 Annex-C types
 	'ExtensionTypes.Add "LanguageString"
@@ -569,7 +615,7 @@ sub reqUmlProfileLoad()
 	ExtensionTypes.Add "AngularAcceleration"
 	
 	'well known and often used spatial types from iso 19107:2003
-	ProfileTypes.Add "DirectPosition"
+'	ProfileTypes.Add "DirectPosition"
 	ProfileTypes.Add "GM_Object"
 	ProfileTypes.Add "GM_Primitive"
 	ProfileTypes.Add "GM_Complex"
@@ -578,15 +624,15 @@ sub reqUmlProfileLoad()
 	ProfileTypes.Add "GM_Curve"
 	ProfileTypes.Add "GM_Surface"
 	'ProfileTypes.Add "GM_Solid"
-	'ProfileTypes.Add "GM_MultiPoint"
+	ProfileTypes.Add "GM_MultiPoint"
 	'ProfileTypes.Add "GM_MultiCurve"
 	'ProfileTypes.Add "GM_MultiSurface"
 	'ProfileTypes.Add "GM_MultiSolid"
-	ProfileTypes.Add "GM_CompositePoint"
+'	ProfileTypes.Add "GM_CompositePoint"
 	ProfileTypes.Add "GM_CompositeCurve"
 	ProfileTypes.Add "GM_CompositeSurface"
 	'ProfileTypes.Add "GM_CompositeSolid"
-	ProfileTypes.Add "TP_Object"
+'	ProfileTypes.Add "TP_Object"
 	'ProfileTypes.Add "TP_Primitive"
 	'ProfileTypes.Add "TP_Complex"
 	'ProfileTypes.Add "TP_Node"
@@ -654,6 +700,49 @@ sub reqUmlProfileLoad()
 	ProfileTypes.Add "Flate"
 	ProfileTypes.Add "Sverm"
 
+
+end sub
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Sub Name: kravObjektrolle
+' Author: Kent Jonsrud
+' Date: 2021-07-16
+' Purpose: Test om rolle har tagged value SOSI_navn med gyldig verdi.
+'
+' *--/krav/objektrolle	Navn på assosiasjonsroller til objekttyper med stereotype «FeatureType» er modellelementnavn som skal realiseres via en tagged value SOSI_navn som inneholder det SOSI-elementnavnet som skal benyttes. Assosiasjonsroller til objekttyper der rollen er uten denne tagged value skal ignoreres ved realisering i SOSI-format.	47
+' /krav/objektrolletype	Dersom klassen som rollen peker på er en objekttype skal SOSI-formattypen til assosiasjonsroller alltid være REF.	47
+' /krav/objektrollemål	 Verdien til SOSI-elementer med SOSI-formattype REF skal være referanse til et serienummer for et reelt objekt som finnes i samme datafila og er av samme klasse som den rollen står til i modellen.	47
+
+sub kravObjektrolle(element,conn)
+
+	if conn.ClientID = element.ElementID then
+		if conn.SupplierEnd.Role <> "" then
+			if getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_navn") = "" then
+				Session.Output("Error: Class [«"&element.Stereotype&"» "& element.Name &"] role [" &conn.SupplierEnd.Role& "] has no tagged value SOSI_navn. [/krav/objektrolle]")
+			end if
+
+			if getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_datatype") <> "" then
+				if getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_datatype") <> "REF" then
+					Session.Output("Error: Class [«"&element.Stereotype&"» "& element.Name &"] role [" &conn.SupplierEnd.Role& "] has a tagged value SOSI_datatype that is not REF. [/krav/objektrolletype]")
+				end if
+			end if
+		end if
+		
+	else
+		if conn.ClientEnd.Role <> "" then
+			if getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_navn") = "" then
+				Session.Output("Error: Class [«"&element.Stereotype&"» "& element.Name &"] role [" &conn.ClientEnd.Role& "] has no tagged value SOSI_navn. [/krav/objektrolle]")
+			end if
+
+			if getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_datatype") <> "" then
+				if getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_datatype") <> "REF" then
+					Session.Output("Error: Class [«"&element.Stereotype&"» "& element.Name &"] role [" &conn.ClientEnd.Role& "] has a tagged value SOSI_datatype that is not REF. [/krav/objektrolletype]")
+				end if
+			end if
+		end if
+	end if
 
 end sub
 '-------------------------------------------------------------END--------------------------------------------------------------------------------------------
@@ -835,7 +924,19 @@ function getPackageTaggedValue(package,taggedValueName)
 		next
 end function
 
-
+function getConnectorEndTaggedValue(connectorEnd,taggedValueName)
+	getConnectorEndTaggedValue = ""
+	if not connectorEnd is nothing and Len(taggedValueName) > 0 then
+		dim existingTaggedValue as EA.RoleTag 
+		dim i
+		for i = 0 to connectorEnd.TaggedValues.Count - 1
+			set existingTaggedValue = connectorEnd.TaggedValues.GetAt(i)
+			if existingTaggedValue.Tag = taggedValueName then
+				getConnectorEndTaggedValue = existingTaggedValue.Value
+			end if 
+		next
+	end if 
+end function 
 
 function getNCNameY(str)
 	' make name legal SOSI_kortnavn, (SOSI-Kontrolfil) (NC+ingen punktum)
