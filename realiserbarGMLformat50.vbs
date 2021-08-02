@@ -5,31 +5,29 @@ option explicit
 '  
 ' Script Name: realiserbarGMLformat50 
 ' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
-'
-' Version: alfa0.3
-' Date: 2021-07-07	renamed from realiserbarGML50.vb to realiserbarGMLformat50.vb
-'
+
+' Version: alfa0.3-2021-07-13 laget felle for EA-feil der egenskap fortsatt har ID til en slettet datatypeklasse
 ' Version: alfa0.2
-' Date: 2018-03-27
+' Date: 2018-03-27, 10-09
 
 ' Purpose: Validerer om modellen er realiserbar etter standarden SOSI Realisering i GML v.5.0 
 ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
-' Implemented rules: 
+' *Implemented rules: 
 ' /krav/tegnsett	Tegnsett for alle tegn i alle GML datasett skal være UTF-8, og dette skal dokumenteres i XML-attributtet encoding i XML-angivelsen i starten på fila.	15
 ' /krav/filhode	Datafiler som skal brukes til å utveksle geografisk informasjon på GML-format skal inneholde et standard filhode og et standard filsluttmerke. Det skal ikke være datainnhold etter filsluttmerket. Filhodet skal inneholde angivelse av tegnsett, formatversjon og angivelse av datasettets spesifikasjon.	15
 ' /krav/WFS-konteiner	 Konteineren skal være wfs:FeatureCollection i versjon 2.0. Konteineren skal ha navnerommet http://www.opengis.net/wfs/2.0/wfs og det skal pekes til XML-skjemabeskrivelse i http://schemas.opengis.net/wfs/2.0/wfs.xsd	15
 ' /krav/rekkefølge	Det er ved bruk av XML påkrevet å følge en fast rekkefølge på elementer innen samme grupperingsnivå, rekkefølgen i GML skal være den samme som rekkefølgen som er i modellen.	15
 ' /krav/GML-formatversjon	 Formatversjonen skal ha navnerommet http://www.opengis.net/gml/3.2 og peke til sin XML-skjemabeskrivelse i http://schemas.opengis.net/gml/3.2.1/gml.xsd Alternativt kan formatversjon være en eller flere fra GML 3.3 da denne direkte bygger på versjon 3.2.	16
 ' /krav/koordinatreferansesystem	Koordinatreferansesystemkoden skal være lik for alle geometrier i et datasett. Alle geometrier i datasettet skal ha oppgitt koordinatreferansesystemkode dersom dette ikke er oppgitt i filhodet.	17
-' --/krav/produktnavnerom	Tagged value targetNamespace i UML-modellen skal realiseres som http-URI og URL til navnerommet. Benevnelsen https: skal ikke være med i en http-URI men den skal alternativt også kunne benyttes til å referere til skjemafila.	19
-' --/krav/produktforstavelse	Tagged value xmlns i UML-modellen angir et XML kortnavn for navnerommet (vanligvis app) og skal være med som navneromsprefiks i datasett hvis datasettet ikke angir navnerommet som default namespace. (xmlns="http://skjema.geonorge.no/SOSI/produktspesifikasjon/Stedsnavn/5.0")	19
-' --/krav/produktbeskrivelse	Tagged value xsdDocument i UML-modellen angir filnavn på ei GML-applikasjonsskjemafil som skal være tilgjengelig i navnerommet.	19
-' --/krav/produktversjon	Tagged value version i UML-modellen beskriver versjonen i full detalj. Første del av versjon skal realiseres likt med siste del av navnerommet.	19
+' *--/krav/produktnavnerom	Tagged value targetNamespace i UML-modellen skal realiseres som http-URI og URL til navnerommet. Benevnelsen https: skal ikke være med i en http-URI men den skal alternativt også kunne benyttes til å referere til skjemafila.	19
+' *--/krav/produktforstavelse	Tagged value xmlns i UML-modellen angir et XML kortnavn for navnerommet (vanligvis app) og skal være med som navneromsprefiks i datasett hvis datasettet ikke angir navnerommet som default namespace. (xmlns="http://skjema.geonorge.no/SOSI/produktspesifikasjon/Stedsnavn/5.0")	19
+' *--/krav/produktbeskrivelse	Tagged value xsdDocument i UML-modellen angir filnavn på ei GML-applikasjonsskjemafil som skal være tilgjengelig i navnerommet.	19
+' *--/krav/produktversjon	Tagged value version i UML-modellen beskriver versjonen i full detalj. Første del av versjon skal realiseres likt med siste del av navnerommet.	19
 ' /krav/objektstereotype	Klasser med stereotype «FeatureType» skal alltid realiseres direkte som XML-elementer på toppnivå under konteinerens XML-element <wfs:member>.	20
-' /krav/objekttype	Modellelementnavnet på klasser med stereotype «FeatureType» skal realiseres i xsd-fila som <xsd:complexType> med endelsen "Type" etter klassenavnet. Klassenavnet benyttes direkte som navn på XML-elementet.	20
+' */krav/objekttype	Modellelementnavnet på klasser med stereotype «FeatureType» skal realiseres i xsd-fila som <xsd:complexType> med endelsen "Type" etter klassenavnet. Klassenavnet benyttes direkte som navn på XML-elementet.	20
 ' /krav/objektidentifikator	Elementet skal ha XML-egenskapen gml:id med verdi som skal være unik innenfor datasettet.	21
-' /krav/objektegenskap	Navn på egenskaper i klasser med stereotype «FeatureType» er modellelementnavn som skal realiseres ordrett som XML-elementer under objekttypens XML-element.		21
-' /krav/objektegenskapstype	 Egenskapstyper som er en brukerdefinert klasse skal realiseres som en <xsd:complexType> med alt innhold fra denne klassen. Se 7.7. Egenskapstyper som er basistyper skal realiseres direkte som angitt xsd-basistype. Se Tabell 7.1	22
+' */krav/objektegenskap	Navn på egenskaper i klasser med stereotype «FeatureType» er modellelementnavn som skal realiseres ordrett som XML-elementer under objekttypens XML-element.		21
+' */krav/objektegenskapstype	 Egenskapstyper som er en brukerdefinert klasse skal realiseres som en <xsd:complexType> med alt innhold fra denne klassen. Se 7.7. Egenskapstyper som er basistyper skal realiseres direkte som angitt xsd-basistype. Se Tabell 7.1	22
 ' /krav/tekst	 Egenskaper av type CharacterString der teksten inneholder "&", "<" eller ">" skal disse tegnene endres til henholdsvis &amp; &lt; &gt; fordi ellers vil disse tegnene kunne oppfattes som escapetegn eller start og slutt på XML-elementnavn. Alle andre tegn skal være korrekte og utranslitererte UTF-8-tegn.	23
 ' /krav/geometriegenskap3D	 For egenskaper med geometrityper i 3D (GM_Solid) skal koordinatreferansesystemet være et system med 3D koordinater.	23
 ' i--/krav/heleid2Dgeometri	Datasett og tjenester som erklærer at de er konforme med konformitetsklasse SOSI-GML-heleid2Dgeometri skal kun benytte geometritype fra Tabell 7.2.		23
@@ -105,7 +103,7 @@ sub OnProjectBrowserScript()
 					mess = mess + ""&Chr(13)&Chr(10)
 					mess = mess + "Starter validering av pakke [" & thePackage.Name &"]."&Chr(13)&Chr(10)
 
-					box = Msgbox (mess, vbOKCancel, "realiserbarGML50 alfa0.2-2018-03-27")
+					box = Msgbox (mess, vbOKCancel, "realiserbarGMLformat50 alfa0.3-2021-07-13")
 					select case box
 						case vbOK
 							dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
@@ -146,7 +144,7 @@ sub OnProjectBrowserScript()
 
 							if not abort then
 								'give an initial feedback in system output 
-								Session.Output("realiserbarGML50 alfa0.2 startet. "&Now())
+								Session.Output("realiserbarGMLformat50 alfa0.3-2021-07-13 startet. "&Now())
 								'Check model for script breaking structures
 								if scriptBreakingStructuresInModel(thePackage) then
 									Session.Output("Kritisk feil: Kan ikke validere struktur og innhold før denne feilen er rettet.")
@@ -176,7 +174,10 @@ sub OnProjectBrowserScript()
 								Dim StartTime, EndTime, Elapsed
 								StartTime = timer 
 								startPackageName = thePackage.Name
+								Session.Output("-----Starter test av pakke ["&startPackageName&"]-----") 	
+																
 								FindInvalidElementsInASPackage(thePackage) 
+								
 								Elapsed = formatnumber((Timer - StartTime),2)
 
 								'final report
@@ -223,7 +224,7 @@ end sub
 
 
 '------------------------------------------------------------START-------------------------------------------------------------------------------------------
-' Sub Name: FindInvalidElementsInPackage
+' Sub Name: FindInvalidElementsInASPackage
 ' Author: Kent Jonsrud
 ' Date: 2018-02-09
 ' Purpose: Test the content of the top level package
@@ -399,27 +400,52 @@ end sub
 
 
 
+
+
 '------------------------------------------------------------START-------------------------------------------------------------------------------------------
 ' Sub Name: kravObjektegenskapstype
 ' Author: Kent Jonsrud
-' Date: 2018-03-27
+' Date: 2018-03-27 og 2021-07-13
 ' Purpose: Egenskapstyper skal være brukerdefinerte klasser eller kjente geometri- eller basistyper.
 
 sub kravObjektegenskapstype(attr)
 	'Iso 19109 Requirement /req/uml/profile - well known types. Including Iso 19103 Requirements 22 and 25
-	if debug then Session.Output("Debug: datatype to be tested: [" &attr.Type& "].")
+	if debug then Session.Output("Debug: datatype to be tested: [" &attr.Type& "] datatype ClassifierID: [" &attr.ClassifierID& "].")
 	if attr.ClassifierID <> 0 then
-		dim datatype as EA.Element
-		set datatype = Repository.GetElementByID(attr.ClassifierID)
-		if datatype.Name <> attr.Type then
-			Session.Output("Error: attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"].")
+		if isElement(attr.ClassifierID) then
+			dim datatype as EA.Element
+			set datatype = Repository.GetElementByID(attr.ClassifierID)
+			if datatype.Name <> attr.Type then
+				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"].")
+			end if
+		else
+			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
 		end if
 	else
+	
 		call reqUmlProfile(attr)
 	end if
 	
 end sub
 '-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Func Name: isElement
+' Author: Kent Jonsrud
+' Date: 2021-07-13
+' Purpose: tester om det finnes et element med denne ID-en.
+
+function isElement(ID)
+	isElement = false
+	if 	Mid(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 113, 1) <> 0 then
+		isElement = true
+	end if
+end function
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+
 
 
 
@@ -442,7 +468,8 @@ sub reqUmlProfile(attr)
 				if ExtensionTypes.IndexOf(attr.Type,0) = -1 then	
 					if CoreTypes.IndexOf(attr.Type,0) = -1 then	
 						'Session.Output("Error: Class [«" &theElement.Stereotype& "» " &theElement.Name& "] has unknown type for attribute ["&attr.Name&" : "&attr.Type&"]. [/req/uml/profile] & krav/25 & krav/22")
-						Session.Output("Error: unknown type for attribute ["&attr.Name&" : "&attr.Type&"]. [/req/uml/profile] & krav/25 & krav/22")
+					'	Session.Output("Error: unknown type for attribute ["&attr.Name&" : "&attr.Type&"]. [/req/uml/profile] & krav/25 & krav/22")
+						Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] unknown type for attribute ["&attr.Name&" : "&attr.Type&"]. [krav/objektegenskapstype]")
 						globalErrorCounter = globalErrorCounter + 1 
 					end if
 				end if
