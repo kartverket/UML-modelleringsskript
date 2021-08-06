@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Date: 08.04.2021
 '
+' Version: 0.8 Date: 2021-08-06 Kent Jonsrud: skriver ut alle restriksjoner på objekttyper og datatyper
 ' Version: 0.7 Date: 2021-07-08 Kent Jonsrud: retta en feil ved utskrift av roller
 ' Version: 0.6 Date: 2021-06-30 Kent Jonsrud: leser kodelister fra levende register
 ' Version: 0.5 Date: 2021-06-29 Kent Jonsrud: error if role list is not shown
@@ -310,6 +311,11 @@ end if
 If element.Connectors.Count > numberSpecializations Then
 	Relasjoner(element)
 End If
+
+if element.Constraints.Count > 0 then
+	Restriksjoner(element)
+end if
+
 End sub
 '-----------------ObjektOgDatatyper End-----------------
 
@@ -662,6 +668,39 @@ End If
 
 end sub
 '-----------------Relasjoner End-----------------
+
+
+
+'-----------------Restriksjoner-----------------
+sub Restriksjoner(element)
+Dim constr as EA.Constraint
+
+Session.Output("")
+Session.Output("===== Restriksjoner")
+Session.Output("[cols=""20,80""]")
+Session.Output("|===")
+					
+For Each constr In element.Constraints
+	Session.Output("|*Navn:* ")
+	Session.Output("|*" & constr.Name & "*")
+	Session.Output(" ")
+	Session.Output("|Beskrivelse: ")
+	Session.Output("|" & constr.Notes & "")
+	Session.Output(" ")
+'	Session.Output("|Type: ")
+'	Session.Output("|" & constr.Type & "")
+'	Session.Output(" ")
+'	Session.Output("|Status: ")
+'	Session.Output("|" & constr.Status & "")
+'	Session.Output(" ")
+'	Session.Output("|Vekt: ")
+'	Session.Output("|" & constr.Weight & "")
+'	Session.Output(" ")
+Next
+
+Session.Output("|===")
+end sub
+'-----------------Restriksjoner End-----------------
 
 '-----------------Funksjon for full path-----------------
 function getPath(package)
