@@ -5,26 +5,20 @@ Option Explicit
 ' Script Name: listAdocFraModell
 ' Author: Tore Johnsen, Åsmund Tjora
 ' Purpose: Generate documentation in AsciiDoc syntax
-' Date: 08.04.2021
+' Original Date: 08.04.2021
 '
+' Version: 0.11 Date: 2021-09-05 Kent Jonsrud: Assosiasjonsnavn, ikke hente eksterne koder, sideskift for pef
+' Version: 0.10 Date: 2021-08-10 Kent Jonsrud: forbedra ledetekster
+' Version: 0.9 Date: 2021-08-08 Kent Jonsrud: skriver ut navn og beskrivelse på alle operasjoner på objekttyper og datatyper
 ' Version: 0.8 Date: 2021-08-06 Kent Jonsrud: skriver ut alle restriksjoner på objekttyper og datatyper
 ' Version: 0.7 Date: 2021-07-08 Kent Jonsrud: retta en feil ved utskrift av roller
 ' Version: 0.6 Date: 2021-06-30 Kent Jonsrud: leser kodelister fra levende register
 ' Version: 0.5 Date: 2021-06-29 Kent Jonsrud: error if role list is not shown
-'
-' Version: 0.4
-' Date: 2021-06-14 Kent Jonsrud: case-insensitiv test på navnet på tagged value SOSI_bildeAvModellelement
-' Date: 2021-06-24 Kent Jonsrud: endra navn
-'
-' Version: 0.3
-' Date: 2021-06-01 Kent Jonsrud:
-' - retta bildesti til app_img
-' Version: 0.2
-' Date: 2021-04-16 Kent Jonsrud:
-' - tagged value SOSI_bildeAvModellelement på pakker og klasser: verdien vises som ekstern sti til bilde
-' Date: 2021-04-15 Kent Jonsrud:
-' - diagrammer legges i underkatalog med navn enten verdien i tagged value SOSI_kortnavn eller img
-' TBD: sette inn blanke i diagrammnavn for enklere_filnavn.png ?
+' Date: 2021-06-24 Kent Jonsrud: endra skriptnavn fra AdocTest til listAdocFraModell
+' Version: 0.4 Date: 2021-06-14 Kent Jonsrud: case-insensitiv test på navnet på tagged value SOSI_bildeAvModellelement
+' Version: 0.3 Date: 2021-06-01 Kent Jonsrud: retta bildesti til app_img
+' Version: 0.2 Date: 2021-04-16 Kent Jonsrud: tagged value SOSI_bildeAvModellelement på pakker og klasser: verdien vises som ekstern sti til bilde
+' Date: 2021-04-15 Kent Jonsrud: diagrammer legges i underkatalog med navn enten verdien i tagged value SOSI_kortnavn eller img.
 ' Date: 2021-04-09/14 Kent Jonsrud:
 ' - tagged value lists come right after definition, on packages and classes
 ' - "Spesialisering av" changed to Supertype, no list of subtypes shown
@@ -35,10 +29,13 @@ Option Explicit
 ' - tagged values on CodeList classes, empty tags suppressed (suppress only those from the standard profile?), heading?
 ' - simpler list for codelists with more than 1 code, three-column list when Defaults are used (Utvekslingsalias)
 '
-' TBD: show stereotype on Type 
+' TBD: tagged values on roles
+' TBD: sette inn blanke i diagrammnavn for enklere_filnavn.png ?
+' TBD: show stereotype on Type DONE
+' TBD: show abstract on Type 
 ' TBD: show navigable 
 ' TBD: show association type 
-' TBD: output operations and constraints right after attributes and roles
+' TBD: output operations and constraints right after attributes and roles DONE
 ' TBD: codes with tagged values
 ' TBD: output info on associations if present
 ' TBD: Hva med tagged values på koder?
@@ -106,7 +103,7 @@ Dim listTags
 listTags = false
 	
 if thePackage.Element.Stereotype <> "" then
-	Session.Output("=== «"&thePackage.Element.Stereotype&"» "&thePackage.Name&"")
+	Session.Output("=== Pakke «"&thePackage.Element.Stereotype&"» "&thePackage.Name&"")
 else
 	Session.Output("=== Pakke: "&thePackage.Name&"")
 end if
@@ -119,7 +116,8 @@ if thePackage.element.TaggedValues.Count > 0 then
 			if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" then
 				if listTags = false then
 					Session.Output(" ")	
-					Session.Output("===== Tagged Values")
+					Session.Output("===== Profilparametre i tagged values")
+				'	Session.Output("===== Tagged Values")
 					Session.Output("[cols=""20,80""]")
 					Session.Output("|===")
 					listTags = true
@@ -212,7 +210,7 @@ dim externalPackage
 Dim listTags
 
 Session.Output(" ")
-Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
+Session.Output("==== Klasse «"&element.Stereotype&"» "&element.Name&"")
 Session.Output("Definisjon: "&getCleanDefinition(element.Notes)&"")
 Session.Output(" ")
 numberSpecializations = 0
@@ -241,9 +239,9 @@ next
 if element.TaggedValues.Count > 0 then
 	for each tag in element.TaggedValues								
 		if tag.Value <> "" then	
-			if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" then
+			if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" and LCase(tag.Name) <> "sosi_bildeavmodellelement" then
 				if listTags = false then
-					Session.Output("===== Tagged Values")
+					Session.Output("===== Profilparametre i tagged values")
 					Session.Output("[cols=""20,80""]")
 					Session.Output("|===")
 					listTags = true
@@ -264,7 +262,7 @@ if element.TaggedValues.Count > 0 then
 '		if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			diagCounter = diagCounter + 1
-			Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
+			Session.Output("[caption=""Figur "&diagCounter&": "",title=Illustrasjon av objekttype "&element.Name&"]")
 		'	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
 			Session.Output("image::"&tag.Value&"["&tag.Value&"]")
 		end if
@@ -298,7 +296,7 @@ if element.Attributes.Count > 0 then
 	'	end if
 
 		if att.TaggedValues.Count > 0 then
-			Session.Output("|Tagged Values: ")
+			Session.Output("|Profilparametre i tagged values: ")
 			Session.Output("|")
 			for each tag in att.TaggedValues
 				Session.Output(""&tag.Name& ": "&tag.Value&" + ")
@@ -311,6 +309,10 @@ end if
 If element.Connectors.Count > numberSpecializations Then
 	Relasjoner(element)
 End If
+
+if element.Methods.Count > 0 then
+	Operasjoner(element)
+end if
 
 if element.Constraints.Count > 0 then
 	Restriksjoner(element)
@@ -326,12 +328,12 @@ Dim att As EA.Attribute
 dim tag as EA.TaggedValue
 dim utvekslingsalias, codeListUrl
 Session.Output(" ")
-Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
+Session.Output("==== Klasse «"&element.Stereotype&"» "&element.Name&"")
 Session.Output("Definisjon: "&getCleanDefinition(element.Notes)&"")
 Session.Output(" ")
 
 if element.TaggedValues.Count > 0 then
-	Session.Output("===== Tagged Values")
+	Session.Output("===== Profilparametre i tagged values")
 	Session.Output("[cols=""20,80""]")
 	Session.Output("|===")
 	for each tag in element.TaggedValues								
@@ -361,8 +363,12 @@ if element.TaggedValues.Count > 0 then
 		end if
 	next
 end if
-' testing http get
+
 if codeListUrl <> "" then
+	Session.Output("Koder fra ekstern kodeliste kan hentes fra register: "&codeListUrl&"")	
+end if
+' testing http get
+if false then
 '	Session.Output("DEBUG codeListUrl: " & codeListUrl & "")
 	Dim httpObject
 	Dim parseText, line, linepart, part, kodenavn, kodedef, ualias, kodelistenavn
@@ -407,6 +413,8 @@ if codeListUrl <> "" then
 					Session.Output(" ")	
 					Session.Output("Kodelistens navn i registeret: "&ualias&"")	
 					Session.Output(" ")	
+					Session.Output("Merknad: Denne kodelista er kun informativ. Det normative innholdet er til enhver tid å finn i registeret.")	
+					Session.Output(" ")	
 
 
 					Session.Output("===== Koder")
@@ -437,7 +445,7 @@ if codeListUrl <> "" then
 end if
 
 if element.Attributes.Count > 0 then
-	Session.Output("===== Koder")
+	Session.Output("===== Koder i modellen")
 end if
 utvekslingsalias = false
 for each att in element.Attributes
@@ -557,6 +565,12 @@ For Each con In element.Connectors
 					Session.Output("|[" & con.ClientEnd.Cardinality&"]")
 					Session.Output(" ")
 				End If
+				If con.Name <> "" Then
+					Session.Output("|Assosiasjonsnavn: ")
+					Session.Output("|" & con.Name)
+					Session.Output(" ")
+				End If
+
 				Session.Output(textVar)
 				Session.Output("|«" & client.Stereotype&"» "&client.Name)
 				if false then
@@ -614,6 +628,12 @@ For Each con In element.Connectors
 					Session.Output("|[" & con.SupplierEnd.Cardinality&"]")
 					Session.Output(" ")
 				End If
+				If con.Name <> "" Then
+					Session.Output("|Assosiasjonsnavn: ")
+					Session.Output("|" & con.Name)
+					Session.Output(" ")
+				End If
+
 				Session.Output(textVar)
 				Session.Output("|«" & supplier.Stereotype&"» "&supplier.Name)
 				if false then
@@ -671,16 +691,51 @@ end sub
 
 
 
+'-----------------Operasjoner-----------------
+sub Operasjoner(element)
+Dim meth as EA.Method
+
+Session.Output("")
+Session.Output("===== Operasjoner")
+
+					
+For Each meth In element.Methods
+	Session.Output("[cols=""20,80""]")
+	Session.Output("|===")
+	Session.Output("|*Navn:* ")
+	Session.Output("|*" & meth.Name & "*")
+	Session.Output(" ")
+	Session.Output("|Beskrivelse: ")
+	Session.Output("|" & meth.Notes & "")
+	Session.Output(" ")
+'	Session.Output("|Stereotype: ")
+'	Session.Output("|" & meth.Stereotype & "")
+'	Session.Output(" ")
+'	Session.Output("|Retur type: ")
+'	Session.Output("|" & meth.ReturnType & "")
+'	Session.Output(" ")
+'	Session.Output("|Oppførsel: ")
+'	Session.Output("|" & meth.Behaviour & "")
+'	Session.Output(" ")
+	Session.Output("|===")
+Next
+
+'Session.Output("|===")
+end sub
+'-----------------Operasjoner End-----------------
+
+
 '-----------------Restriksjoner-----------------
 sub Restriksjoner(element)
 Dim constr as EA.Constraint
 
 Session.Output("")
 Session.Output("===== Restriksjoner")
-Session.Output("[cols=""20,80""]")
-Session.Output("|===")
+
 					
 For Each constr In element.Constraints
+	Session.Output("[cols=""20,80""]")
+	Session.Output("|===")
 	Session.Output("|*Navn:* ")
 	Session.Output("|*" & constr.Name & "*")
 	Session.Output(" ")
@@ -696,9 +751,10 @@ For Each constr In element.Constraints
 '	Session.Output("|Vekt: ")
 '	Session.Output("|" & constr.Weight & "")
 '	Session.Output(" ")
+	Session.Output("|===")
 Next
 
-Session.Output("|===")
+'Session.Output("|===")
 end sub
 '-----------------Restriksjoner End-----------------
 
