@@ -4,6 +4,7 @@ Option Explicit
 
 ' Script Name: listAdocForSOSIformatbeskrivelse
 ' Purpose: Genererer SOSI-formatbeskrivelse i AsciiDoc syntaks
+' Version 0.2 2021-09-06 feilretting
 ' Version 0.1 2021-07-05 vise egenskapsnavn foran datatypeegenskapsnavn (informasjon.navnerom)
 '						vise stereotypenavn foran datatyper og kodelister
 '
@@ -30,7 +31,7 @@ Sub OnProjectBrowserScript()
 			set thePackage = Repository.GetTreeSelectedObject()
 
 			Call ListAsciiDoc(thePackage)
-
+			Session.Output("// End of SOSI-format")
         Case Else
             ' Error message
             Session.Prompt "This script does not support items of this type.", promptOK
@@ -86,7 +87,7 @@ if element.Name <> "" then
 end if
 
 if element.AttributesEx.Count > 0 then
-	Session.Output("===== Modellnavn og SOSI-formatnavn") 
+	Session.Output("===== Modellelementnavn og SOSI-formatnavn") 
 	Session.Output("[cols=""20,20,20,10""]")
 	Session.Output("|===")
 	Session.Output("|*Navn:* ")
@@ -97,9 +98,10 @@ if element.AttributesEx.Count > 0 then
 
 	call listDatatype("", "..", element)	
 	
-	' roller?
+	' kun roller? (vises ikke i Ex.Count)
 	
 	Session.Output("|===")
+
 end if
 
 
@@ -171,31 +173,36 @@ for each conn in element.Connectors
 		stereo = ""
 		if conn.Type = "Association" then
 		if element.ElementID = conn.ClientID then
-			'
-'			if getConnectorEndTaggedValue(conn.SupplierEnd,"xsdEncodingRule") <> "notEncoded" then
-			Session.Output("|"&conn.SupplierEnd.Role&"")
-			if conn.SupplierID <> 0 then
-				set datatype = Repository.GetElementByID(conn.SupplierID)
-				stereo = "«" & datatype.Stereotype & "» "
+			if conn.SupplierEnd.Role <> "" and conn.SupplierEnd.Navigable = "Navigable" then
+				'
+	'			if getConnectorEndTaggedValue(conn.SupplierEnd,"xsdEncodingRule") <> "notEncoded" then
+				Session.Output("|"&conn.SupplierEnd.Role&"")
+				if conn.SupplierID <> 0 then
+					set datatype = Repository.GetElementByID(conn.SupplierID)
+					stereo = "«" & datatype.Stereotype & "» "
+				end if
+				Session.Output("|"&stereo&datatype.Name&"")			
+				Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_navn")&"")
+				Session.Output("|["&conn.SupplierEnd.Cardinality&"]"&"")
 			end if
-			Session.Output("|"&stereo&datatype.Name&"")			
-			Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_navn")&"")
-			Session.Output("|["&conn.SupplierEnd.Cardinality&"]"&"")
-		else 				
-			Session.Output("|"&conn.ClientEnd.Role&"")
-			if conn.ClientID <> 0 then
-				set datatype = Repository.GetElementByID(conn.ClientID)
-				stereo = "«" & datatype.Stereotype & "» "
+		else
+			if conn.ClientEnd.Role <> "" and conn.ClientEnd.Navigable = "Navigable" then
+				Session.Output("|"&conn.ClientEnd.Role&"")
+				if conn.ClientID <> 0 then
+					set datatype = Repository.GetElementByID(conn.ClientID)
+					stereo = "«" & datatype.Stereotype & "» "
+				end if
+				Session.Output("|"&stereo&datatype.Name&"")			
+				Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_navn")&"")
+				Session.Output("|["&conn.ClientEnd.Cardinality&"]"&"")
 			end if
-			Session.Output("|"&stereo&datatype.Name&"")			
-			Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_navn")&"")
-			Session.Output("|["&conn.ClientEnd.Cardinality&"]"&"")
 		end if
-			
-		if LCase(datatype.Stereotype) <> "featuretype" then
-			supereg = egenskap
-			superpktum = punktum
-			call listDatatype(supereg,superpktum,datatype)
+		if stereo <> "" then	
+			if LCase(datatype.Stereotype) <> "featuretype" then
+				supereg = egenskap
+				superpktum = punktum
+				call listDatatype(supereg,superpktum,datatype)
+			end if
 		end if
 	end if
 next
