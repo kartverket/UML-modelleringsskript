@@ -4,6 +4,8 @@ Option Explicit
 
 ' Script Name: listAdocForSOSIformatbeskrivelse
 ' Purpose: Genererer SOSI-formatbeskrivelse i AsciiDoc syntaks
+'
+' Version 0.3 2021-09-09 skriver ikke ut abstrakte klasser
 ' Version 0.2 2021-09-06 feilretting
 ' Version 0.1 2021-07-05 vise egenskapsnavn foran datatypeegenskapsnavn (informasjon.navnerom)
 '						vise stereotypenavn foran datatyper og kodelister
@@ -56,7 +58,9 @@ Session.Output("=== Pakke: "&thePackage.Name&"")
 
 For each element in thePackage.Elements
 	If Ucase(element.Stereotype) = "FEATURETYPE" or Ucase(element.Stereotype) = "" Then
-		Call ObjektOgDatatyper(element)
+		if element.Abstract <> 1 then
+			Call ObjektOgDatatyper(element)
+		end if
 	End if
 Next
 	
