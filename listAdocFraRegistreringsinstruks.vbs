@@ -7,7 +7,9 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Date: 08.04.2021
 ' Version: 0.1ish
-
+'
+' Version 0.6 2021-09-09 rettet en feil slik at nå kun egenskaper fra supertyper skrives ut
+' 
 ' Version 0.5 2021-06-30 vise egenskapsnavn foran datatypeegenskapsnavn (informasjon.navnerom)
 '						vise stereotypenavn foran datatyper og kodelister
 '
@@ -79,7 +81,7 @@ Sub OnProjectBrowserScript()
 			end if
 
 			Call ListAsciiDoc(thePackage)
-
+			Session.Output("// End of Registreringsinstruks UML-model")
         Case Else
             ' Error message
             Session.Prompt "This script does not support items of this type.", promptOK
@@ -108,7 +110,7 @@ if thePackage.element.TaggedValues.Count > 0 then
 	Session.Output("|===")
 	for each tag in thePackage.element.TaggedValues
 		if tag.Value <> "" then	
-			if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" then
+			if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" and LCase(tag.Name) <> "sosi_bildeavmodellelement" then
 			'	Session.Output("|Tag: "&tag.Name&"")
 			'	Session.Output("|Verdi: "&tag.Value&"")
 				Session.Output("|"&tag.Name&"")
@@ -202,6 +204,8 @@ Dim textVar, addnotes, punktum
 dim externalPackage
 
 parentimg = ""
+	Session.Output("|===")
+	Session.Output("|===")
 Session.Output(" ")
 Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
 For Each con In element.Connectors
@@ -466,6 +470,8 @@ Sub Kodelister(element)
 Dim att As EA.Attribute
 dim tag as EA.TaggedValue
 dim utvekslingsalias
+	Session.Output("|===")
+	Session.Output("|===")
 Session.Output(" ")
 Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
 Session.Output("Definisjon: "&getCleanDefinition(element.Notes)&"")
@@ -824,13 +830,28 @@ sub listDatatype(egenskap, punktum, element)
 Dim pktum, eskap, stereo
 'Dim element As EA.Element
 Dim datatype As EA.Element
+Dim super As EA.Element
 Dim att As EA.Attribute
+dim conn as EA.Collection
 '			Session.Output("|attr.ClassifierID="&attr.ClassifierID&"")
 	'		Session.Output("DEBUG: (egenskap, punktum, element.Name: " & egenskap & " , " & punktum & " , " & element.Name )
 'set element = Repository.GetElementByID(attr.ClassifierID)
 if element.AttributesEx.Count > 0 then
 
-	for each att in element.AttributesEx
+	for each conn in element.Connectors
+	'		if debug then Repository.WriteOutput "Script", "Debug: conn.Type [" & conn.Type & "] conn.ClientID [" & conn.ClientID & "] conn.SupplierID [" & conn.SupplierID & "].",0
+		if conn.Type = "Generalization" then
+			if element.ElementID = conn.ClientID then
+	'				if debug then Repository.WriteOutput "Script", "Debug: supertype [" & Repository.GetElementByID(conn.SupplierID).Name & "].",0
+'					superlist = getSupertypes(ftname, conn.SupplierID, indent)
+				set super = Repository.GetElementByID(conn.SupplierID)
+				call listDatatype(egenskap, punktum, super)
+			end if
+		end if
+	next
+
+
+	for each att in element.Attributes
 		if att.name = "Registreringsmetode" or att.name = "Tilleggsbeskrivelse" or att.name = "Grunnrissreferanse" or att.name = "Høydereferanse" then
 		else
 			stereo = ""
