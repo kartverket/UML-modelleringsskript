@@ -7,7 +7,8 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
-' Version: 0.11 Date: 2021-09-05 Kent Jonsrud: Assosiasjonsnavn, ikke hente eksterne koder, sideskift for pef
+' Version: 0.12 Date: 2021-09-09 Kent Jonsrud: smårettinger, bedre angivelse av skille mellom klassene
+' Version: 0.11 Date: 2021-09-05 Kent Jonsrud: Assosiasjonsnavn, ikke hente eksterne koder, sideskift for pdf
 ' Version: 0.10 Date: 2021-08-10 Kent Jonsrud: forbedra ledetekster
 ' Version: 0.9 Date: 2021-08-08 Kent Jonsrud: skriver ut navn og beskrivelse på alle operasjoner på objekttyper og datatyper
 ' Version: 0.8 Date: 2021-08-06 Kent Jonsrud: skriver ut alle restriksjoner på objekttyper og datatyper
@@ -82,7 +83,7 @@ Sub OnProjectBrowserScript()
 			end if
 
 			Call ListAsciiDoc(thePackage)
-
+			Session.Output("// End of UML-model")
         Case Else
             ' Error message
             Session.Prompt "This script does not support items of this type.", promptOK
@@ -105,6 +106,9 @@ listTags = false
 if thePackage.Element.Stereotype <> "" then
 	Session.Output("=== Pakke «"&thePackage.Element.Stereotype&"» "&thePackage.Name&"")
 else
+	Session.Output("<<<")
+	Session.Output("|===")
+	Session.Output("|===")
 	Session.Output("=== Pakke: "&thePackage.Name&"")
 end if
 Session.Output("Definisjon: "&getCleandefinition(thePackage.Notes)&"")
@@ -210,7 +214,13 @@ dim externalPackage
 Dim listTags
 
 Session.Output(" ")
-Session.Output("==== Klasse «"&element.Stereotype&"» "&element.Name&"")
+Session.Output("|===")
+Session.Output("|===")
+if element.Abstract = 1 then
+	Session.Output("==== «"&element.Stereotype&"» "&element.Name&" (abstrakt klasse)")
+else
+	Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
+end if
 Session.Output("Definisjon: "&getCleanDefinition(element.Notes)&"")
 Session.Output(" ")
 numberSpecializations = 0
@@ -328,6 +338,8 @@ Dim att As EA.Attribute
 dim tag as EA.TaggedValue
 dim utvekslingsalias, codeListUrl
 Session.Output(" ")
+Session.Output("|===")
+Session.Output("|===")
 Session.Output("==== Klasse «"&element.Stereotype&"» "&element.Name&"")
 Session.Output("Definisjon: "&getCleanDefinition(element.Notes)&"")
 Session.Output(" ")
