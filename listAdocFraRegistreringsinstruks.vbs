@@ -8,8 +8,8 @@ Option Explicit
 ' Date: 08.04.2021
 ' Version: 0.1ish
 '
+' Version 0.7 2021-09-10 diagrammer med "utelat" i navnet skrives ikke ut
 ' Version 0.6 2021-09-09 rettet en feil slik at nå kun egenskaper fra supertyper skrives ut
-' 
 ' Version 0.5 2021-06-30 vise egenskapsnavn foran datatypeegenskapsnavn (informasjon.navnerom)
 '						vise stereotypenavn foran datatyper og kodelister
 '
@@ -139,18 +139,21 @@ end if
 '-----------------Diagram-----------------
 
 For Each diag In thePackage.Diagrams
-	diagCounter = diagCounter + 1
-	Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, imgparent & "\" & diag.Name & ".png", 1)
-'	Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, "" & diag.Name&".png", 1)
-	Repository.CloseDiagram(diag.DiagramID)
-'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&diag.Name&"]")
-	Session.Output("[caption=""Figur  "",title="&diag.Name&"]")
-'	Session.Output("image::"&imgfolder&"\"&diag.Name&".png["&diag.Name&"]")
-	Session.Output("image::"&diag.Name&".png["&diag.Name&"]")
+	if InStr(LCase(diag.Name),"utelat") = 0 then
+		diagCounter = diagCounter + 1
+		Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, imgparent & "\" & diag.Name & ".png", 1)
+	'	Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, "" & diag.Name&".png", 1)
+		Repository.CloseDiagram(diag.DiagramID)
+	'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&diag.Name&"]")
+		Session.Output("[caption=""Figur  "",title="&diag.Name&"]")
+	'	Session.Output("image::"&imgfolder&"\"&diag.Name&".png["&diag.Name&"]")
+		Session.Output("image::"&diag.Name&".png["&diag.Name&"]")
+	end if
 Next
 
 For each element in thePackage.Elements
-	If Ucase(element.Stereotype) = "FEATURETYPE" or Ucase(element.Stereotype) = "" Then
+	If element.Type = "Class" and (Ucase(element.Stereotype) = "FEATURETYPE" or Ucase(element.Stereotype) = "") Then
+'	If Ucase(element.Stereotype) = "FEATURETYPE" or Ucase(element.Stereotype) = "" Then
 		Call ObjektOgDatatyper(element)
 	End if
 Next
