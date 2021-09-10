@@ -5,6 +5,7 @@ Option Explicit
 ' Script Name: listAdocForSOSIformatbeskrivelse
 ' Purpose: Genererer SOSI-formatbeskrivelse i AsciiDoc syntaks
 '
+' Version 0.4 2021-09-10 feilretting
 ' Version 0.3 2021-09-09 skriver ikke ut abstrakte klasser
 ' Version 0.2 2021-09-06 feilretting
 ' Version 0.1 2021-07-05 vise egenskapsnavn foran datatypeegenskapsnavn (informasjon.navnerom)
@@ -52,12 +53,12 @@ Dim projectclass As EA.Project
 set projectclass = Repository.GetProjectInterface()
 
 
-Session.Output("=== Pakke: "&thePackage.Name&"")
+'Session.Output("=== Pakke: "&thePackage.Name&"")
 'stereotype TBD
 
 
 For each element in thePackage.Elements
-	If Ucase(element.Stereotype) = "FEATURETYPE" or Ucase(element.Stereotype) = "" Then
+	If element.Type = "Class" and (Ucase(element.Stereotype) = "FEATURETYPE" or Ucase(element.Stereotype) = "") Then
 		if element.Abstract <> 1 then
 			Call ObjektOgDatatyper(element)
 		end if
@@ -85,13 +86,15 @@ Dim client As EA.Element
 Dim textVar, addnotes, punktum
 dim externalPackage
 
+'	Session.Output("//Debug: «"&element.Stereotype&"» "&element.Name&" "&element.Type&" ")
+	
 if element.Name <> "" then
 	Session.Output(" ")
 	Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
 end if
 
 if element.AttributesEx.Count > 0 then
-	Session.Output("===== Modellelementnavn og SOSI-formatnavn") 
+	Session.Output("===== Modellelementnavn og SOSI_navn") 
 	Session.Output("[cols=""20,20,20,10""]")
 	Session.Output("|===")
 	Session.Output("|*Navn:* ")
@@ -178,27 +181,30 @@ for each conn in element.Connectors
 		if conn.Type = "Association" then
 		if element.ElementID = conn.ClientID then
 			if conn.SupplierEnd.Role <> "" and conn.SupplierEnd.Navigable = "Navigable" then
-				'
+				if InStr(LCase(conn.SupplierEnd.Role),"avgrens") = 0 then
 	'			if getConnectorEndTaggedValue(conn.SupplierEnd,"xsdEncodingRule") <> "notEncoded" then
-				Session.Output("|"&conn.SupplierEnd.Role&"")
-				if conn.SupplierID <> 0 then
-					set datatype = Repository.GetElementByID(conn.SupplierID)
-					stereo = "«" & datatype.Stereotype & "» "
+					Session.Output("|"&conn.SupplierEnd.Role&"")
+					if conn.SupplierID <> 0 then
+						set datatype = Repository.GetElementByID(conn.SupplierID)
+						stereo = "«" & datatype.Stereotype & "» "
+					end if
+					Session.Output("|"&stereo&datatype.Name&"")			
+					Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_navn")&"")
+					Session.Output("|["&conn.SupplierEnd.Cardinality&"]"&"")
 				end if
-				Session.Output("|"&stereo&datatype.Name&"")			
-				Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_navn")&"")
-				Session.Output("|["&conn.SupplierEnd.Cardinality&"]"&"")
 			end if
 		else
 			if conn.ClientEnd.Role <> "" and conn.ClientEnd.Navigable = "Navigable" then
-				Session.Output("|"&conn.ClientEnd.Role&"")
-				if conn.ClientID <> 0 then
-					set datatype = Repository.GetElementByID(conn.ClientID)
-					stereo = "«" & datatype.Stereotype & "» "
+				if InStr(LCase(conn.ClientEnd.Role),"avgrens") = 0 then
+					Session.Output("|"&conn.ClientEnd.Role&"")
+					if conn.ClientID <> 0 then
+						set datatype = Repository.GetElementByID(conn.ClientID)
+						stereo = "«" & datatype.Stereotype & "» "
+					end if
+					Session.Output("|"&stereo&datatype.Name&"")			
+					Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_navn")&"")
+					Session.Output("|["&conn.ClientEnd.Cardinality&"]"&"")
 				end if
-				Session.Output("|"&stereo&datatype.Name&"")			
-				Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_navn")&"")
-				Session.Output("|["&conn.ClientEnd.Cardinality&"]"&"")
 			end if
 		end if
 		if stereo <> "" then	
@@ -211,6 +217,9 @@ for each conn in element.Connectors
 	end if
 next
 
+' TBD lage liste over alle de instansierbare objekttypene som alle "avgrens"-roller peker til + Flateavgrensning - TBD
+' 				if InStr(LCase(conn.SupplierEnd.Role),"avgrens") <> 0 then
+' se gammel mal, kan se om kildekoden i SOSI-kontrollfil-generering passer inn her
 end sub
 
 '--------------------End Sub-------------
