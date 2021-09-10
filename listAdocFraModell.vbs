@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.13 Date: 2021-09-10 Kent Jonsrud: smårettinger
 ' Version: 0.12 Date: 2021-09-09 Kent Jonsrud: smårettinger, bedre angivelse av skille mellom klassene
 ' Version: 0.11 Date: 2021-09-05 Kent Jonsrud: Assosiasjonsnavn, ikke hente eksterne koder, sideskift for pdf
 ' Version: 0.10 Date: 2021-08-10 Kent Jonsrud: forbedra ledetekster
@@ -106,6 +107,7 @@ listTags = false
 if thePackage.Element.Stereotype <> "" then
 	Session.Output("=== Pakke «"&thePackage.Element.Stereotype&"» "&thePackage.Name&"")
 else
+	Session.Output("")
 	Session.Output("<<<")
 	Session.Output("|===")
 	Session.Output("|===")
@@ -217,7 +219,7 @@ Session.Output(" ")
 Session.Output("|===")
 Session.Output("|===")
 if element.Abstract = 1 then
-	Session.Output("==== «"&element.Stereotype&"» "&element.Name&" (abstrakt klasse)")
+	Session.Output("==== «"&element.Stereotype&"» "&element.Name&" (abstrakt)")
 else
 	Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
 end if
@@ -340,7 +342,7 @@ dim utvekslingsalias, codeListUrl
 Session.Output(" ")
 Session.Output("|===")
 Session.Output("|===")
-Session.Output("==== Klasse «"&element.Stereotype&"» "&element.Name&"")
+Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
 Session.Output("Definisjon: "&getCleanDefinition(element.Notes)&"")
 Session.Output(" ")
 
@@ -378,6 +380,7 @@ end if
 
 if codeListUrl <> "" then
 	Session.Output("Koder fra ekstern kodeliste kan hentes fra register: "&codeListUrl&"")	
+	Session.Output(" ")
 end if
 ' testing http get
 if false then
@@ -531,6 +534,8 @@ skrivRoller = false
 
 
 'assosiasjoner
+' skriv ut roller - sortert etter tagged value sequenceNumber TBD
+
 For Each con In element.Connectors
 	If con.Type = "Association" or con.Type = "Aggregation" Then
 '		Session.Output("[cols=""20,80""]")
