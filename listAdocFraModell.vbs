@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.14 Date: 2021-09-16 Tore Johnsen/Kent Jonsrud: hyperlenker til egenskapenes typer innenfor modellen og absolutte lenker til basistyper
 ' Version: 0.13 Date: 2021-09-10 Kent Jonsrud: smårettinger
 ' Version: 0.12 Date: 2021-09-09 Kent Jonsrud: smårettinger, bedre angivelse av skille mellom klassene
 ' Version: 0.11 Date: 2021-09-05 Kent Jonsrud: Assosiasjonsnavn, ikke hente eksterne koder, sideskift for pdf
@@ -49,7 +50,7 @@ Option Explicit
 ' TBD: opprydding !!!
 '
 Dim imgfolder, imgparent
-Dim diagCounter
+Dim diagCounter,figurcounter
 Dim imgFSO
 '
 ' Project Browser Script main function
@@ -65,9 +66,10 @@ Sub OnProjectBrowserScript()
 			Repository.ClearOutput "Script"
             ' Code for when a package is selected
 			diagCounter = 0
+			figurcounter = 0
 			Dim thePackage As EA.Package
 			set thePackage = Repository.GetTreeSelectedObject()
-			imgfolder = "app_img"
+			imgfolder = "diagrammer"
 			Set imgFSO=CreateObject("Scripting.FileSystemObject")
 			imgparent = imgFSO.GetParentFolderName(Repository.ConnectionString())  & "\" & imgfolder
 			if false then				
@@ -113,7 +115,7 @@ else
 	Session.Output("|===")
 	Session.Output("=== Pakke: "&thePackage.Name&"")
 end if
-Session.Output("Definisjon: "&getCleandefinition(thePackage.Notes)&"")
+Session.Output("*Definisjon:* "&getCleandefinition(thePackage.Notes)&"")
 
 if thePackage.element.TaggedValues.Count > 0 then
 
@@ -158,7 +160,7 @@ For Each diag In thePackage.Diagrams
 '	Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, "" & diag.Name&".png", 1)
 	Repository.CloseDiagram(diag.DiagramID)
 	Session.Output("[caption=""Figur "&diagCounter&": "",title="&diag.Name&"]")
-	Session.Output("image::"&diag.Name&".png["&diag.Name&"]")
+	Session.Output("image::diagrammer/"&diag.Name&".png["&diag.Name&"]")
 Next
 
 For each element in thePackage.Elements
@@ -218,18 +220,22 @@ Dim listTags
 Session.Output(" ")
 Session.Output("|===")
 Session.Output("|===")
+Session.Output(" ")
+
+Session.Output("[["&LCase(element.Name)&"]]")
 if element.Abstract = 1 then
 	Session.Output("==== «"&element.Stereotype&"» "&element.Name&" (abstrakt)")
 else
 	Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
 end if
-Session.Output("Definisjon: "&getCleanDefinition(element.Notes)&"")
+Session.Output("*Definisjon:* "&getCleanDefinition(element.Notes)&"")
 Session.Output(" ")
 numberSpecializations = 0
 For Each con In element.Connectors
 	set supplier = Repository.GetElementByID(con.SupplierID)
 	If con.Type = "Generalization" And supplier.ElementID <> element.ElementID Then
-		Session.Output("*Supertype:* «" & supplier.Stereotype&"» "&supplier.Name&"")
+	'	Session.Output("*Supertype:* «" & supplier.Stereotype&"» "&supplier.Name&"")
+		Session.Output("*Supertype:* <<"&LCase(supplier.Name)&",«" & supplier.Stereotype&"» "&supplier.Name&">>")
 		Session.Output(" ")
 		numberSpecializations = numberSpecializations + 1
 	End If
@@ -300,12 +306,29 @@ if element.Attributes.Count > 0 then
 			Session.Output("|"&att.Default&"")
 			Session.Output(" ")
 		end if
+		if not att.Visibility = "Public" then
+			Session.Output("|Visibilitet: ")
+			Session.Output("|"&att.Visibility&"")
+			Session.Output(" ")
+		end if
 		Session.Output("|Type: ")
-	'	if att.ClassifierID <> 0 then
-	'		Session.Output("|«" & Repository.GetElementByID(att.ClassifierID).Stereotype & "» "&att.Type&"")		
-	'	else
-			Session.Output("|"&att.Type&"")
-	'	end if
+		if att.ClassifierID <> 0 then
+			if isElement(att.ClassifierID) then
+				dim stereo
+				stereo = Repository.GetElementByID(att.ClassifierID).Stereotype
+				if stereo = "" then
+					Session.Output("|<<"&LCase(att.Type)&","&att.Type&">>")
+				else
+					Session.Output("|<<"&LCase(att.Type)&",«" & stereo & "» "&att.Type&">>")
+				end if
+		'		Session.Output("|<<"&att.Type&">>")		
+			else
+				Session.Output("|"&att.Type&"")
+			end if
+		else
+		'	Session.Output("|"&att.Type&"")		
+			Session.Output("|http://skjema.geonorge.no/SOSI/basistype/"&att.Type&"["&att.Type&"]")		
+		end if
 
 		if att.TaggedValues.Count > 0 then
 			Session.Output("|Profilparametre i tagged values: ")
@@ -342,8 +365,11 @@ dim utvekslingsalias, codeListUrl
 Session.Output(" ")
 Session.Output("|===")
 Session.Output("|===")
+
+Session.Output(" ")
+Session.Output("[["&LCase(element.Name)&"]]")
 Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
-Session.Output("Definisjon: "&getCleanDefinition(element.Notes)&"")
+Session.Output("*Definisjon:* "&getCleanDefinition(element.Notes)&"")
 Session.Output(" ")
 
 if element.TaggedValues.Count > 0 then
@@ -352,7 +378,7 @@ if element.TaggedValues.Count > 0 then
 	Session.Output("|===")
 	for each tag in element.TaggedValues								
 		if tag.Value <> "" then	
-			if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" then
+			if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" and LCase(tag.Name) <> "sosi_bildeavmodellelement" then
 			'	Session.Output("|Tag: "&tag.Name&"")
 			'	Session.Output("|Verdi: "&tag.Value&"")
 				Session.Output("|"&tag.Name&"")
@@ -368,8 +394,9 @@ if element.TaggedValues.Count > 0 then
 '		if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			diagCounter = diagCounter + 1
-			Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
-		'	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
+		'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
+			Session.Output("[caption=""Figur "&diagCounter&": "",title=Illustrasjon av kodeliste "&element.Name&"]")
+'	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
 			Session.Output("image::"&tag.Value&"["&tag.Value&"]")
 		end if
 		if LCase(tag.Name) = "codelist" and tag.Value <> "" then
@@ -514,7 +541,9 @@ else
 			Session.Output("|"&att.Default&"")
 		end if
 		Session.Output("|===")
-		' Hva med tagged values på koder? TBD
+
+		' Hva med tagged values på koder?
+		call attrbilde(att,"kodelistekode")
 	next
 end if
 End sub
@@ -582,6 +611,15 @@ For Each con In element.Connectors
 					Session.Output("|[" & con.ClientEnd.Cardinality&"]")
 					Session.Output(" ")
 				End If
+				If con.SupplierEnd.Aggregation <> 0 Then
+					Session.Output("|Assosiasjonstype: ")
+					if con.SupplierEnd.Aggregation = 2 then
+						Session.Output("|Komposisjon " & con.Type)
+					else
+						Session.Output("|Aggregering " & con.Type)
+					end if
+					Session.Output(" ")
+				End If
 				If con.Name <> "" Then
 					Session.Output("|Assosiasjonsnavn: ")
 					Session.Output("|" & con.Name)
@@ -589,8 +627,9 @@ For Each con In element.Connectors
 				End If
 
 				Session.Output(textVar)
-				Session.Output("|«" & client.Stereotype&"» "&client.Name)
-				if false then
+			'	Session.Output("|«" & client.Stereotype&"» "&client.Name)
+				Session.Output("|<<"&LCase(client.Name)&","&"«" & client.Stereotype&"» "&client.Name&">>")
+			if false then
 				If con.SupplierEnd.Role <> "" Then
 					Session.Output("|Fra rolle: ")
 					Session.Output("|" & con.SupplierEnd.Role)
@@ -645,6 +684,15 @@ For Each con In element.Connectors
 					Session.Output("|[" & con.SupplierEnd.Cardinality&"]")
 					Session.Output(" ")
 				End If
+				If con.ClientEnd.Aggregation <> 0 Then
+					Session.Output("|Assosiasjonstype: ")
+					if con.ClientEnd.Aggregation = 2 then
+						Session.Output("|Komposisjon " & con.Type)
+					else
+						Session.Output("|Aggregering " & con.Type)
+					end if
+					Session.Output(" ")
+				End If
 				If con.Name <> "" Then
 					Session.Output("|Assosiasjonsnavn: ")
 					Session.Output("|" & con.Name)
@@ -652,8 +700,9 @@ For Each con In element.Connectors
 				End If
 
 				Session.Output(textVar)
-				Session.Output("|«" & supplier.Stereotype&"» "&supplier.Name)
-				if false then
+		'		Session.Output("|«" & supplier.Stereotype&"» "&supplier.Name)
+				Session.Output("|<<"&LCase(supplier.Name)&","&"«" & supplier.Stereotype&"» "&supplier.Name&">>")
+			if false then
 				If con.ClientEnd.Role <> "" Then
 					Session.Output("|Fra rolle: ")
 					Session.Output("|" & con.ClientEnd.Role)
@@ -774,6 +823,44 @@ Next
 'Session.Output("|===")
 end sub
 '-----------------Restriksjoner End-----------------
+
+
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Func Name: attrbilde(att)
+' Author: Kent Jonsrud
+' Date: 2021-09-16
+' Purpose: skriver ut lenke til bilde av element
+
+sub attrbilde(att,typ)
+	dim tag as EA.TaggedValue
+
+	for each tag in att.TaggedValues								
+		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
+			figurCounter = figurCounter + 1
+			Session.Output("[caption=""Figur "&figurCounter&": "",title=Illustrasjon av "&typ&" "&att.Name&"]")
+			Session.Output("image::"&tag.Value&"["&tag.Value&"]")
+		end if
+	next
+end sub
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Func Name: isElement
+' Author: Kent Jonsrud
+' Date: 2021-07-13
+' Purpose: tester om det finnes et element med denne ID-en.
+
+function isElement(ID)
+	isElement = false
+	if 	Mid(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 113, 1) <> 0 then
+		isElement = true
+	end if
+end function
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
 
 '-----------------Funksjon for full path-----------------
 function getPath(package)
