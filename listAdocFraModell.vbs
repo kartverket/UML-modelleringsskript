@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.15 Date: 2021-09-17 Kent Jonsrud: smårettinger
 ' Version: 0.14 Date: 2021-09-16 Tore Johnsen/Kent Jonsrud: hyperlenker til egenskapenes typer innenfor modellen og absolutte lenker til basistyper
 ' Version: 0.13 Date: 2021-09-10 Kent Jonsrud: smårettinger
 ' Version: 0.12 Date: 2021-09-09 Kent Jonsrud: smårettinger, bedre angivelse av skille mellom klassene
@@ -361,7 +362,8 @@ End sub
 Sub Kodelister(element)
 Dim att As EA.Attribute
 dim tag as EA.TaggedValue
-dim utvekslingsalias, codeListUrl
+dim utvekslingsalias, codeListUrl, asdict
+asdict = false
 Session.Output(" ")
 Session.Output("|===")
 Session.Output("|===")
@@ -392,6 +394,7 @@ if element.TaggedValues.Count > 0 then
 	codeListUrl = ""	
 	for each tag in element.TaggedValues								
 '		if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
+		if LCase(tag.Name) = "asdictionary" and tag.Value = "true" then asdict = true
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			diagCounter = diagCounter + 1
 		'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
@@ -405,7 +408,7 @@ if element.TaggedValues.Count > 0 then
 	next
 end if
 
-if codeListUrl <> "" then
+if codeListUrl <> "" and asdict then
 	Session.Output("Koder fra ekstern kodeliste kan hentes fra register: "&codeListUrl&"")	
 	Session.Output(" ")
 end if
