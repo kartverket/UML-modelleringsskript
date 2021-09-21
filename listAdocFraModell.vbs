@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.16 Date: 2021-09-21 Kent Jonsrud: flyttet supertypen til slutt og laget hyperlinker til subtypene
 ' Version: 0.15 Date: 2021-09-17 Kent Jonsrud: smårettinger
 ' Version: 0.14 Date: 2021-09-16 Tore Johnsen/Kent Jonsrud: hyperlenker til egenskapenes typer innenfor modellen og absolutte lenker til basistyper
 ' Version: 0.13 Date: 2021-09-10 Kent Jonsrud: smårettinger
@@ -231,29 +232,7 @@ else
 end if
 Session.Output("*Definisjon:* "&getCleanDefinition(element.Notes)&"")
 Session.Output(" ")
-numberSpecializations = 0
-For Each con In element.Connectors
-	set supplier = Repository.GetElementByID(con.SupplierID)
-	If con.Type = "Generalization" And supplier.ElementID <> element.ElementID Then
-	'	Session.Output("*Supertype:* «" & supplier.Stereotype&"» "&supplier.Name&"")
-		Session.Output("*Supertype:* <<"&LCase(supplier.Name)&",«" & supplier.Stereotype&"» "&supplier.Name&">>")
-		Session.Output(" ")
-		numberSpecializations = numberSpecializations + 1
-	End If
-Next
-For Each con In element.Connectors  
-'realiseringer.  
-'Må forbedres i framtidige versjoner dersom denne skal med 
-'- full sti (opp til applicationSchema eller øverste pakke under "Model") til pakke som inneholder klassen som realiseres
-	set supplier = Repository.GetElementByID(con.SupplierID)
-	If con.Type = "Realisation" And supplier.ElementID <> element.ElementID Then
-		set externalPackage = Repository.GetPackageByID(supplier.PackageID)
-		textVar=getPath(externalPackage)
-		Session.Output("*Realisering av:* " & textVar &"::«" & supplier.Stereotype&"» "&supplier.Name)
-		Session.Output(" ")
-		numberSpecializations = numberSpecializations + 1
-	end if
-next
+
 
 if element.TaggedValues.Count > 0 then
 	for each tag in element.TaggedValues								
@@ -342,9 +321,9 @@ if element.Attributes.Count > 0 then
 	next
 end if
 
-If element.Connectors.Count > numberSpecializations Then
+'If element.Connectors.Count > numberSpecializations Then
 	Relasjoner(element)
-End If
+'End If
 
 if element.Methods.Count > 0 then
 	Operasjoner(element)
@@ -353,6 +332,82 @@ end if
 if element.Constraints.Count > 0 then
 	Restriksjoner(element)
 end if
+
+
+numberSpecializations = 0
+For Each con In element.Connectors
+	set supplier = Repository.GetElementByID(con.SupplierID)
+	If con.Type = "Generalization" And supplier.ElementID <> element.ElementID Then
+		if numberSpecializations = 0 then
+			Session.Output("===== Arv og realiseringer")
+			Session.Output("[cols=""20,80""]")
+			Session.Output("|===")
+			numberSpecializations = numberSpecializations + 1
+		end if
+		Session.Output("|Supertype: ")
+		Session.Output("|<<"&LCase(supplier.Name)&",«" & supplier.Stereotype&"» "&supplier.Name&">>")
+		Session.Output(" ")
+	End If
+Next
+
+
+
+' Spesialiseringer av klassen
+generalizations = False
+For Each con In element.Connectors
+	If con.Type = "Generalization" Then
+		set supplier = Repository.GetElementByID(con.SupplierID)
+		set client = Repository.GetElementByID(con.ClientID)
+		If supplier.ElementID=element.ElementID then 'dette er en generalisering
+			if numberSpecializations = 0 then
+				Session.Output("===== Arv og realiseringer")
+				Session.Output("[cols=""20,80""]")
+				Session.Output("|===")
+				numberSpecializations = numberSpecializations + 1
+			end if		
+			If Not generalizations Then
+				Session.Output("|Subtyper:")
+				Session.Output("|<<"&LCase(client.Name)&",«" & client.Stereotype & "» " & client.Name & ">> +")
+				generalizations = True
+			Else
+				Session.Output("<<"&LCase(client.Name)&",«" & client.Stereotype & "» " & client.Name & ">> +")
+'				textVar = textVar + " +" + vbLF + "<<"&LCase(client.Name)&",«" + client.Stereotype + "» " + client.Name + ">>"
+			End If
+		End If
+	End If
+Next
+
+For Each con In element.Connectors  
+dim realiseringer
+'Må forbedres i framtidige versjoner dersom denne skal med 
+'- full sti (opp til applicationSchema eller øverste pakke under "Model") til pakke som inneholder klassen som realiseres
+	set supplier = Repository.GetElementByID(con.SupplierID)
+	If con.Type = "Realisation" And supplier.ElementID <> element.ElementID Then
+		if numberSpecializations = 0 then
+			Session.Output("===== Arv og realiseringer")
+			Session.Output("[cols=""20,80""]")
+			Session.Output("|===")
+			numberSpecializations = numberSpecializations + 1
+		end if		
+		set externalPackage = Repository.GetPackageByID(supplier.PackageID)
+		textVar=getPath(externalPackage)
+		if realiseringer = 0 Then
+			Session.Output("|Realisering av: ")
+			Session.Output("|" & textVar &"::«" & supplier.Stereotype&"» "&supplier.Name&" +")
+			realiseringer = realiseringer + 1
+		else
+			Session.Output("" & textVar &"::«" & supplier.Stereotype&"» "&supplier.Name&" +")
+			Session.Output(" ")
+		end if
+
+'		Session.Output("*Realisering av:* " & textVar &"::«" & supplier.Stereotype&"» "&supplier.Name)
+'		Session.Output(" ")
+	end if
+next
+
+If numberSpecializations > 0 then
+	Session.Output("|===")
+End If
 
 End sub
 '-----------------ObjektOgDatatyper End-----------------
@@ -731,29 +786,6 @@ For Each con In element.Connectors
 Next
 
 
-' Generaliseringer av pakken
-generalizations = False
-For Each con In element.Connectors
-	If con.Type = "Generalization" Then
-		set supplier = Repository.GetElementByID(con.SupplierID)
-		set client = Repository.GetElementByID(con.ClientID)
-		If supplier.ElementID=element.ElementID then 'dette er en generalisering
-			If Not generalizations Then
-				Session.Output("[cols=""20,80""]")
-				Session.Output("|===")
-				Session.Output("|*Subtyper:*")
-				textVar = "|«" + client.Stereotype + "» " + client.Name
-				generalizations = True
-			Else
-				textVar = textVar + " +" + vbLF + "«" + client.Stereotype + "» " + client.Name
-			End If
-		End If
-	End If
-Next
-If generalizations then
-	Session.Output(textVar)
-	Session.Output("|===")
-End If
 
 end sub
 '-----------------Relasjoner End-----------------
