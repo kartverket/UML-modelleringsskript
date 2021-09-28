@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.17 Date: 2021-09-28 Kent Jonsrud: tatt bort eksplisitt nummerering av figurer
 ' Version: 0.16 Date: 2021-09-21 Kent Jonsrud: flyttet supertypen til slutt og laget hyperlinker til subtypene
 ' Version: 0.15 Date: 2021-09-17 Kent Jonsrud: smårettinger
 ' Version: 0.14 Date: 2021-09-16 Tore Johnsen/Kent Jonsrud: hyperlenker til egenskapenes typer innenfor modellen og absolutte lenker til basistyper
@@ -150,19 +151,24 @@ end if
 '		if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			diagCounter = diagCounter + 1
-			Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
+	'''		Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
 		'	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
-			Session.Output("image::"&tag.Value&".png["&tag.Value&"]")
+		'	Session.Output("image::"&tag.Value&".png["&tag.Value&"]")
+			Session.Output(".Illustrasjon av pakke "&thePackage.Name&"")
+			Session.Output("image::"&tag.Value&"[link="&tag.Value&",""Illustrasjon av pakke: "&thePackage.Name&"""]")
 		end if
 	next
-
+' endre default ledetekst til figurer = :figure-caption: Figur
 For Each diag In thePackage.Diagrams
 	diagCounter = diagCounter + 1
 	Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, imgparent & "\" & diag.Name & ".png", 1)
 '	Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, "" & diag.Name&".png", 1)
 	Repository.CloseDiagram(diag.DiagramID)
-	Session.Output("[caption=""Figur "&diagCounter&": "",title="&diag.Name&"]")
-	Session.Output("image::diagrammer/"&diag.Name&".png["&diag.Name&"]")
+'''	Session.Output("[caption=""Figur "&diagCounter&": "",title="&diag.Name&"]")
+	Session.Output(" ")
+	Session.Output("."&diag.Name&" ")
+''	Session.Output("image::diagrammer/"&diag.Name&".png[""Diagramm: "&diag.Name&"""]")
+	Session.Output("image::diagrammer/"&diag.Name&".png[link=diagrammer/"&diag.Name&".png,""Diagramm: "&diag.Name&"""]")
 Next
 
 For each element in thePackage.Elements
@@ -260,9 +266,11 @@ if element.TaggedValues.Count > 0 then
 '		if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			diagCounter = diagCounter + 1
-			Session.Output("[caption=""Figur "&diagCounter&": "",title=Illustrasjon av objekttype "&element.Name&"]")
+	'''		Session.Output("[caption=""Figur "&diagCounter&": "",title=Illustrasjon av objekttype "&element.Name&"]")
 		'	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
-			Session.Output("image::"&tag.Value&"["&tag.Value&"]")
+	'		Session.Output("image::"&tag.Value&"["&tag.Value&"]")
+			Session.Output(".Illustrasjon av objekttype "&element.Name&"")
+			Session.Output("image::"&tag.Value&"[link="&tag.Value&",""Illustrasjon av objekttype: "&element.Name&"""]")
 		end if
 	next
 end if
@@ -453,7 +461,7 @@ if element.TaggedValues.Count > 0 then
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			diagCounter = diagCounter + 1
 		'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
-			Session.Output("[caption=""Figur "&diagCounter&": "",title=Illustrasjon av kodeliste "&element.Name&"]")
+	'''		Session.Output("[caption=""Figur "&diagCounter&": "",title=Illustrasjon av kodeliste "&element.Name&"]")
 '	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
 			Session.Output("image::"&tag.Value&"["&tag.Value&"]")
 		end if
@@ -873,7 +881,7 @@ sub attrbilde(att,typ)
 	for each tag in att.TaggedValues								
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			figurCounter = figurCounter + 1
-			Session.Output("[caption=""Figur "&figurCounter&": "",title=Illustrasjon av "&typ&" "&att.Name&"]")
+	'''		Session.Output("[caption=""Figur "&figurCounter&": "",title=Illustrasjon av "&typ&" "&att.Name&"]")
 			Session.Output("image::"&tag.Value&"["&tag.Value&"]")
 		end if
 	next
