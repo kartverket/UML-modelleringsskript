@@ -8,16 +8,14 @@ Option Explicit
 ' Date: 08.04.2021
 ' Version: 0.1ish
 '
+' Version 0.9 2021-10-04 hovedpakka ikke ut, figurer som i prodspek, underline i tV ut som blank, tilleggsdefinisjon bold etc, roller
+' Version 0.8 2021-09-20 smårettinger
 ' Version 0.7 2021-09-10 diagrammer med "utelat" i navnet skrives ikke ut
 ' Version 0.6 2021-09-09 rettet en feil slik at nå kun egenskaper fra supertyper skrives ut
-' Version 0.5 2021-06-30 vise egenskapsnavn foran datatypeegenskapsnavn (informasjon.navnerom)
-'						vise stereotypenavn foran datatyper og kodelister
-'
-' Version 0.4 2021-06-14/23 Nøste utover i datatypene og vise alle egenskaper (og roller TBD)
-'							Endra navn
-'
+' Version 0.5 2021-06-30 vise egenskapsnavn foran datatypeegenskapsnavn (informasjon.navnerom) vise stereotypenavn foran datatyper og kodelister
+' Version 0.4 2021-06-14/23 Nøste utover i datatypene og vise alle egenskaper (og roller TBD) Endra navn
 ' Version 0.3 2021-05-25/31 Collects guidance parameters from both tagged values and from special attributes 
-' Date: 2021-06-01 Kent Jonsrud: retta bildesti til app_img
+' Version 0.2x: 2021-06-01 Kent Jonsrud: retta bildesti til app_img
 '
 ' Version: 0.2
 ' Date: 2021-04-16 Kent Jonsrud:
@@ -82,6 +80,7 @@ Sub OnProjectBrowserScript()
 
 			Call ListAsciiDoc(thePackage)
 			Session.Output("// End of Registreringsinstruks UML-model")
+			Set imgFSO = Nothing
         Case Else
             ' Error message
             Session.Prompt "This script does not support items of this type.", promptOK
@@ -93,228 +92,219 @@ End Sub
 
 Sub ListAsciiDoc(thePackage)
 
-Dim element As EA.Element
-dim tag as EA.TaggedValue
-Dim diag As EA.Diagram
-Dim projectclass As EA.Project
-set projectclass = Repository.GetProjectInterface()
+	Dim element As EA.Element
+	dim tag as EA.TaggedValue
+	Dim diag As EA.Diagram
+	Dim projectclass As EA.Project
+	set projectclass = Repository.GetProjectInterface()
 
+	if InStr(LCase(thePackage.Name),"fotogrammetrisk") = 0 then
+	
+		Session.Output("=== "&thePackage.Name&"")
+		if thePackage.Notes <> "" then Session.Output("*Pakkens definisjon:* "&thePackage.Notes&"")
 
-Session.Output("=== "&thePackage.Name&"")
-Session.Output("Definisjon: "&thePackage.Notes&"")
+		if thePackage.element.TaggedValues.Count > 0 then
+			Session.Output(" ")	
+			Session.Output("===== Tagged Values")
+			Session.Output("[cols=""20,80""]")
+			Session.Output("|===")
+			for each tag in thePackage.element.TaggedValues
+				if tag.Value <> "" then	
+					if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" and LCase(tag.Name) <> "sosi_bildeavmodellelement" then
+					'	Session.Output("|Tag: "&tag.Name&"")
+					'	Session.Output("|Verdi: "&tag.Value&"")
+						Session.Output("|"&tag.Name&"")
+						Session.Output("|"&tag.Value&"")
+						Session.Output(" ")			
+					end if
+				end if
+			next
 
-if thePackage.element.TaggedValues.Count > 0 then
-	Session.Output(" ")	
-	Session.Output("===== Tagged Values")
-	Session.Output("[cols=""20,80""]")
-	Session.Output("|===")
-	for each tag in thePackage.element.TaggedValues
-		if tag.Value <> "" then	
-			if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" and LCase(tag.Name) <> "sosi_bildeavmodellelement" then
-			'	Session.Output("|Tag: "&tag.Name&"")
-			'	Session.Output("|Verdi: "&tag.Value&"")
-				Session.Output("|"&tag.Name&"")
-				Session.Output("|"&tag.Value&"")
-				Session.Output(" ")			
+			Session.Output("|===")
+		end if
+
+		for each tag in thePackage.element.TaggedValues
+			if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
+				diagCounter = diagCounter + 1
+			'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
+				Session.Output("[caption=""Figur  "",title="&tag.Name&"]")
+			'	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
+				Session.Output("image::"&tag.Value&".png["&tag.Value&"]")
 			end if
-		end if
-	next
+			'if EA-document then
+			'	figure + figure text
+			'end if
+		next
 
-	Session.Output("|===")
-end if
-
-	for each tag in thePackage.element.TaggedValues
-		if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
-			diagCounter = diagCounter + 1
-		'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
-			Session.Output("[caption=""Figur  "",title="&tag.Name&"]")
-		'	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
-			Session.Output("image::"&tag.Value&".png["&tag.Value&"]")
-		end if
-		'if EA-document then
-		'	figure + figure text
-		'end if
-	next
+	end if
 
 '-----------------Diagram-----------------
 
-For Each diag In thePackage.Diagrams
-	if InStr(LCase(diag.Name),"utelat") = 0 then
-		diagCounter = diagCounter + 1
-		Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, imgparent & "\" & diag.Name & ".png", 1)
-	'	Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, "" & diag.Name&".png", 1)
-		Repository.CloseDiagram(diag.DiagramID)
-	'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&diag.Name&"]")
-		Session.Output("[caption=""Figur  "",title="&diag.Name&"]")
-	'	Session.Output("image::"&imgfolder&"\"&diag.Name&".png["&diag.Name&"]")
-		Session.Output("image::"&diag.Name&".png["&diag.Name&"]")
-	end if
-Next
+	For Each diag In thePackage.Diagrams
+		if InStr(LCase(diag.Name),"utelat") = 0 then
+			diagCounter = diagCounter + 1
+			Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, imgparent & "\" & diag.Name & ".png", 1)
+		'	Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, "" & diag.Name&".png", 1)
+			Repository.CloseDiagram(diag.DiagramID)
+		'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&diag.Name&"]")
+			Session.Output("[caption=""Figur  "",title="&diag.Name&"]")
+		'	Session.Output("image::"&imgfolder&"\"&diag.Name&".png["&diag.Name&"]")
+			Session.Output("image::"&diag.Name&".png["&diag.Name&"]")
+		end if
+	Next
 
-For each element in thePackage.Elements
-	If element.Type = "Class" and (Ucase(element.Stereotype) = "FEATURETYPE" or Ucase(element.Stereotype) = "") Then
-'	If Ucase(element.Stereotype) = "FEATURETYPE" or Ucase(element.Stereotype) = "" Then
-		Call ObjektOgDatatyper(element)
-	End if
-Next
-	
-For each element in thePackage.Elements
-	If Ucase(element.Stereotype) = "DATATYPE" Then
-		Call ObjektOgDatatyper(element)
-	End if
-Next
+	For each element in thePackage.Elements
+		If element.Type = "Class" and (Ucase(element.Stereotype) = "FEATURETYPE" or Ucase(element.Stereotype) = "") Then
+	'	If Ucase(element.Stereotype) = "FEATURETYPE" or Ucase(element.Stereotype) = "" Then
+			Call ObjektOgDatatyper(element)
+		End if
+	Next
+		
+	For each element in thePackage.Elements
+		If Ucase(element.Stereotype) = "DATATYPE" Then
+			Call ObjektOgDatatyper(element)
+		End if
+	Next
 
-For each element in thePackage.Elements
-	If Ucase(element.Stereotype) = "UNION" Then
-		Call ObjektOgDatatyper(element)
-	End if
-Next
+	For each element in thePackage.Elements
+		If Ucase(element.Stereotype) = "UNION" Then
+			Call ObjektOgDatatyper(element)
+		End if
+	Next
 
-For each element in thePackage.Elements
-	If Ucase(element.Stereotype) = "CODELIST" Then
-		Call Kodelister(element)
-	End if
-	If Ucase(element.Stereotype) = "ENUMERATION" Then
-		Call Kodelister(element)
-	End if
-	If element.Type = "Enumeration" Then
-		Call Kodelister(element)
-	End if
-Next
-	
-dim pack as EA.Package
-for each pack in thePackage.Packages
-	Call ListAsciiDoc(pack)
-next
+	For each element in thePackage.Elements
+		If Ucase(element.Stereotype) = "CODELIST" Then
+			Call Kodelister(element)
+		End if
+		If Ucase(element.Stereotype) = "ENUMERATION" Then
+			Call Kodelister(element)
+		End if
+		If element.Type = "Enumeration" Then
+			Call Kodelister(element)
+		End if
+	Next
+		
+	dim pack as EA.Package
+	for each pack in thePackage.Packages
+		Call ListAsciiDoc(pack)
+	next
 
-Set imgFSO = Nothing
+
 end sub
 
 '-----------------ObjektOgDatatyper-----------------
 Sub ObjektOgDatatyper(element)
-Dim att As EA.Attribute
-dim tag as EA.TaggedValue
-Dim con As EA.Connector
-Dim fil As EA.File
-Dim supplier As EA.Element
-Dim client As EA.Element
-Dim association
-Dim aggregation
-association = False
-Dim generalizations
-Dim numberSpecializations ' tar også med antall realiseringer her
-Dim textVar, addnotes, punktum
-dim externalPackage
+	Dim att As EA.Attribute
+	dim tag as EA.TaggedValue
+	Dim con As EA.Connector
+	Dim fil As EA.File
+	Dim supplier As EA.Element
+	Dim client As EA.Element
+	Dim association
+	Dim aggregation
+	association = False
+	Dim generalizations
+	Dim numberSpecializations ' tar også med antall realiseringer her
+	Dim textVar, addnotes, punktum
+	dim externalPackage
 
-parentimg = ""
-	Session.Output("|===")
-	Session.Output("|===")
-Session.Output(" ")
-Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
-For Each con In element.Connectors
-	set supplier = Repository.GetElementByID(con.SupplierID)
-	If con.Type = "Generalization" And supplier.ElementID <> element.ElementID Then
-		Session.Output("Definisjon: "&supplier.Notes&"")
-		Session.Output(" ")
-		numberSpecializations = numberSpecializations + 1
-		
-		parentimg = getTaggedValue(supplier,"SOSI_bildeAvModellelement")
-		
-	End If
-Next
-if element.Notes <> "" then
-	Session.Output("Tilleggsdefinisjon: "&element.Notes&"")
+	parentimg = ""
 	Session.Output(" ")
-end if
+	Session.Output("'''")
+	Session.Output(" ")
+	
+	Session.Output("[["&LCase(element.Name)&"]]")
+	Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
+	For Each con In element.Connectors
+		set supplier = Repository.GetElementByID(con.SupplierID)
+		If con.Type = "Generalization" And supplier.ElementID <> element.ElementID Then
+			Session.Output("*Definisjon fra FKB produktspesifikasjon*: "&supplier.Notes&"")
+			Session.Output(" ")
+			numberSpecializations = numberSpecializations + 1
+			
+			parentimg = getTaggedValue(supplier,"SOSI_bildeAvModellelement")
+			
+		End If
+	Next
+	if element.Notes <> "" then
+		Session.Output("*Tilleggsinformasjon for fotogrammetrisk registrering:* "&element.Notes&"")
+		Session.Output(" ")
+	end if
 
-numberSpecializations = 0
-For Each con In element.Connectors
-	set supplier = Repository.GetElementByID(con.SupplierID)
-	If con.Type = "Generalization" And supplier.ElementID <> element.ElementID Then
-'		Session.Output("*Supertype:* «" & supplier.Stereotype&"» "&supplier.Name&"")
-'		Session.Output(" ")
-		numberSpecializations = numberSpecializations + 1
-	End If
-Next
+	numberSpecializations = 0
+	For Each con In element.Connectors
+		set supplier = Repository.GetElementByID(con.SupplierID)
+		If con.Type = "Generalization" And supplier.ElementID <> element.ElementID Then
+	'		Session.Output("*Supertype:* «" & supplier.Stereotype&"» "&supplier.Name&"")
+	'		Session.Output(" ")
+			numberSpecializations = numberSpecializations + 1
+		End If
+	Next
 
-For Each con In element.Connectors  
+	For Each con In element.Connectors  
 ''realiseringer.  
 ''Må forbedres i framtidige versjoner dersom denne skal med 
 ''- full sti (opp til applicationSchema eller øverste pakke under "Model") til pakke som inneholder klassen som realiseres
-	set supplier = Repository.GetElementByID(con.SupplierID)
-	If con.Type = "Realisation" And supplier.ElementID <> element.ElementID Then
-		set externalPackage = Repository.GetPackageByID(supplier.PackageID)
-		textVar=getPath(externalPackage)
-'		Session.Output("*Realisering av:* " & textVar &"::«" & supplier.Stereotype&"» "&supplier.Name)
-'		Session.Output(" ")
-		numberSpecializations = numberSpecializations + 1
-	end if
-next
-
-if element.TaggedValues.Count > 0 then
-
-'	Session.Output("===== Tagged Values")
-'	Session.Output("[cols=""20,80""]")
-'	Session.Output("|===")
-'	for each tag in element.TaggedValues								
-'		if tag.Value <> "" then	
-'			if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" then
-'			'	Session.Output("|Tag: "&tag.Name&"")
-'			'	Session.Output("|Verdi: "&tag.Value&"")
-'				Session.Output("|"&tag.Name&"")
-'				Session.Output("|"&tag.Value&"")
-'				Session.Output(" ")			
-'			end if
-'		end if
-'	next
-'	Session.Output("|===")
-	
-	
-	
-	for each tag in element.TaggedValues								
-		if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
-			diagCounter = diagCounter + 1
-		'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
-			Session.Output("[caption=""Figur  "",title="&tag.Name&"]")
-		'	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
-			Session.Output("image::"&tag.Value&"["&tag.Value&"]")
-			Session.Output(" ")
+		set supplier = Repository.GetElementByID(con.SupplierID)
+		If con.Type = "Realisation" And supplier.ElementID <> element.ElementID Then
+			set externalPackage = Repository.GetPackageByID(supplier.PackageID)
+			textVar=getPath(externalPackage)
+	'		Session.Output("*Realisering av:* " & textVar &"::«" & supplier.Stereotype&"» "&supplier.Name)
+	'		Session.Output(" ")
+			numberSpecializations = numberSpecializations + 1
 		end if
 	next
-	if getTaggedValue(element,"SOSI_bildetekstTilModellelement") <> "" then
-		Session.Output("Bildebeskrivelse: "& getTaggedValue(element,"SOSI_bildetekstTilModellelement") & "")
+
+	if element.TaggedValues.Count > 0 then
+
+		for each tag in element.TaggedValues								
+			if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
+				diagCounter = diagCounter + 1
+				Session.Output(" ")
+				Session.Output("'''")
+				Session.Output(".Illustrasjon av objekttype "&element.Name&"")
+				Session.Output("image::"&tag.Value&"[link="&tag.Value&",""Illustrasjon av objekttype: "&element.Name&"""]")
+				Session.Output(" ")
+			end if
+		next
+		if getTaggedValue(element,"SOSI_bildetekstTilModellelement") <> "" then
+			Session.Output("Bildebeskrivelse: "& getCleanDefinition(getTaggedValue(element,"SOSI_bildetekstTilModellelement")) & "")
+			Session.Output(" ")
+		end if
+	end if
+
+	if parentimg <> "" then
+		diagCounter = diagCounter + 1
+		Session.Output(" ")
+		Session.Output("'''")
+		Session.Output(".Illustrasjon fra produktspesifikasjon av "&element.Name&"")
+		Session.Output("image::"&parentimg&"[link="&parentimg&",""Illustrasjon fra produktspesifikasjon: "&element.Name&"""]")
 		Session.Output(" ")
 	end if
-end if
 
-if parentimg <> "" then
-			diagCounter = diagCounter + 1
-		'	Session.Output("[caption=""Figur "&diagCounter&": "",title=Figur fra produktspesifikasjonen]")
-			Session.Output("[caption=""Figur  "",title=Figur fra produktspesifikasjonen]")
-			Session.Output("image::"&parentimg&"["&parentimg&"]")
+	if element.Files.Count > 0 then
+		For Each fil In element.Files
+		'		Session.Output("Filbeskrivelse Name: "& fil.Name & "")
+		'		Session.Output("Filbeskrivelse Type: "& fil.Type & "")
+		'		Session.Output("Filbeskrivelse Size: "& fil.Size & "")
+		'		Session.Output("Filbeskrivelse ObjectType: "& fil.ObjectType & "")
+		'		Session.Output("Filbeskrivelse FileDate: "& fil.FileDate & "")
+		'		Session.Output("Filbeskrivelse Notes: "& fil.Notes & "")
+		'		Session.Output(" ")
+				diagCounter = diagCounter + 1
 			Session.Output(" ")
-end if
+			Session.Output("'''")
+			Session.Output(".Illustrasjon fra fil av objekttype "&element.Name&"")
+			Session.Output("image::"&fil.Name&"[link="&fil.Name&","""&getCleanDefinition(fil.Notes)&"""]")
+			Session.Output(" ")
 
-if element.Files.Count > 0 then
-	For Each fil In element.Files
-	'		Session.Output("Filbeskrivelse Name: "& fil.Name & "")
-	'		Session.Output("Filbeskrivelse Type: "& fil.Type & "")
-	'		Session.Output("Filbeskrivelse Size: "& fil.Size & "")
-	'		Session.Output("Filbeskrivelse ObjectType: "& fil.ObjectType & "")
-	'		Session.Output("Filbeskrivelse FileDate: "& fil.FileDate & "")
-	'		Session.Output("Filbeskrivelse Notes: "& fil.Notes & "")
-	'		Session.Output(" ")
-			diagCounter = diagCounter + 1
-		'	Session.Output("[caption=""Figur "&diagCounter&": "",title= "& fil.Notes & "]")
-			Session.Output("[caption=""Figur  "",title= "& fil.Notes & "]")
-			Session.Output("image::"&fil.Name&"["&fil.Name&"]")
-	next
-	Session.Output(" ")
-end if
+		next
+		Session.Output(" ")
+	end if
 
 'if element.Attributes.Count > 0 then
 		Session.Output("===== Føringer")
-		Session.Output("[cols=""20,80""]")
+		Session.Output("[cols=""25,75""]")
 		Session.Output("|===")
 		for each att in element.AttributesEx
 		if att.name = "Registreringsmetode" or att.name = "Tilleggsbeskrivelse" or att.name = "Grunnrissreferanse" or att.name = "Høydereferanse" then
@@ -326,6 +316,8 @@ end if
 		for each tag in element.TaggedValues								
 			if tag.Value <> "" then	
 				if tag.Name = "Registreringsmetode" or tag.Name = "Tilleggsbeskrivelse" or tag.Name = "Grunnrissreferanse" or tag.Name = "Høydereferanse" or Mid(tag.Name,1,3) = "FKB" then
+					call listFkbTag(tag.Name, tag.Value)
+	if false then
 					if tag.Name = "FKB-A" or tag.Name = "FKB_A" then
 						call listFkbTag(tag.Name, tag.Value)
 					else
@@ -345,6 +337,7 @@ end if
 							end if
 						end if					
 					end if					
+	end if 'false
 				end if
 			end if
 		next		
@@ -362,50 +355,50 @@ end if
 'end if
 
 if element.AttributesEx.Count > 0 then
-	if false then ' not repeat attributes line wise (*unless same name attributes shall have an additional description (somewhere))
-		Session.Output("===== Egenskaper")
-		for each att in element.AttributesEx
-		if not getAttribute(element,att.Name) then ' redefines-ish
-			Session.Output("[cols=""20,80""]")
-			Session.Output("|===")
-			Session.Output("|*Navn:* ")
-			Session.Output("|*"&att.name&"*")
-			Session.Output(" ")
-			Session.Output("|Definisjon: ")
-			Session.Output("|"&getCleanDefinition(att.Notes)&"")
-			addnotes = getAttributeNotes(element,att.Name)
-			if addnotes <> "" then
-				if addnotes <> att.Notes then
-					Session.Output(" Merknad for registreringsinstruks: "&getCleanDefinition(addnotes)&"")
-				end if
-			end if
-			Session.Output(" ")
-			Session.Output("|Multiplisitet: ")
-			Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]")
-			Session.Output(" ")
-			if not att.Default = "" then
-				Session.Output("|Initialverdi: ")
-				Session.Output("|"&att.Default&"")
-				Session.Output(" ")
-			end if
-			Session.Output("|Type: ")
-			if att.ClassifierID <> 0 then
-				Session.Output("|«" & Repository.GetElementByID(att.ClassifierID).Stereotype & "» "&att.Type&"")		
-			else
-				Session.Output("|"&att.Type&"")
-			end if
+														if false then ' not repeat attributes line wise (*unless same name attributes shall have an additional description (somewhere))
+															Session.Output("===== Egenskaper")
+															for each att in element.AttributesEx
+															if not getAttribute(element,att.Name) then ' redefines-ish
+																Session.Output("[cols=""20,80""]")
+																Session.Output("|===")
+																Session.Output("|*Navn:* ")
+																Session.Output("|*"&att.name&"*")
+																Session.Output(" ")
+																Session.Output("|Definisjon: ")
+																Session.Output("|"&getCleanDefinition(att.Notes)&"")
+																addnotes = getAttributeNotes(element,att.Name)
+																if addnotes <> "" then
+																	if addnotes <> att.Notes then
+																		Session.Output(" Merknad for registreringsinstruks: "&getCleanDefinition(addnotes)&"")
+																	end if
+																end if
+																Session.Output(" ")
+																Session.Output("|Multiplisitet: ")
+																Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]")
+																Session.Output(" ")
+																if not att.Default = "" then
+																	Session.Output("|Initialverdi: ")
+																	Session.Output("|"&att.Default&"")
+																	Session.Output(" ")
+																end if
+																Session.Output("|Type: ")
+																if att.ClassifierID <> 0 then
+																	Session.Output("|«" & Repository.GetElementByID(att.ClassifierID).Stereotype & "» "&att.Type&"")		
+																else
+																	Session.Output("|"&att.Type&"")
+																end if
 
-			if att.TaggedValues.Count > 0 then
-				Session.Output("|Tagged Values: ")
-				Session.Output("|")
-				for each tag in att.TaggedValues
-					Session.Output(""&tag.Name& ": "&tag.Value&" + ")
-				next
-			end if
-			Session.Output("|===")
-		end if
-		next
-	end if ' false
+																if att.TaggedValues.Count > 0 then
+																	Session.Output("|Tagged Values: ")
+																	Session.Output("|")
+																	for each tag in att.TaggedValues
+																		Session.Output(""&tag.Name& ": "&tag.Value&" + ")
+																	next
+																end if
+																Session.Output("|===")
+															end if
+															next
+														end if ' false
 	Session.Output("===== Egenskapstabell") 'type, length(?), FKB-standard A/B/C/
 '	Session.Output("[cols=""15,15,15,7,7,7,7,7""]")
 	Session.Output("[cols=""20,20,20,10""]")
@@ -413,50 +406,50 @@ if element.AttributesEx.Count > 0 then
 	Session.Output("|*Navn:* ")
 	Session.Output("|*Type:* ")
 	Session.Output("|*SOSI_navn:* ")
-	Session.Output("|*Lengde:* ")
+	Session.Output("|*Mult.:* ")
 '	Session.Output("|*FKB-A:* ")
 '	Session.Output("|*FKB-B:* ")
 '	Session.Output("|*FKB-C:* ")
 '	Session.Output("|*FKB-D:* ")
 	Session.Output(" ")
-	if false then
-	for each att in element.AttributesEx
-		if att.name = "Registreringsmetode" or att.name = "Tilleggsbeskrivelse" or att.name = "Grunnrissreferanse" or att.name = "Høydereferanse" then
-		else
+											if false then
+											for each att in element.AttributesEx
+												if att.name = "Registreringsmetode" or att.name = "Tilleggsbeskrivelse" or att.name = "Grunnrissreferanse" or att.name = "Høydereferanse" then
+												else
 
-			if att.Type = "Punkt" or att.Type = "Kurve" or att.Type = "Flate" then
-			' GM_Curve etc. TBD
-				Session.Output("|"&att.name&"")
-				Session.Output("|"&att.Type&"")
-				if getTaggedValue(att,"SOSI_navn") = "" then
-					Session.Output("|."&UCase(att.Type)&"")
-				else
-					Session.Output("|."&UCase(getTaggedValue(att,"SOSI_navn"))&"")
-				end if
-				Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
-			else
-				Session.Output("|"&att.name&"")
-				Session.Output("|"&att.Type&"")
-				Session.Output("|.."&getTaggedValue(att,"SOSI_navn")&"")
-				Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
-	'			Session.Output("|"&getTaggedValue(att,"SOSI_lengde")&"")
-			' new tags in the PS?
-'			Session.Output("|"&getTaggedValue(att,"FKB-A")&"")
-'			Session.Output("|"&getTaggedValue(att,"FKB-B")&"")
-'			Session.Output("|"&getTaggedValue(att,"FKB-C")&"")
-'			Session.Output("|"&getTaggedValue(att,"FKB-D")&"")
-			end if
-			Session.Output(" ")	
+													if att.Type = "Punkt" or att.Type = "Kurve" or att.Type = "Flate" then
+													' GM_Curve etc. TBD
+														Session.Output("|"&att.name&"")
+														Session.Output("|"&att.Type&"")
+														if getTaggedValue(att,"SOSI_navn") = "" then
+															Session.Output("|."&UCase(att.Type)&"")
+														else
+															Session.Output("|."&UCase(getTaggedValue(att,"SOSI_navn"))&"")
+														end if
+														Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+													else
+														Session.Output("|"&att.name&"")
+														Session.Output("|"&att.Type&"")
+														Session.Output("|.."&getTaggedValue(att,"SOSI_navn")&"")
+														Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+											'			Session.Output("|"&getTaggedValue(att,"SOSI_lengde")&"")
+													' new tags in the PS?
+										'			Session.Output("|"&getTaggedValue(att,"FKB-A")&"")
+										'			Session.Output("|"&getTaggedValue(att,"FKB-B")&"")
+										'			Session.Output("|"&getTaggedValue(att,"FKB-C")&"")
+										'			Session.Output("|"&getTaggedValue(att,"FKB-D")&"")
+													end if
+													Session.Output(" ")	
 
-			'nøste seg ut i datatypen?
-			if att.ClassifierID <> 0 then
-				punktum = "..."
-				call listDatatype("", punktum, att)
-			end if
-			
-		end if
-	next
-	end if 'false	
+													'nøste seg ut i datatypen?
+													if att.ClassifierID <> 0 then
+														punktum = "..."
+														call listDatatype("", punktum, att)
+													end if
+													
+												end if
+											next
+											end if 'false	
 	call listDatatype("", "..", element)	
 	Session.Output("|===")
 end if
@@ -839,7 +832,7 @@ dim conn as EA.Collection
 '			Session.Output("|attr.ClassifierID="&attr.ClassifierID&"")
 	'		Session.Output("DEBUG: (egenskap, punktum, element.Name: " & egenskap & " , " & punktum & " , " & element.Name )
 'set element = Repository.GetElementByID(attr.ClassifierID)
-if element.AttributesEx.Count > 0 then
+''if element.AttributesEx.Count > 0 then
 
 	for each conn in element.Connectors
 	'		if debug then Repository.WriteOutput "Script", "Debug: conn.Type [" & conn.Type & "] conn.ClientID [" & conn.ClientID & "] conn.SupplierID [" & conn.SupplierID & "].",0
@@ -858,8 +851,7 @@ if element.AttributesEx.Count > 0 then
 		if att.name = "Registreringsmetode" or att.name = "Tilleggsbeskrivelse" or att.name = "Grunnrissreferanse" or att.name = "Høydereferanse" then
 		else
 			stereo = ""
-			if att.Type = "Punkt" or att.Type = "Kurve" or att.Type = "Flate" then
-			' GM_Curve etc. TBD
+			if att.Type = "Punkt" or att.Type = "Sverm" or att.Type = "Kurve" or att.Type = "Flate" or Mid(att.Type,1,3) = "GM_" then
 				Session.Output("|"&egenskap&att.name&"")
 				Session.Output("|"&att.Type&"")
 				if getTaggedValue(att,"SOSI_navn") = "" then
@@ -890,7 +882,53 @@ if element.AttributesEx.Count > 0 then
 		end if
 	next
 
-end if
+	
+' skriv ut roller - sortert etter tagged value sequenceNumber TBD
+
+	for each conn in element.Connectors
+		stereo = ""
+		if conn.Type = "Association" then
+			if element.ElementID = conn.ClientID then
+				if conn.SupplierEnd.Role <> "" and conn.SupplierEnd.Navigable = "Navigable" then
+					if InStr(LCase(conn.SupplierEnd.Role),"avgrens") = 0 then
+		'			if getConnectorEndTaggedValue(conn.SupplierEnd,"xsdEncodingRule") <> "notEncoded" then
+						Session.Output("|"&conn.SupplierEnd.Role&"")
+						if conn.SupplierID <> 0 then
+							set datatype = Repository.GetElementByID(conn.SupplierID)
+							stereo = "«" & datatype.Stereotype & "» "
+						end if
+						Session.Output("|"&stereo&datatype.Name&"")			
+						Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_navn")&"")
+						Session.Output("|["&conn.SupplierEnd.Cardinality&"]"&"")
+					end if
+				end if
+			else
+				if conn.ClientEnd.Role <> "" and conn.ClientEnd.Navigable = "Navigable" then
+					if InStr(LCase(conn.ClientEnd.Role),"avgrens") = 0 then
+						Session.Output("|"&conn.ClientEnd.Role&"")
+						if conn.ClientID <> 0 then
+							set datatype = Repository.GetElementByID(conn.ClientID)
+							stereo = "«" & datatype.Stereotype & "» "
+						end if
+						Session.Output("|"&stereo&datatype.Name&"")			
+						Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_navn")&"")
+						Session.Output("|["&conn.ClientEnd.Cardinality&"]"&"")
+					end if
+				end if
+			end if
+			if stereo <> "" then	
+				if LCase(datatype.Stereotype) <> "featuretype" then
+					supereg = egenskap
+					superpktum = punktum
+					call listDatatype(supereg,superpktum,datatype)
+				end if
+			end if
+		end if
+	next
+
+	'
+
+''end if
 end sub
 
 '--------------------End Sub-------------
@@ -902,7 +940,7 @@ end sub
 sub	listFkbTag(tagName, tagValue)
 '		Session.Output("""P"" => Påkrevd registrering, ""O"" => Opsjonell registrering, ""-"" => Registreres ikke") 
 
-	Session.Output("|"&tagName&"")
+	Session.Output("|"&underscore2space(tagName)&"")
 	if tagValue = "P" then
 		Session.Output("|Påkrevd registrering")
 	else
@@ -924,14 +962,18 @@ end sub
 function getPath(package)
 	dim path
 	dim parent
-	if package.Element.Stereotype = "" then
-		path = package.Name
-	else
-		path = "«" + package.Element.Stereotype + "» " + package.Name
-	end if
-	if not (ucase(package.Element.Stereotype)="APPLICATIONSCHEMA" or package.parentID = 0) then
-		set parent = Repository.GetPackageByID(package.ParentID)
-		path = getPath(parent) + "/" + path
+	if package.parentID <> 0 then
+'		Session.Output(" -----DEBUG getPath=" & getPath & " package.Name = " & package.Name & " package.ParentID = " & package.ParentID & " package.Element.Stereotype = " & package.Element.Stereotype & " ----- ")
+		if package.Element.Stereotype = "" then
+			path = package.Name
+		else
+			path = "«" + package.Element.Stereotype + "» " + package.Name
+		end if
+
+		if ucase(package.Element.Stereotype) <> "APPLICATIONSCHEMA" then
+			set parent = Repository.GetPackageByID(package.ParentID)
+			path = getPath(parent) + "/" + path
+		end if
 	end if
 	getPath = path
 end function
@@ -971,6 +1013,30 @@ end function
 
 
 
+'-----------------Function underscore2space Start-----------------
+function underscore2space(txt)
+	'replaces underscores with spaces
+    Dim res, tegn, i
+	underscore2space = ""
+
+	res = ""
+	' loop gjennom alle tegn
+	For i = 1 To Len(txt)
+		tegn = Mid(txt,i,1)
+		If tegn = "_" Then
+			res = res + " "
+		Else
+			res = res + Mid(txt,i,1)
+		end if
+		  
+	Next
+		
+	underscore2space = res
+
+end function
+'-----------------Function underscore2space End-----------------
+
+
 '-----------------Function getCleanDefinition Start-----------------
 function getCleanDefinition(txt)
 	'removes all formatting in notes fields, except crlf
@@ -982,6 +1048,7 @@ function getCleanDefinition(txt)
 		' loop gjennom alle tegn
 		For i = 1 To Len(txt)
 		  tegn = Mid(txt,i,1)
+		  if tegn = "," then tegn = " " 'for adoc
 		  If tegn = "<" Then
 				u = 1
 			   'res = res + " "
@@ -1009,6 +1076,7 @@ function getCleanDefinition(txt)
 
 end function
 '-----------------Function getCleanDefinition End-----------------
+
 
 
 function getTaggedValue(element,taggedValueName)
