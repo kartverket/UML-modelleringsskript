@@ -8,6 +8,7 @@ Option Explicit
 ' Date: 08.04.2021
 ' Version: 0.1ish
 '
+' Version 0.10 2021-10-05 feilretting rundt image:: og Alt=
 ' Version 0.9 2021-10-04 hovedpakka ikke ut, figurer som i prodspek, underline i tV ut som blank, tilleggsdefinisjon bold etc, roller
 ' Version 0.8 2021-09-20 smårettinger
 ' Version 0.7 2021-09-10 diagrammer med "utelat" i navnet skrives ikke ut
@@ -129,7 +130,7 @@ Sub ListAsciiDoc(thePackage)
 			'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
 				Session.Output("[caption=""Figur  "",title="&tag.Name&"]")
 			'	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
-				Session.Output("image::"&tag.Value&".png["&tag.Value&"]")
+				Session.Output("image::"&tag.Value&".png["&tag.Value&", Alt=""Bilde av pakke: "&thePackage.Name&"""]")
 			end if
 			'if EA-document then
 			'	figure + figure text
@@ -149,7 +150,7 @@ Sub ListAsciiDoc(thePackage)
 		'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&diag.Name&"]")
 			Session.Output("[caption=""Figur  "",title="&diag.Name&"]")
 		'	Session.Output("image::"&imgfolder&"\"&diag.Name&".png["&diag.Name&"]")
-			Session.Output("image::"&diag.Name&".png["&diag.Name&"]")
+			Session.Output("image::"&diag.Name&".png["&diag.Name&", Alt=""Diagramm: "&diag.Name&"""]")
 		end if
 	Next
 
@@ -263,7 +264,7 @@ Sub ObjektOgDatatyper(element)
 				Session.Output(" ")
 				Session.Output("'''")
 				Session.Output(".Illustrasjon av objekttype "&element.Name&"")
-				Session.Output("image::"&tag.Value&"[link="&tag.Value&",""Illustrasjon av objekttype: "&element.Name&"""]")
+				Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Illustrasjon av objekttype: "&element.Name&"""]")
 				Session.Output(" ")
 			end if
 		next
@@ -278,7 +279,7 @@ Sub ObjektOgDatatyper(element)
 		Session.Output(" ")
 		Session.Output("'''")
 		Session.Output(".Illustrasjon fra produktspesifikasjon av "&element.Name&"")
-		Session.Output("image::"&parentimg&"[link="&parentimg&",""Illustrasjon fra produktspesifikasjon: "&element.Name&"""]")
+		Session.Output("image::"&parentimg&"[link="&parentimg&", Alt=""Illustrasjon fra produktspesifikasjon: "&element.Name&"""]")
 		Session.Output(" ")
 	end if
 
@@ -294,8 +295,8 @@ Sub ObjektOgDatatyper(element)
 				diagCounter = diagCounter + 1
 			Session.Output(" ")
 			Session.Output("'''")
-			Session.Output(".Illustrasjon fra fil av objekttype "&element.Name&"")
-			Session.Output("image::"&fil.Name&"[link="&fil.Name&","""&getCleanDefinition(fil.Notes)&"""]")
+			Session.Output("."&getCleanDefinition(fil.Notes)&"")
+			Session.Output("image::"&fil.Name&"[link="&fil.Name&", Alt="""&getCleanDefinition(fil.Notes)&"""]")
 			Session.Output(" ")
 
 		next
@@ -496,7 +497,7 @@ if element.TaggedValues.Count > 0 then
 		'	Session.Output("[caption=""Figur "&diagCounter&": "",title="&tag.Name&"]")
 			Session.Output("[caption=""Figur  "",title="&tag.Name&"]")
 		'	Session.Output("image::"&tag.Value&".png["&ThePackage.Name"."&tag.Name&"]")
-			Session.Output("image::"&tag.Value&"["&tag.Value&"]")
+			Session.Output("image::"&tag.Value&"["&tag.Value&", Alt=""Bilde av kodeliste: "&element.Name&"""]")
 		end if
 	next
 end if
@@ -1045,30 +1046,25 @@ function getCleanDefinition(txt)
 	getCleanDefinition = ""
 
 		res = ""
-		' loop gjennom alle tegn
+		txt = Trim(txt)
 		For i = 1 To Len(txt)
 		  tegn = Mid(txt,i,1)
-		  if tegn = "," then tegn = " " 'for adoc
-		  If tegn = "<" Then
+			if tegn = "," then tegn = " " 'for adoc
+			If tegn = "<" Then
 				u = 1
-			   'res = res + " "
-		  Else 
+				tegn = " "
+			end if 
 			If tegn = ">" Then
 				u = 0
-			   'res = res + " "
-				'If tegn = """" Then
-				'  res = res + "'"
+				tegn = " "
+			end if
+			If tegn < " " Then
+				res = res + " "
 			Else
-				  If tegn < " " and Asc(tegn) <> 10 and Asc(tegn) <> 13 Then
-					res = res + " "
-				  Else
-					if u = 0 then
-						res = res + Mid(txt,i,1)
-					end if
-				  End If
-				'End If
+				if u = 0 then
+					res = res + Mid(txt,i,1)
+				end if
 			End If
-		  End If
 		  
 		Next
 		
