@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.19 Date: 2021-10-05 Kent Jonsrud: satt inn Alt= i alle image:
 ' Version: 0.18 Date: 2021-09-28 Kent Jonsrud: bytta til eksplisitt skillelinje ("'''") og rydda vekk død kode
 ' Version: 0.17 Date: 2021-09-28 Kent Jonsrud: tatt bort eksplisitt nummerering av figurer
 ' Version: 0.16 Date: 2021-09-21 Kent Jonsrud: flyttet supertypen til slutt og laget hyperlinker til subtypene
@@ -135,7 +136,7 @@ Sub ListAsciiDoc(thePackage)
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			diagCounter = diagCounter + 1
 			Session.Output(".Illustrasjon av pakke "&thePackage.Name&"")
-			Session.Output("image::"&tag.Value&"[link="&tag.Value&",""Illustrasjon av pakke: "&thePackage.Name&"""]")
+			Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Illustrasjon av pakke: "&thePackage.Name&"""]")
 		end if
 	next
 
@@ -147,7 +148,7 @@ Sub ListAsciiDoc(thePackage)
 		Session.Output("'''")
 		Session.Output(" ")
 		Session.Output("."&diag.Name&" ")
-		Session.Output("image::diagrammer/"&diag.Name&".png[link=diagrammer/"&diag.Name&".png,""Diagramm: "&diag.Name&"""]")
+		Session.Output("image::diagrammer/"&diag.Name&".png[link=diagrammer/"&diag.Name&".png, Alt=""Diagramm: "&diag.Name&"""]")
 	Next
 
 	For each element in thePackage.Elements
@@ -246,7 +247,7 @@ end sub
 				Session.Output(" ")
 				Session.Output("'''")
 				Session.Output(".Illustrasjon av objekttype "&element.Name&"")
-				Session.Output("image::"&tag.Value&"[link="&tag.Value&",""Illustrasjon av objekttype: "&element.Name&"""]")
+				Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Illustrasjon av objekttype: "&element.Name&"""]")
 			end if
 		next
 	end if
@@ -425,7 +426,9 @@ Sub Kodelister(element)
 			if LCase(tag.Name) = "asdictionary" and tag.Value = "true" then asdict = true
 			if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 				diagCounter = diagCounter + 1
-				Session.Output("image::"&tag.Value&"["&tag.Value&"]")
+				Session.Output("'''")
+				Session.Output(".Illustrasjon av kodeliste: "&element.Name&"""]")
+				Session.Output("image::"&tag.Value&"["&tag.Value&", Alt=""Illustrasjon av kodeliste: "&element.Name&"""]")
 			end if
 			if LCase(tag.Name) = "codelist" and tag.Value <> "" then
 				codeListUrl = tag.Value
@@ -735,7 +738,7 @@ sub attrbilde(att,typ)
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			Session.Output(" +")
 			Session.Output("Illustrasjon av " & typ & " "&att.Name&"")
-			Session.Output("image:"&tag.Value&"[link="&tag.Value&",width=100,height=100,""Illustrasjon av " & typ & ": "&att.Name&"""]")
+			Session.Output("image:"&tag.Value&"[link="&tag.Value&",width=100,height=100, Alt=""Illustrasjon av " & typ & ": "&att.Name&"""]")
 		end if
 	next
 end sub
@@ -788,35 +791,30 @@ function getCleanDefinition(txt)
 	getCleanDefinition = ""
 
 		res = ""
-		' loop gjennom alle tegn
+		txt = Trim(txt)
 		For i = 1 To Len(txt)
 		  tegn = Mid(txt,i,1)
-		  If tegn = "<" Then
+			if tegn = "," then tegn = " " 'for adoc
+			If tegn = "<" Then
 				u = 1
-			   'res = res + " "
-		  Else 
+				tegn = " "
+			end if 
 			If tegn = ">" Then
 				u = 0
-			   'res = res + " "
-				'If tegn = """" Then
-				'  res = res + "'"
+				tegn = " "
+			end if
+			If tegn < " " Then
+				res = res + " "
 			Else
-				  If tegn < " " and Asc(tegn) <> 10 and Asc(tegn) <> 13 Then
-					res = res + " "
-				  Else
-					if u = 0 then
-						res = res + Mid(txt,i,1)
-					end if
-				  End If
-				'End If
+				if u = 0 then
+					res = res + Mid(txt,i,1)
+				end if
 			End If
-		  End If
 		  
 		Next
 		
 	getCleanDefinition = res
 
-end function
 '-----------------Function getCleanDefinition End-----------------
 
 
