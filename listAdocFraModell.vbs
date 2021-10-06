@@ -814,7 +814,7 @@ function getCleanDefinition(txt)
 		Next
 		
 	getCleanDefinition = res
-
+end function
 '-----------------Function getCleanDefinition End-----------------
 
 
