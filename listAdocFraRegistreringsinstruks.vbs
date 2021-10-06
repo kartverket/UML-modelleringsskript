@@ -8,6 +8,7 @@ Option Explicit
 ' Date: 08.04.2021
 ' Version: 0.1ish
 '
+' Version 0.12 2021-10-06 spesialhandtering av restriksjoner med navn som starter med _presiseringAvKoder_
 ' Version 0.11 2021-10-06 figurer på kodelistekoder kopiert fra skript listAdocFraModell
 ' Version 0.10 2021-10-05 feilretting rundt image:: og Alt=
 ' Version 0.9 2021-10-04 hovedpakka ikke ut, figurer som i prodspek, underline i tV ut som blank, tilleggsdefinisjon bold etc, roller
@@ -174,6 +175,7 @@ Sub ListAsciiDoc(thePackage)
 		End if
 	Next
 
+if false then
 	For each element in thePackage.Elements
 		If Ucase(element.Stereotype) = "CODELIST" Then
 			Call Kodelister(element)
@@ -185,6 +187,7 @@ Sub ListAsciiDoc(thePackage)
 			Call Kodelister(element)
 		End if
 	Next
+end if 'false
 		
 	dim pack as EA.Package
 	for each pack in thePackage.Packages
@@ -460,6 +463,11 @@ end if
 If element.Connectors.Count > numberSpecializations Then
 	Relasjoner(element)
 End If
+
+	if element.Constraints.Count > 0 then
+		FKBRestriksjoner(element)
+	end if
+
 End sub
 '-----------------ObjektOgDatatyper End-----------------
 
@@ -941,6 +949,102 @@ end sub
 
 
 
+'-----------------FKBRestriksjoner-----------------
+sub FKBRestriksjoner(element)
+	Dim constr as EA.Constraint
+	Dim datatype as EA.Element
+	Dim att as EA.Attribute
+	dim restriksjon, presisering, egenskapsnavn, datatypeID, subtypeID
+	restriksjon = 0
+	presisering = 0
+
+						
+	For Each constr In element.Constraints
+		if LCase(Mid(constr.Name,1,20)) <> "_presiseringavkoder_" then
+			if restriksjon = 0 then
+				Session.Output("")
+				Session.Output("===== Restriksjoner")
+				restriksjon = 1
+			end if
+			Session.Output("[cols=""20,80""]")
+			Session.Output("|===")
+			Session.Output("|*Navn:* ")
+			Session.Output("|*" & constr.Name & "*")
+			Session.Output(" ")
+			Session.Output("|Beskrivelse: ")
+			Session.Output("|" & constr.Notes & "")
+			Session.Output(" ")
+			Session.Output("|===")
+		end if
+	Next
+
+	For Each constr In element.Constraints
+		if LCase(Mid(constr.Name,1,20)) = "_presiseringavkoder_" then
+			if presisering = 0 then
+				Session.Output("")
+				Session.Output("===== Presiseringer til beskrivelsen av kodelistekoder")
+				Session.Output("Figurer og skisser knyttet til bruk av bestemte kodelister og koder.")
+				Session.Output(" ")
+				presisering = 1
+			end if
+			' finn rett kode via egenskapsnavnet
+			egenskapsnavn = Mid(constr.Name,21,Len(constr.Name)-20)
+			' finn datatypen til egenskapen
+			datatypeID = getDTID(egenskapsnavn,element)
+			if datatypeID <> 0 then
+				set datatype = Repository.GetElementByID(datatypeID)
+				' finn subtypeklasse med samme navn
+				subtypeID = getSTID(datatype)
+				if subtypeID <> 0 then
+					set datatype = Repository.GetElementByID(subtypeID)
+					' list ut alle koder med presiseringer
+					for each att in datatype.Attributes
+						Session.Output("")
+						Session.Output("===== " & element.Name & "." & egenskapsnavn & " : " & datatype.Name & " - Kode : " & att.Name & "")
+						Session.Output("*Definisjon :* " & getCleanDefinition(att.Notes) & "")
+						call kodebilde(att)
+						Session.Output("")
+					next
+				end if
+			end if
+		end if
+	Next
+
+end sub
+'-----------------FKBRestriksjoner End-----------------
+
+
+
+'----------------- Start Funksjon getDTID-----------------
+' finn ID til datatypen til egenskapen
+Function getDTID(egenskapsnavn,element)
+	getDTID = 0
+	Dim att as EA.Attribute
+	for each att in element.AttributesEX		
+		if att.Name = egenskapsnavn then
+			getDTID = att.ClassifierID
+		end if
+	next
+end function
+'----------------- End Funksjon getDTID-----------------
+
+
+'----------------- Start Funksjon getSTID-----------------
+' finn ID til en subtypeklasse med samme navn
+Function getSTID(element)
+	Dim subtype as EA.Element
+	Dim con As EA.Connector	
+	For Each con In element.Connectors
+		set subtype = Repository.GetElementByID(con.ClientID)
+		If con.Type = "Generalization" And subtype.ElementID <> element.ElementID Then
+				getSTID = 0
+			if subtype.Name = element.Name then
+				getSTID = subtype.ElementID
+			end if
+		End If
+	Next
+end function
+'----------------- End Funksjon getDTID-----------------
 
 '--------------------Start Sub-------------
 sub	listFkbTag(tagName, tagValue)
@@ -1048,7 +1152,7 @@ end function
 ' Author: Kent Jonsrud
 ' Date: 2021-09-16
 ' Date: 2021-10-06 FKB-utvidelser
-' Purpose: skriver ut lenke til bilde av element ved siden av elementet
+' Purpose: skriver ut lenke og tekst til bilde av element ved siden av elementet
 
 sub attrbilde(att,typ)
 	dim tag as EA.TaggedValue
@@ -1064,6 +1168,32 @@ sub attrbilde(att,typ)
 			Session.Output(" +")
 			Session.Output(""&bildetekst&"")
 			Session.Output("image:"&tag.Value&"[link="&tag.Value&",width=100,height=100, Alt=""" & bildetekst & """]")
+		end if
+	next
+end sub
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Func Name: kodebilde(att)
+' Author: Kent Jonsrud
+' Date: 2021-10-06
+' Purpose: skriver ut lenke og tekst til bilde av element under elementet
+
+sub kodebilde(att)
+	dim tag as EA.TaggedValue
+	dim bildetekst
+	bildetekst = "Illustrasjon av "&att.Name
+	for each tag in att.TaggedValues								
+		if LCase(tag.Name) = "fkb_bildetekst" and tag.Value <> "" then
+			bildetekst = getCleanDefinition(tag.Value)
+		end if
+	next
+	for each tag in att.TaggedValues								
+		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
+			Session.Output(" ")
+			Session.Output("."&bildetekst&"")
+			Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""" & bildetekst & """]")
 		end if
 	next
 end sub
