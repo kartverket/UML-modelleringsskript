@@ -8,6 +8,7 @@ Option Explicit
 ' Date: 08.04.2021
 ' Version: 0.1ish
 '
+' Version 0.11 2021-10-06 figurer på kodelistekoder kopiert fra skript listAdocFraModell
 ' Version 0.10 2021-10-05 feilretting rundt image:: og Alt=
 ' Version 0.9 2021-10-04 hovedpakka ikke ut, figurer som i prodspek, underline i tV ut som blank, tilleggsdefinisjon bold etc, roller
 ' Version 0.8 2021-09-20 smårettinger
@@ -211,6 +212,7 @@ Sub ObjektOgDatatyper(element)
 
 	parentimg = ""
 	Session.Output(" ")
+	Session.Output("<<<")
 	Session.Output("'''")
 	Session.Output(" ")
 	
@@ -526,6 +528,7 @@ if utvekslingsalias then
 		end if
 		Session.Output("|"&att.Name&"")
 		Session.Output("|"&att.Notes&"")
+		call attrbilde(att,"kodelistekode")
 	next
 	Session.Output("|===")
 else
@@ -537,6 +540,7 @@ else
 	for each att in element.Attributes
 		Session.Output("|"&att.Name&"")
 		Session.Output("|"&att.Notes&"")
+		call attrbilde(att,"kodelistekode")
 	next
 	Session.Output("|===")
 end if
@@ -554,6 +558,7 @@ for each att in element.Attributes
 		Session.Output("|Utvekslingsalias?: ")
 		Session.Output("|"&att.Default&"")
 	end if
+	call attrbilde(att,"kodelistekode")
 	Session.Output("|===")
 next
 end if
@@ -1036,6 +1041,33 @@ function underscore2space(txt)
 
 end function
 '-----------------Function underscore2space End-----------------
+
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Func Name: attrbilde(att)
+' Author: Kent Jonsrud
+' Date: 2021-09-16
+' Date: 2021-10-06 FKB-utvidelser
+' Purpose: skriver ut lenke til bilde av element ved siden av elementet
+
+sub attrbilde(att,typ)
+	dim tag as EA.TaggedValue
+	dim bildetekst
+	bildetekst = "Illustrasjon av " & typ & " "&att.Name
+	for each tag in att.TaggedValues								
+		if LCase(tag.Name) = "fkb_bildetekst" and tag.Value <> "" then
+			bildetekst = getCleanDefinition(tag.Value)
+		end if
+	next
+	for each tag in att.TaggedValues								
+		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
+			Session.Output(" +")
+			Session.Output(""&bildetekst&"")
+			Session.Output("image:"&tag.Value&"[link="&tag.Value&",width=100,height=100, Alt=""" & bildetekst & """]")
+		end if
+	next
+end sub
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
 
 
 '-----------------Function getCleanDefinition Start-----------------
