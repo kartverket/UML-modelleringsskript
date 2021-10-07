@@ -8,6 +8,7 @@ Option Explicit
 ' Date: 08.04.2021
 ' Version: 0.1ish
 '
+' Version 0.13 2021-10-07 endra litt på rekkefølgen mellom blokkene, starta restrukturering av koden
 ' Version 0.12 2021-10-06 spesialhandtering av restriksjoner med navn som starter med _presiseringAvKoder_
 ' Version 0.11 2021-10-06 figurer på kodelistekoder kopiert fra skript listAdocFraModell
 ' Version 0.10 2021-10-05 feilretting rundt image:: og Alt=
@@ -232,8 +233,13 @@ Sub ObjektOgDatatyper(element)
 			
 		End If
 	Next
+	
+	call klassebilder(element,parentimg)
+	
 	if element.Notes <> "" then
-		Session.Output("*Tilleggsinformasjon for fotogrammetrisk registrering:* "&element.Notes&"")
+'		Session.Output("*Tilleggsinformasjon for fotogrammetrisk registrering:* "&element.Notes&"")
+		Session.Output("===== Tilleggsinformasjon for fotogrammetrisk registrering")
+		Session.Output(""&element.Notes&"")
 		Session.Output(" ")
 	end if
 
@@ -260,53 +266,6 @@ Sub ObjektOgDatatyper(element)
 			numberSpecializations = numberSpecializations + 1
 		end if
 	next
-
-	if element.TaggedValues.Count > 0 then
-
-		for each tag in element.TaggedValues								
-			if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
-				diagCounter = diagCounter + 1
-				Session.Output(" ")
-				Session.Output("'''")
-				Session.Output(".Illustrasjon av objekttype "&element.Name&"")
-				Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Illustrasjon av objekttype: "&element.Name&"""]")
-				Session.Output(" ")
-			end if
-		next
-		if getTaggedValue(element,"SOSI_bildetekstTilModellelement") <> "" then
-			Session.Output("Bildebeskrivelse: "& getCleanDefinition(getTaggedValue(element,"SOSI_bildetekstTilModellelement")) & "")
-			Session.Output(" ")
-		end if
-	end if
-
-	if parentimg <> "" then
-		diagCounter = diagCounter + 1
-		Session.Output(" ")
-		Session.Output("'''")
-		Session.Output(".Illustrasjon fra produktspesifikasjon av "&element.Name&"")
-		Session.Output("image::"&parentimg&"[link="&parentimg&", Alt=""Illustrasjon fra produktspesifikasjon: "&element.Name&"""]")
-		Session.Output(" ")
-	end if
-
-	if element.Files.Count > 0 then
-		For Each fil In element.Files
-		'		Session.Output("Filbeskrivelse Name: "& fil.Name & "")
-		'		Session.Output("Filbeskrivelse Type: "& fil.Type & "")
-		'		Session.Output("Filbeskrivelse Size: "& fil.Size & "")
-		'		Session.Output("Filbeskrivelse ObjectType: "& fil.ObjectType & "")
-		'		Session.Output("Filbeskrivelse FileDate: "& fil.FileDate & "")
-		'		Session.Output("Filbeskrivelse Notes: "& fil.Notes & "")
-		'		Session.Output(" ")
-				diagCounter = diagCounter + 1
-			Session.Output(" ")
-			Session.Output("'''")
-			Session.Output("."&getCleanDefinition(fil.Notes)&"")
-			Session.Output("image::"&fil.Name&"[link="&fil.Name&", Alt="""&getCleanDefinition(fil.Notes)&"""]")
-			Session.Output(" ")
-
-		next
-		Session.Output(" ")
-	end if
 
 'if element.Attributes.Count > 0 then
 		Session.Output("===== Føringer")
@@ -470,6 +429,63 @@ End If
 
 End sub
 '-----------------ObjektOgDatatyper End-----------------
+
+
+' ------------------ Klassebilder Start ---------
+Sub klassebilder(element, parentimg)
+	Dim tag AS EA.TaggedValue
+	Dim fil As EA.File
+	
+	if element.TaggedValues.Count > 0 then
+
+		for each tag in element.TaggedValues								
+			if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
+			'	diagCounter = diagCounter + 1
+				Session.Output(" ")
+				Session.Output("'''")
+				Session.Output(".Illustrasjon av objekttype "&element.Name&"")
+				Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Illustrasjon av objekttype: "&element.Name&"""]")
+				Session.Output(" ")
+			end if
+		next
+		if getTaggedValue(element,"SOSI_bildetekstTilModellelement") <> "" then
+			Session.Output("Bildebeskrivelse: "& getCleanDefinition(getTaggedValue(element,"SOSI_bildetekstTilModellelement")) & "")
+			Session.Output(" ")
+		end if
+	end if
+
+	if parentimg <> "" then
+	'	diagCounter = diagCounter + 1
+		Session.Output(" ")
+		Session.Output("'''")
+		Session.Output(".Illustrasjon fra produktspesifikasjon av "&element.Name&"")
+		Session.Output("image::"&parentimg&"[link="&parentimg&", Alt=""Illustrasjon fra produktspesifikasjon: "&element.Name&"""]")
+		Session.Output(" ")
+	end if
+
+	if element.Files.Count > 0 then
+		For Each fil In element.Files
+		'		Session.Output("Filbeskrivelse Name: "& fil.Name & "")
+		'		Session.Output("Filbeskrivelse Type: "& fil.Type & "")
+		'		Session.Output("Filbeskrivelse Size: "& fil.Size & "")
+		'		Session.Output("Filbeskrivelse ObjectType: "& fil.ObjectType & "")
+		'		Session.Output("Filbeskrivelse FileDate: "& fil.FileDate & "")
+		'		Session.Output("Filbeskrivelse Notes: "& fil.Notes & "")
+		'		Session.Output(" ")
+		'		diagCounter = diagCounter + 1
+			Session.Output(" ")
+			Session.Output("'''")
+			Session.Output("."&getCleanDefinition(fil.Notes)&"")
+			Session.Output("image::"&fil.Name&"[link="&fil.Name&", Alt="""&getCleanDefinition(fil.Notes)&"""]")
+			Session.Output(" ")
+
+		next
+		Session.Output(" ")
+	end if
+	Session.Output(" ")
+end sub
+
+' ------------------ Klassebilder End ---------
 
 
 '-----------------CodeList-----------------
@@ -1194,6 +1210,7 @@ sub kodebilde(att)
 			Session.Output(" ")
 			Session.Output("."&bildetekst&"")
 			Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""" & bildetekst & """]")
+			Session.Output(" ")
 		end if
 	next
 end sub
