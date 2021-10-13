@@ -8,6 +8,8 @@ Option Explicit
 ' Date: 08.04.2021
 ' Version: 0.1ish
 '
+' Versjon 0.17 2021-10-13 Kent: la inn mer rekusrivitet så egenskaper i supertyper kan presiseres (AtributesEX virker ikke), resatte et flagg - linje 1035
+' Versjon 0.16 2021-10-13 tilpasninger av Geir Myhr Øien, lagt inn lenke til kodelister som er angitt tagged valuse "defaultcodespace"#, tagget med "v0.16"
 ' Versjon 0.15 2021-10-12 tilpasninger av Geir Myhr Øien, utlisting av taggen "FKB_minstestørrelse_*", tagget med "v0.15"
 ' Versjon 0.14 2021-10-07 tilpasninger av Geir Myhr Øien, tagget med "v0.14"
 ' Version 0.13 2021-10-07 endra litt på rekkefølgen mellom blokkene, starta restrukturering av koden
@@ -863,11 +865,12 @@ end sub
 
 '--------------------Start Sub-------------
 sub listDatatype(egenskap, punktum, element)
-Dim pktum, eskap, stereo
+Dim pktum, eskap, stereo, codeListUrl, teller  'v0.16
 'Dim element As EA.Element
 Dim datatype As EA.Element
 Dim super As EA.Element
 Dim att As EA.Attribute
+dim tag as EA.TaggedValue  'v0.16
 dim conn as EA.Collection
 '			Session.Output("|attr.ClassifierID="&attr.ClassifierID&"")
 	'		Session.Output("DEBUG: (egenskap, punktum, element.Name: " & egenskap & " , " & punktum & " , " & element.Name )
@@ -906,7 +909,24 @@ dim conn as EA.Collection
 					set datatype = Repository.GetElementByID(att.ClassifierID)
 					stereo = "«" & datatype.Stereotype & "» "
 				end if
-				Session.Output("|"&stereo&att.Type&"")			
+				if att.ClassifierID <> 0 and LCase(stereo) = "«codelist» " then  'v0.16
+					'gjør ingen ting  'v0.16
+					codeListUrl = ""  'v0.16
+					teller = 0  'v0.16
+					for each tag in att.TaggedValues  'v0.16
+						if LCase(tag.Name) = "defaultcodespace" and tag.Value <> "" then  'v0.16
+							codeListUrl = tag.Value  'v0.16
+							Session.Output("| "&stereo&" "&codeListUrl&"["&att.Type&", window = _blank]")  'v0.16
+							teller = teller + 1  'v0.16
+						end if  'v0.16
+					next  'v0.16
+					if teller < 1 then  'v0.16
+						Session.Output("|"&stereo&att.Type&"")  'v0.16
+					end if  'v0.16
+				else  'v0.16
+					Session.Output("|"&stereo&att.Type&"")	  'v0.16
+				end if  'v0.16
+				' Session.Output("|"&stereo&att.Type&"")  'v0.16 - denne linjen kan slettes	
 				Session.Output("|"&punktum&getTaggedValue(att,"SOSI_navn")&"")
 				Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
 			end if
@@ -1012,6 +1032,7 @@ sub FKBRestriksjoner(element)
 	end if  'v0.14
 
 	For Each constr In element.Constraints
+		objekttypenavn = 0  'v0.17
 		if LCase(Mid(constr.Name,1,20)) = "_presiseringavkoder_" then
 			if presisering = 0 then
 				Session.Output("")
@@ -1022,14 +1043,17 @@ sub FKBRestriksjoner(element)
 			end if
 			' finn rett kode via egenskapsnavnet
 			egenskapsnavn = Mid(constr.Name,21,Len(constr.Name)-20)
+	'		Session.Output("===== Gjelder egenskap: " & element.Name & "." & egenskapsnavn & "")
 			' finn datatypen til egenskapen
 			datatypeID = getDTID(egenskapsnavn,element)
 			if datatypeID <> 0 then
 				set datatype = Repository.GetElementByID(datatypeID)
+	'			Session.Output("===== Gjelder egenskapens datatype: " & element.Name & "." & egenskapsnavn & " : " & datatype.Name & "")
 				' finn subtypeklasse med samme navn
 				subtypeID = getSTID(datatype)
 				if subtypeID <> 0 then
 					set datatype = Repository.GetElementByID(subtypeID)
+	'				Session.Output("===== Gjelder tilsvarende datatype: " & element.Name & "." & egenskapsnavn & " : " & datatype.Name & "")
 					' list ut alle koder med presiseringer
 					if datatype.Attributes.Count > 0 then  'v0.14
 						for each att in datatype.Attributes
@@ -1058,6 +1082,8 @@ sub FKBRestriksjoner(element)
 							end if  'v0.14
 						next
 					end if  'v0.14
+				else
+					Session.Output("===== Fant ingen klasse med presiseringer i restriksjonen: " & constr.Name & " - " & egenskapsnavn & " : " & datatype.Name & "")
 				end if
 			end if
 		end if
@@ -1069,15 +1095,26 @@ end sub
 
 
 '----------------- Start Funksjon getDTID-----------------
-' finn ID til datatypen til egenskapen
+' finn ID til datatypen til egenskapen, eventuelt i en supertype
 Function getDTID(egenskapsnavn,element)
-	getDTID = 0
+	Dim supertype as EA.Element
+	Dim con As EA.Connector	
 	Dim att as EA.Attribute
-	for each att in element.AttributesEX		
+	Dim t
+	getDTID = 0
+	for each att in element.Attributes		
 		if att.Name = egenskapsnavn then
 			getDTID = att.ClassifierID
 		end if
 	next
+	if getDTID = 0 then
+		For Each con In element.Connectors
+			If con.Type = "Generalization" and con.ClientID = element.ElementID Then
+				set supertype = Repository.GetElementByID(con.SupplierID)
+				getDTID = getDTID(egenskapsnavn,supertype)
+			End If
+		Next	
+	end if
 end function
 '----------------- End Funksjon getDTID-----------------
 
@@ -1087,10 +1124,10 @@ end function
 Function getSTID(element)
 	Dim subtype as EA.Element
 	Dim con As EA.Connector	
+	getSTID = 0
 	For Each con In element.Connectors
 		set subtype = Repository.GetElementByID(con.ClientID)
 		If con.Type = "Generalization" And subtype.ElementID <> element.ElementID Then
-				getSTID = 0
 			if subtype.Name = element.Name then
 				getSTID = subtype.ElementID
 			end if
