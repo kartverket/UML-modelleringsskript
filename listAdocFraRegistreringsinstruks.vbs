@@ -8,6 +8,8 @@ Option Explicit
 ' Date: 08.04.2021
 ' Version: 0.1ish
 '
+' Versjon 0.15 2021-10-12 tilpasninger av Geir Myhr Øien, utlisting av taggen "FKB_minstestørrelse_*", tagget med "v0.15"
+' Versjon 0.14 2021-10-07 tilpasninger av Geir Myhr Øien, tagget med "v0.14"
 ' Version 0.13 2021-10-07 endra litt på rekkefølgen mellom blokkene, starta restrukturering av koden
 ' Version 0.12 2021-10-06 spesialhandtering av restriksjoner med navn som starter med _presiseringAvKoder_
 ' Version 0.11 2021-10-06 figurer på kodelistekoder kopiert fra skript listAdocFraModell
@@ -47,7 +49,7 @@ Option Explicit
 ' TBD: common table 
 ' TBD: opprydding !!!
 '
-Dim imgfolder, imgparent, parentimg
+Dim imgfolder, imgparent, parentimg, files 'v0.14
 Dim diagCounter
 Dim imgFSO
 '
@@ -215,6 +217,7 @@ Sub ObjektOgDatatyper(element)
 	dim externalPackage
 
 	parentimg = ""
+	files = "" 'v0.14
 	Session.Output(" ")
 	Session.Output("<<<")
 	Session.Output("'''")
@@ -234,7 +237,7 @@ Sub ObjektOgDatatyper(element)
 		End If
 	Next
 	
-	call klassebilder(element,parentimg)
+	call klassebilder(element,parentimg,files)  'v0.14
 	
 	if element.Notes <> "" then
 '		Session.Output("*Tilleggsinformasjon for fotogrammetrisk registrering:* "&element.Notes&"")
@@ -242,6 +245,10 @@ Sub ObjektOgDatatyper(element)
 		Session.Output(""&element.Notes&"")
 		Session.Output(" ")
 	end if
+	
+	files = "Ja"   'v0.14
+	call klassebilder(element,parentimg,files)  'v0.14
+	files = ""  'v0.14
 
 	numberSpecializations = 0
 	For Each con In element.Connectors
@@ -364,7 +371,10 @@ if element.AttributesEx.Count > 0 then
 															end if
 															next
 														end if ' false
-	Session.Output("===== Egenskapstabell") 'type, length(?), FKB-standard A/B/C/
+	Session.Output(" ")  'v0.14
+	Session.Output("<<<")  'v0.14
+	Session.Output(" ")  'v0.14
+	Session.Output("===== Egenskapstabell for objekttype: "&element.Name&"") 'type, length(?), FKB-standard A/B/C/   'v0.14
 '	Session.Output("[cols=""15,15,15,7,7,7,7,7""]")
 	Session.Output("[cols=""20,20,20,10""]")
 	Session.Output("|===")
@@ -432,17 +442,17 @@ End sub
 
 
 ' ------------------ Klassebilder Start ---------
-Sub klassebilder(element, parentimg)
+Sub klassebilder(element, parentimg,files) 'v0.14
 	Dim tag AS EA.TaggedValue
 	Dim fil As EA.File
 	
-	if element.TaggedValues.Count > 0 then
+	if element.TaggedValues.Count > 0 and files = "" then 'v0.14
 
 		for each tag in element.TaggedValues								
 			if tag.Name = "SOSI_bildeAvModellelement" and tag.Value <> "" then
 			'	diagCounter = diagCounter + 1
 				Session.Output(" ")
-				Session.Output("'''")
+				'Session.Output("'''") 'v0.14
 				Session.Output(".Illustrasjon av objekttype "&element.Name&"")
 				Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Illustrasjon av objekttype: "&element.Name&"""]")
 				Session.Output(" ")
@@ -454,16 +464,16 @@ Sub klassebilder(element, parentimg)
 		end if
 	end if
 
-	if parentimg <> "" then
+	if parentimg <> "" and files = "" then  'v0.14
 	'	diagCounter = diagCounter + 1
 		Session.Output(" ")
-		Session.Output("'''")
+		' Session.Output("'''") 'v0.14
 		Session.Output(".Illustrasjon fra produktspesifikasjon av "&element.Name&"")
 		Session.Output("image::"&parentimg&"[link="&parentimg&", Alt=""Illustrasjon fra produktspesifikasjon: "&element.Name&"""]")
 		Session.Output(" ")
 	end if
 
-	if element.Files.Count > 0 then
+	if element.Files.Count > 0 and files <> "" then  'v0.14
 		For Each fil In element.Files
 		'		Session.Output("Filbeskrivelse Name: "& fil.Name & "")
 		'		Session.Output("Filbeskrivelse Type: "& fil.Type & "")
@@ -970,10 +980,11 @@ sub FKBRestriksjoner(element)
 	Dim constr as EA.Constraint
 	Dim datatype as EA.Element
 	Dim att as EA.Attribute
-	dim restriksjon, presisering, egenskapsnavn, datatypeID, subtypeID
+	Dim tag as EA.TaggedValue 'v0.14
+	dim restriksjon, presisering, egenskapsnavn, datatypeID, subtypeID, objekttypenavn 'v0.14
 	restriksjon = 0
 	presisering = 0
-
+	objekttypenavn = 0  'v0.14
 						
 	For Each constr In element.Constraints
 		if LCase(Mid(constr.Name,1,20)) <> "_presiseringavkoder_" then
@@ -981,18 +992,24 @@ sub FKBRestriksjoner(element)
 				Session.Output("")
 				Session.Output("===== Restriksjoner")
 				restriksjon = 1
-			end if
-			Session.Output("[cols=""20,80""]")
-			Session.Output("|===")
-			Session.Output("|*Navn:* ")
-			Session.Output("|*" & constr.Name & "*")
-			Session.Output(" ")
-			Session.Output("|Beskrivelse: ")
-			Session.Output("|" & constr.Notes & "")
-			Session.Output(" ")
-			Session.Output("|===")
+				Session.Output("[cols=""20,80""]") 'v0.14
+				Session.Output(" ")  'v0.14
+				Session.Output("|===")  'v0.14
+				Session.Output("|*Navn:* ")  'v0.14
+				Session.Output("|*Beskrivelse:* ")  'v0.14
+				Session.Output(" ")  'v0.14
+			end if 
+			if restriksjon > 0 then  'v0.14
+				Session.Output("|" & constr.Name & "") 'v0.14
+				Session.Output("|" & constr.Notes & "")  'v0.14
+				Session.Output(" ")  'v0.14
+			end if  'v0.14
 		end if
 	Next
+	
+	if restriksjon > 0 then  'v0.14
+		Session.Output("|===")  'v0.14
+	end if  'v0.14
 
 	For Each constr In element.Constraints
 		if LCase(Mid(constr.Name,1,20)) = "_presiseringavkoder_" then
@@ -1014,13 +1031,33 @@ sub FKBRestriksjoner(element)
 				if subtypeID <> 0 then
 					set datatype = Repository.GetElementByID(subtypeID)
 					' list ut alle koder med presiseringer
-					for each att in datatype.Attributes
-						Session.Output("")
-						Session.Output("===== " & element.Name & "." & egenskapsnavn & " : " & datatype.Name & " - Kode : " & att.Name & "")
-						Session.Output("*Definisjon :* " & getCleanDefinition(att.Notes) & "")
-						call kodebilde(att)
-						Session.Output("")
-					next
+					if datatype.Attributes.Count > 0 then  'v0.14
+						for each att in datatype.Attributes
+							if att.TaggedValues.Count > 0 then   'v0.14
+								for each tag in att.TaggedValues   'v0.14
+									if LCase(tag.Name) = "fkb_objekttype" and LCase(tag.Value) = LCase(element.Name) then 'v0.14
+										Session.Output("")
+										'Session.Output("===== " & element.Name & "." & egenskapsnavn & " : " & datatype.Name & " - Kode : " & att.Name & "")  v0.14-erstattes av linjene under
+										'Session.Output("*Definisjon :* " & getCleanDefinition(att.Notes) & "")  v0.14-erstattes av linjene under
+										Session.Output("===== " & datatype.Name & " - Kodenavn: " & att.Name & "")  'v0.14
+										Session.Output("*Definisjon:* " & getCleanDefinition(att.Notes) & "")  'v0.14
+										call kodebilde(att)
+										Session.Output("")
+										objekttypenavn = 1  'v0.14
+									end if  'v0.14
+								next  'v0.14
+							end if  'v0.14
+							if objekttypenavn = 0 then  'v0.14
+								Session.Output("")  'v0.14
+								'Session.Output("===== " & element.Name & "." & egenskapsnavn & " : " & datatype.Name & " - Kode : " & att.Name & "")  v0.14-erstattes av linjene under
+								'Session.Output("*Definisjon :* " & getCleanDefinition(att.Notes) & "")  v0.14-erstattes av linjene under
+								Session.Output("===== " & datatype.Name & " - Kodenavn: " & att.Name & "")  'v0.14
+								Session.Output("*Definisjon:* " & getCleanDefinition(att.Notes) & "")  'v0.14
+								call kodebilde(att)  'v0.14
+								Session.Output("")  'v0.14
+							end if  'v0.14
+						next
+					end if  'v0.14
 				end if
 			end if
 		end if
@@ -1066,20 +1103,25 @@ end function
 sub	listFkbTag(tagName, tagValue)
 '		Session.Output("""P"" => Påkrevd registrering, ""O"" => Opsjonell registrering, ""-"" => Registreres ikke") 
 
-	Session.Output("|"&underscore2space(tagName)&"")
-	if tagValue = "P" then
-		Session.Output("|Påkrevd registrering")
-	else
-		if tagValue = "O" then
-			Session.Output("|Opsjonell registrering")
-		else
-			if tagValue = "-" then
-				Session.Output("|Registreres ikke")
-			else
-				Session.Output("|"&getCleanDefinition(tagValue)&"")
-			end if
-		end if
-	end if
+	if LCase(Mid(tagName,1,20)) = "fkb_minstestørrelse_" then  'v0.15
+		Session.Output("|FKB-" &Mid(tagName,21,21)& " minstestørrelse")  'v0.15
+		Session.Output("|"&getCleanDefinition(tagValue)&"")  'v0.15
+	else   'v0.15
+		Session.Output("|"&underscore2space(tagName)&"")  'v0.15
+		if tagValue = "P" then  'v0.15
+			Session.Output("|Påkrevd registrering")  'v0.15
+		else  'v0.15
+			if tagValue = "O" then  'v0.15
+				Session.Output("|Opsjonell registrering")  'v0.15
+			else  'v0.15
+				if tagValue = "-" then  'v0.15
+					Session.Output("|Registreres ikke")  'v0.15
+				else  'v0.15
+					Session.Output("|"&getCleanDefinition(tagValue)&"")  'v0.15
+				end if  'v0.15
+			end if  'v0.15
+		end if  'v0.15
+	end if  'v0.15
 	Session.Output(" ")	
 end sub
 '--------------------End Sub-------------
