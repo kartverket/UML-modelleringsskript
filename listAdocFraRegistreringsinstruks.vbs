@@ -8,6 +8,7 @@ Option Explicit
 ' Date: 08.04.2021
 ' Version: 0.1ish
 '
+' Versjon 0.18 2021-10-14 Geir: feilretting, slik at taggen "fkb_objekttype" blir korrekt håndtert ved utlisting av kodelister, tagget med "v0.18"
 ' Versjon 0.17 2021-10-13 Kent: la inn mer rekusrivitet så egenskaper i supertyper kan presiseres (AtributesEX virker ikke), resatte et flagg - linje 1035
 ' Versjon 0.16 2021-10-13 tilpasninger av Geir Myhr Øien, lagt inn lenke til kodelister som er angitt tagged valuse "defaultcodespace"#, tagget med "v0.16"
 ' Versjon 0.15 2021-10-12 tilpasninger av Geir Myhr Øien, utlisting av taggen "FKB_minstestørrelse_*", tagget med "v0.15"
@@ -1059,15 +1060,20 @@ sub FKBRestriksjoner(element)
 						for each att in datatype.Attributes
 							if att.TaggedValues.Count > 0 then   'v0.14
 								for each tag in att.TaggedValues   'v0.14
-									if LCase(tag.Name) = "fkb_objekttype" and LCase(tag.Value) = LCase(element.Name) then 'v0.14
-										Session.Output("")
-										'Session.Output("===== " & element.Name & "." & egenskapsnavn & " : " & datatype.Name & " - Kode : " & att.Name & "")  v0.14-erstattes av linjene under
-										'Session.Output("*Definisjon :* " & getCleanDefinition(att.Notes) & "")  v0.14-erstattes av linjene under
-										Session.Output("===== " & datatype.Name & " - Kodenavn: " & att.Name & "")  'v0.14
-										Session.Output("*Definisjon:* " & getCleanDefinition(att.Notes) & "")  'v0.14
-										call kodebilde(att)
-										Session.Output("")
-										objekttypenavn = 1  'v0.14
+									if LCase(tag.Name) = "fkb_objekttype" then  'v0.18
+										if LCase(tag.Value) = LCase(element.Name) then  'v0.18
+											Session.Output("")  'v0.18
+											'Session.Output("===== " & element.Name & "." & egenskapsnavn & " : " & datatype.Name & " - Kode : " & att.Name & "")  'v0.18-erstattes av linjene under
+											'Session.Output("*Definisjon :* " & getCleanDefinition(att.Notes) & "")  'v0.18-erstattes av linjene under
+											Session.Output("===== " & datatype.Name & " - Kodenavn: " & att.Name & "")  'v0.18
+											Session.Output("*Definisjon:* " & getCleanDefinition(att.Notes) & "")  'v0.18
+											call kodebilde(att)  'v0.18
+											Session.Output("")  'v0.18
+											objekttypenavn = 1  'v0.18
+										else  'v0.18
+											' dersom tagg verdien ikke er lik element navnet skal ikke attributen skrives ut  'v0.18
+											objekttypenavn = 2    'v0.18
+										end if   'v0.18
 									end if  'v0.14
 								next  'v0.14
 							end if  'v0.14
