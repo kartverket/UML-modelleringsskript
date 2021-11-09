@@ -11,6 +11,7 @@ option explicit
 ' date:				2020-05-11 code html points to skos-file for the code
 ' date  :			2020-11-19 utvalgte tagged values ut i html
 ' date  :			2020-11-26 bedre ledetekster
+' date  :			2021-11-09 broader-URI på Navetyper og Navnetypegrupper
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -23,6 +24,10 @@ option explicit
 	DIM htmlFSO
 	DIM outHtmlFile
 	DIM outIdxFile
+	Dim groupsList
+	Dim maingroupsList
+	Set groupsList = CreateObject( "System.Collections.Sortedlist" )
+	Set maingroupsList = CreateObject( "System.Collections.Sortedlist" )
 
 sub listKoderForEnValgtKodeliste()
 	' Show and clear the script output window
@@ -35,7 +40,8 @@ sub listKoderForEnValgtKodeliste()
 
 	Dim theElement as EA.Element
 	Set theElement = Repository.GetTreeSelectedObject()
-
+	call fillGroups()
+	call fillMaingroups()
 	if not theElement is nothing  then 
 	if Repository.GetTreeSelectedItemType() = otElement then
 		if theElement.Type="Class" and ( LCASE(theElement.Stereotype) = "codelist" or LCASE(theElement.Stereotype) = "enumeration") or theElement.Type="Enumeration"then
@@ -210,7 +216,7 @@ end sub
 
 Sub listSKOSfraKode(attr, codelist, namespace)
 
-	dim presentasjonsnavn, uricode, fy, tegn
+	dim presentasjonsnavn, uricode, fy, tegn, gruppe, i1
 	if attr.Default <> "" then
 		uricode = underscore(attr.Default)
 		if attr.Default <> uricode then
@@ -228,7 +234,7 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	objFile.Write"  <skos:Concept rdf:about="""&utf8(codelist)&"/"&utf8(uricode)&""">" & vbCrLf
 	objFile.Write"    <skos:inScheme rdf:resource="""&utf8(codelist)&"""/>" & vbCrLf
 	presentasjonsnavn = getTaggedValue(attr,"SOSI_presentasjonsnavn") 
-	if presentasjonsnavn = "" then presentasjonsnavn = attr.Name
+	if presentasjonsnavn = "" then presentasjonsnavn = toLabel(attr.Name)
 	objFile.Write"    <skos:prefLabel xml:lang=""no"">"&utf8(presentasjonsnavn)&"</skos:prefLabel>" & vbCrLf
         '<skos:prefLabel xml:lang=""en""">"&getTaggedValue(el,"SOSI_presentasjonsnavn")&"</skos:prefLabel>
     objFile.Write"    <skos:definition xml:lang=""no"">"&utf8(getCleanDefinitionText(attr))&"</skos:definition>" & vbCrLf
@@ -236,6 +242,26 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	if codelist = "Kommunenummer" then
 		fy = Mid(uricode,1,2)
 		objFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
+	end if
+	if codelist = "Navneobjekttype" then
+		gruppe = getTaggedValue(attr,"SOSI_verdi")
+		if gruppe <> "" then
+			i1 = Int(CInt(gruppe) / 100) * 100
+			if groupsList.IndexOfKey(CStr(i1)) <> -1 then
+				gruppe = groupsList.getByIndex(groupsList.IndexOfKey(CStr(i1)))
+				objFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Navneobjektgruppe/"&gruppe&"""/>" & vbCrLf
+			end if
+		end if
+	end if
+	if codelist = "Navneobjektgruppe" then
+		gruppe = getTaggedValue(attr,"SOSI_verdi")
+		if gruppe <> "" then
+			i1 = Int(CInt(gruppe) / 1000) * 1000
+			if maingroupsList.IndexOfKey(CStr(i1)) <> -1 then
+				gruppe = maingroupsList.getByIndex(maingroupsList.IndexOfKey(CStr(i1)))
+				objFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Navneobjekthovedgruppe/"&gruppe&"""/>" & vbCrLf
+			end if
+		end if
 	end if
 	if getTaggedValue(attr,"designation") <> "" then
 		objFile.Write"    <skos:hiddenLabel xml:lang=""en"">" & Mid(utf8(getTaggedValue(attr,"designation")),2,Len(getTaggedValue(attr,"designation"))-4) & "</skos:hiddenLabel>" & vbCrLf
@@ -268,6 +294,28 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	if codelist = "Kommunenummer" then
 		fy = Mid(uricode,1,2)
 		objCodeFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
+	end if
+	if codelist = "Navneobjekttype" then
+		gruppe = getTaggedValue(attr,"SOSI_verdi")
+		if gruppe <> "" then
+			i1 = Int(CInt(gruppe) / 100) * 100
+			if groupsList.IndexOfKey(CStr(i1)) <> -1 then
+				gruppe = groupsList.getByIndex(groupsList.IndexOfKey(CStr(i1)))
+				objCodeFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Navneobjektgruppe/"&gruppe&"""/>" & vbCrLf
+			end if
+		end if
+	end if
+	if codelist = "Navneobjektgruppe" then
+		gruppe = getTaggedValue(attr,"SOSI_verdi")
+		if gruppe <> "" then
+			i1 = Int(CInt(gruppe) / 1000) * 1000
+		'	Repository.WriteOutput "Script"," debug: gruppe,i1: "&gruppe&" "&i1, 0
+		'	Repository.WriteOutput "Script"," debug: maingroupsList.IndexOfKey(CStr(i1)): "&maingroupsList.IndexOfKey(CStr(i1)), 0
+			if maingroupsList.IndexOfKey(CStr(i1)) <> -1 then
+				gruppe = maingroupsList.getByIndex(maingroupsList.IndexOfKey(CStr(i1)))
+				objCodeFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Navneobjekthovedgruppe/"&gruppe&"""/>" & vbCrLf
+			end if
+		end if
 	end if
 	if getTaggedValue(attr,"designation") <> "" then
 		objCodeFile.Write"    <skos:hiddenLabel xml:lang=""en"">" & Mid(utf8(getTaggedValue(attr,"designation")),2,Len(getTaggedValue(attr,"designation"))-4) & "</skos:hiddenLabel>" & vbCrLf
@@ -641,5 +689,88 @@ Function getCurrentDateTime()
 	getCurrentDateTime = Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "+01:00"
 end function
 
+
+function toLabel(name)
+	'expands tecnical NCNames to normal language names
+    Dim txt, res, tegn, i, u
+    u=0
+	toLabel = ""
+	txt = Trim(name)
+		res = Mid(txt,1,1)
+		' loop gjennom alle resterende tegn og sett inn blank og liten bokstav der det er stor bokstav
+		' dersom det ikke er tre eller fire store etter hverandre - TBD
+		For i = 2 To Len(txt)
+			tegn = Mid(txt,i,1)
+			If tegn <> LCase(tegn) Then
+				res = res + " "
+				res = res + LCase(tegn)
+			Else 
+				res = res + tegn
+			End If
+		Next
+		
+	toLabel = res
+
+end function
+
+sub fillGroups()
+	groupsList.Add "1100", "terrengomrÃ¥der"
+	groupsList.Add "1200", "hÃ¸yder"
+	groupsList.Add "1300", "senkninger"
+	groupsList.Add "1400", "flater"
+	groupsList.Add "1500", "skrÃ¥ninger"
+	groupsList.Add "1600", "terrengdetaljer"
+	groupsList.Add "2100", "bartFjell"
+	groupsList.Add "2200", "lÃ¸smasseavsetninger"
+	groupsList.Add "2300", "vegetasjon"
+	groupsList.Add "2400", "vÃ¥tmark"
+	groupsList.Add "2500", "dyrkamark"
+	groupsList.Add "2600", "isOgPermafrost"
+	groupsList.Add "2700", "uttakOgDeponi"
+	groupsList.Add "3100", "stillestÃ¥endeVann"
+	groupsList.Add "3200", "ferskvannskontur"
+	groupsList.Add "3300", "grunnerIFerskvann"
+	groupsList.Add "3400", "rennendeVann"
+	groupsList.Add "3500", "detaljerIFerskvann"
+	groupsList.Add "4100", "farvann"
+	groupsList.Add "4200", "kystkontur"
+	groupsList.Add "4300", "grunnerISjÃ¸"
+	groupsList.Add "4400", "sjÃ¸bunn"
+	groupsList.Add "4500", "detaljISjÃ¸"
+	groupsList.Add "5100", "bebyggelsesomrÃ¥der"
+	groupsList.Add "5200", "gardsbebyggelse"
+	groupsList.Add "5300", "bolighus"
+	groupsList.Add "5400", "nÃ¦ring"
+	groupsList.Add "5500", "institusjoner"
+	groupsList.Add "5600", "fritidsanlegg"
+	groupsList.Add "6100", "veg"
+	groupsList.Add "6200", "bane"
+	groupsList.Add "6300", "luftfart"
+	groupsList.Add "6400", "sjÃ¸fart"
+	groupsList.Add "6500", "navigasjon"
+	groupsList.Add "6600", "samferdselsanlegg"
+	groupsList.Add "6700", "energi"
+	groupsList.Add "6800", "kommunikasjon"
+	groupsList.Add "7100", "administrativeIndelinger"
+	groupsList.Add "7200", "verne-OgBruksomrÃ¥der"
+	groupsList.Add "8100", "kulturminner"
+	groupsList.Add "8200", "kulturinstitusjoner"
+	'			gruppe = maingroupsList.getByIndex(maingroupsList.IndexOfKey(i1))
+'	Repository.WriteOutput "Script"," debug: groupsList.GetKey(1) - groupsList.getByIndex(1): "&groupsList.GetKey(1)&" "&groupsList.getByIndex(1), 0
+'	Repository.WriteOutput "Script"," debug: groupsList.IndexOfKey(1100): "&groupsList.IndexOfKey(1100), 0
+
+end sub
+
+
+sub fillMaingroups()
+	maingroupsList.Add "1000", "terreng"
+	maingroupsList.Add "2000", "markslag"
+	maingroupsList.Add "3000", "ferskvann"
+	maingroupsList.Add "4000", "sjÃ¸"
+	maingroupsList.Add "5000", "bebyggelse"
+	maingroupsList.Add "6000", "infrastruktur"
+	maingroupsList.Add "7000", "offentligAdministrasjon"
+	maingroupsList.Add "8000", "kultur"
+end sub
 
 listKoderForEnValgtKodeliste
