@@ -11,17 +11,19 @@ option explicit
 ' date:				2020-05-11 code html points to skos-file for the code
 ' date  :			2020-11-19 utvalgte tagged values ut i html
 ' date  :			2020-11-26 bedre ledetekster
-' date  :			2021-11-09 broader-URI på Navetyper og Navnetypegrupper
+' date  :			2021-11-09 broader-URI på Navneobjekttyper og Navneobjektgrupper
+' date  :			2021-11-10 feilretting
+' date  :			2021-11-11 feilretting av sti til filer (kommer noen ganger på stien til EA.exe)
 	DIM objFSO
 	DIM outFile
 	DIM objFile
 	DIM htmFile
 	DIM idxFile
-
+	DIM pkgFSO
 	DIM codeFSO
 	DIM outCodeFile
 	DIM objCodeFile
-	DIM htmlFSO
+	DIM htmlFSO, fullsti
 	DIM outHtmlFile
 	DIM outIdxFile
 	Dim groupsList
@@ -49,7 +51,7 @@ sub listKoderForEnValgtKodeliste()
 			dim message
 '			message = "--------------------------------------------------------------------------------------" & vbCrLf & vbCrLf & _
 			message = "List class : [«" & theElement.Stereotype &"» "& theElement.Name & "]." & vbCrLf & vbCrLf
-			message = message & "Script listSKOSfraKodeliste versjon 2020-11-26 (Kent Jonsrud)" & vbCrLf & vbCrLf
+			message = message & "Script listSKOSfraKodeliste versjon 2021-11-11 (Kent Jonsrud)" & vbCrLf & vbCrLf
 			message = message & "Creates one SKOS/RDF/xml format file with all codes, "
 			message = message & "and one subfolder with a SKOS/RDF/xml format file for each code in the list." & vbCrLf
 			message = message & "Also creates a html-list, and one html-file for each code in the list." & vbCrLf & vbCrLf
@@ -109,19 +111,19 @@ sub listCodelistCodes(el,namespace)
 	'TODO: endre linjeskift i noter til blanke?
 	' må vi legge på / på slutten der angitt namespace ikke ender på / ?
 	' pakke inn noter som inneholder <>?
-	'Repository.WriteOutput "Script", "Codelist Name: " & el.Name,0
-	
+	Set pkgFSO=CreateObject("Scripting.FileSystemObject")
+	fullsti = pkgFSO.GetParentFolderName(Repository.ConnectionString())
 	Set objFSO=CreateObject("Scripting.FileSystemObject")
-	outFile = getNCNameX(el.Name) &".rdf"
+	outFile = fullsti & "\" & getNCNameX(el.Name) &".rdf"
 	Repository.WriteOutput "Script", Now & " Output SKOS file: " & outFile, 0
 	Set objFile = objFSO.CreateTextFile(outFile,True,False)
 	'  får ut 16-bits unicode ved å sette True som siste flagg i kallet over.
-	if not objFSO.FolderExists(el.Name) then
-		objFSO.CreateFolder el.Name
+	if not objFSO.FolderExists(fullsti & "\" & el.Name) then
+		objFSO.CreateFolder fullsti & "\" & el.Name
 	end if
-	Set idxFile = objFSO.CreateTextFile(el.Name & "\index.html",True,False)
+	Set idxFile = objFSO.CreateTextFile(fullsti & "\" & el.Name & "\index.html",True,False)
 	
-	Repository.WriteOutput "Script", "Writes Codelist Name: " & el.Name & " to file " & outfile& " and subfolder " & el.Name,0
+	Repository.WriteOutput "Script", "Writes Codelist Name: " & el.Name & " to file " & outfile& " and subfolder " & fullsti & "\" & el.Name,0
 	Repository.WriteOutput "Script", "with namespace: " & namespace,0
 
 	objFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
@@ -276,7 +278,7 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 		
 	' write each code to a to separate filer in a subfolder
 	Set codeFSO=CreateObject("Scripting.FileSystemObject")
-	outCodeFile = codeList & "\" & uricode & ".rdf"
+	outCodeFile = fullsti & "\" & codeList & "\" & uricode & ".rdf"
 	'Repository.WriteOutput "Script", "Debug: outCodeFile ["&outCodeFile&"]",0
 	Set objCodeFile = codeFSO.CreateTextFile(outCodeFile,True,False)
 	'  får ut 16-bits unicode ved å sette True som siste flagg i kallet over. Må derfor lage utf8 selv.
@@ -331,7 +333,7 @@ Sub listSKOSfraKode(attr, codelist, namespace)
     Set codeFSO= Nothing
 
 	Set htmlFSO=CreateObject("Scripting.FileSystemObject")
-	outHtmlFile = codeList & "\" & uricode
+	outHtmlFile = fullsti & "\" & codeList & "\" & uricode
 	'Repository.WriteOutput "Script", Now & " outHtmlFile: " & outHtmlFile, 0
 	Set htmFile = objFSO.CreateTextFile(outHtmlFile,True,False)
 	htmFile.Write"<!DOCTYPE html>" & vbCrLf
@@ -382,7 +384,8 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	if getTaggedValue(attr,"definition") <> "" then
 		htmFile.Write"    <p>kodens engelske definisjon = " & Mid(utf8(getTaggedValue(attr,"definition")),2,Len(getTaggedValue(attr,"definition"))-4) & "</p>" & vbCrLf
 	end if
-	htmFile.Write"    <p>lenke til SKOS-fil: <a href=" & utf8(namespace) & "/" & utf8(uricode) & ".rdf>" & utf8(uricode) & ".rdf</a></p>" & vbCrLf
+'	htmFile.Write"    <p>lenke til SKOS-fil: <a href=" & utf8(namespace) & "/" & utf8(uricode) & ".rdf>" & utf8(uricode) & ".rdf</a></p>" & vbCrLf
+	htmFile.Write"    <p>lenke til SKOS-fil: <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & ".rdf>" & utf8(uricode) & ".rdf</a></p>" & vbCrLf
 
 	htmFile.Write"    <p>Generert med skriptet listSKOSfraKodeliste " & getCurrentDateTime() & "</p>" & vbCrLf
 
