@@ -6,7 +6,8 @@ option explicit
 ' Script Name: realiserbarGMLformat50 
 ' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
 
-' Version: alfa0.3-2021-07-13 laget felle for EA-feil der egenskap fortsatt har ID til en slettet datatypeklasse
+' Version: alfa0.4-2021-11-11 laget felle for intern EA-feil der diagram fortsatt har ID til en slettet konnektor
+' Version: alfa0.3-2021-07-13 laget felle for intern EA-feil der egenskap fortsatt har ID til en slettet datatypeklasse
 ' Version: alfa0.2
 ' Date: 2018-03-27, 10-09
 
@@ -151,7 +152,7 @@ sub OnProjectBrowserScript()
 									Session.Output("Aborterer skript.")
 									exit sub
 								end if
-							
+							PopulatePackageDependenciesShownElementIDList(thePackage)
 							'	call populatePackageIDList(thePackage)
 							'	call populateClassifierIDList(thePackage)
 							'	call findPackageDependencies(thePackage.Element)
@@ -793,6 +794,120 @@ function inheritanceLoopCheck(theClass, subCheckedClassesList)
 	next
 	
 	inheritanceLoopCheck = retVal
+end function
+
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+    'Sub name:  PopulatePackageDependenciesShownIDList
+    'Author:    Åsmund Tjora
+    'Date:      20190312
+    'Purpose:   Populate the packageDependenciesShownIDList variable
+    '           The list shall contain all IDs of package dependencies shown in the model's package diagrams
+    '           Give warning if package diagram contains hidden links
+
+'    Sub PopulatePackageDependenciesShownElementIDList(thePackage As EA.Package)
+    Sub PopulatePackageDependenciesShownElementIDList(thePackage)
+        Dim thePackageElementID
+    '    Dim packageDiagramIDList As New System.Collections.ArrayList
+        Dim diagramID, linkID
+        Dim diagram As EA.Diagram
+        Dim linkList As EA.Collection
+        Dim diagramLink As EA.DiagramLink
+        Dim modelLink As EA.Connector
+        Dim supplier As EA.Element
+        Dim client As EA.Element
+
+        thePackageElementID = thePackage.Element.ElementID
+    '    PopulatePackageDiagramIDList(thePackage, packageDiagramIDList)
+
+    '    For Each diagramID In packageDiagramIDList
+        For Each diagram In thePackage.Diagrams
+          '  diagram = theRepository.GetDiagramByID(diagramID)
+            set linkList = diagram.DiagramLinks
+
+            For Each diagramLink In linkList
+			'   Session.Output("Debug: Diagram [" & diagram.Name & "] diagramLink.ConnectorID [" & diagramLink.ConnectorID & "]")
+				linkID = diagramLink.ConnectorID
+				if not isConnector(linkID) then
+                    Session.Output("ERROR: Diagram [" & diagram.Name & "] contains a broken internal link to a connector : [" & linkID & "].")
+				else
+                set modelLink = Repository.GetConnectorByID(linkID)
+
+         '       Session.Output("Debug: Diagram [" & diagram.Name & "] supplierID " & modelLink.supplierID & " and clientID " & modelLink.clientID & ".")
+				If modelLink.Type = "Package" Or modelLink.Type = "Usage" Or modelLink.Type = "Dependency" Then
+                    If modelLink.ClientID = thePackageElementID Then
+        '                packageDependenciesShownElementIDList.Add(modelLink.SupplierID)
+                        If diagramLink.IsHidden And logLevel = "Warning" Then
+                            set supplier = Repository.GetElementByID(modelLink.SupplierID)
+                            set client = Repository.GetElementByID(modelLink.ClientID)
+                            Session.Output("Warning: Diagram [" & diagram.Name & "] contains hidden dependency link between elements " & supplier.Name & " and " & client.Name & ".")
+                '            warningCounter += 1
+                        End If
+                    End If
+                End If
+				end if
+            Next
+        Next
+    End Sub
+
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+
+    'Sub name:  PopulatePackageDependenciesElementIDList
+    'Author:    Åsmund Tjora
+    'Date:      20190109 (date of original sub in script is unknown)
+    'Purpose:   Populate the packageDependenciesElementIDList
+    '           The list shall contain all elementIDs of packages that the current package is dependent on
+
+    Sub PopulatePackageDependenciesElementIDList(thePackageElement)
+        Dim connectorList As EA.Collection
+        Dim packageConnector As EA.Connector
+        Dim dependee As EA.Element
+        connectorList = thePackageElement.Connectors
+        For Each packageConnector In connectorList
+            If packageConnector.Type = "Usage" Or packageConnector.Type = "Package" Or packageConnector.Type = "Dependency" Then
+                If thePackageElement.ElementID = packageConnector.ClientID Then
+                    dependee = theRepository.GetElementByID(packageConnector.SupplierID)
+                    packageDependenciesElementIDList.Add(dependee.ElementID)
+                End If
+            End If
+        Next
+    End Sub
+
+
+    ' Find all package diagrams.  Recurse for all subpackages.
+    ' Used by PopulatePackageDiagramIDList sub.
+'    Sub PopulatePackageDiagramIDList(thePackage As EA.Package, ByRef packageDiagramIDList As System.Collections.ArrayList)
+    Sub PopulatePackageDiagramIDList(thePackage , packageDiagramIDList)
+        Dim diagramList As EA.Collection
+        diagramList = thePackage.Diagrams
+        Dim subPackageList As EA.Collection
+        subPackageList = thePackage.Packages
+        Dim diagram As EA.Diagram
+        Dim subPackage As EA.Package
+        For Each diagram In diagramList
+            packageDiagramIDList.Add(diagram.DiagramID)
+        Next
+        For Each subPackage In subPackageList
+            call PopulatePackageDiagramIDList(subPackage, packageDiagramIDList)
+        Next
+    End Sub
+	
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+' Func Name: isConnector
+' Author: Kent Jonsrud
+' Date: 2021-11-11
+' Purpose: tester om det finnes en connector med denne ID-en.
+
+function isConnector(ID)
+	isConnector = false
+'	Session.Output(Mid(Repository.SQLQuery("select count(*) from t_connector;") , 113, 1))
+'	Session.Output(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 113, 1) )
+
+	if 	Mid(Repository.SQLQuery("select count(*) from t_connector where Connector_ID = " & ID & ";"), 113, 1) <> 0 then
+		isConnector = true
+	end if
 end function
 
 '-------------------------------------------------------------END--------------------------------------------------------------------------------------------
