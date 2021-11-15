@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.20 Date: 2021-11-15 Kent Jonsrud: endra på Alt= , dobbeltparenteser, kun en lenke til ekstern kodeliste, nøsting av underpakker
 ' Version: 0.19 Date: 2021-10-05 Kent Jonsrud: satt inn Alt= i alle image:
 ' Version: 0.18 Date: 2021-09-28 Kent Jonsrud: bytta til eksplisitt skillelinje ("'''") og rydda vekk død kode
 ' Version: 0.17 Date: 2021-09-28 Kent Jonsrud: tatt bort eksplisitt nummerering av figurer
@@ -67,6 +68,7 @@ Sub OnProjectBrowserScript()
             ' Code for when a package is selected
 			diagCounter = 0
 			figurcounter = 0
+			Dim innrykk
 			Dim thePackage As EA.Package
 			set thePackage = Repository.GetTreeSelectedObject()
 			imgfolder = "diagrammer"
@@ -75,8 +77,8 @@ Sub OnProjectBrowserScript()
 			if not imgFSO.FolderExists(imgparent) then
 				imgFSO.CreateFolder imgparent
 			end if
-
-			Call ListAsciiDoc(thePackage)
+			innrykk = ""
+			Call ListAsciiDoc(innrykk,thePackage)
 			Session.Output("// End of UML-model")
         Case Else
             ' Error message
@@ -87,23 +89,23 @@ Sub OnProjectBrowserScript()
 End Sub
 
 
-Sub ListAsciiDoc(thePackage)
+Sub ListAsciiDoc(innrykk,thePackage)
 
 	Dim element As EA.Element
 	dim tag as EA.TaggedValue
 	Dim diag As EA.Diagram
 	Dim projectclass As EA.Project
 	set projectclass = Repository.GetProjectInterface()
-	Dim listTags
+	Dim listTags, innrykkLokal
 		
 	if thePackage.Element.Stereotype <> "" then
-		Session.Output("=== Pakke «"&thePackage.Element.Stereotype&"» "&thePackage.Name&"")
+		Session.Output(innrykk&"=== Pakke «"&thePackage.Element.Stereotype&"» "&thePackage.Name&"")
 	else
 		Session.Output("")
 		Session.Output("<<<")
 		Session.Output("'''")
 
-		Session.Output("=== Pakke: "&thePackage.Name&"")
+		Session.Output(innrykk&"=== Pakke: "&thePackage.Name&"")
 	end if
 	Session.Output("*Definisjon:* "&getCleandefinition(thePackage.Notes)&"")
 
@@ -114,7 +116,7 @@ Sub ListAsciiDoc(thePackage)
 				if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" then
 					if listTags = false then
 						Session.Output(" ")	
-						Session.Output("===== Profilparametre i tagged values")
+						Session.Output(innrykk&"===== Profilparametre i tagged values")
 						Session.Output("[cols=""20,80""]")
 						Session.Output("|===")
 						listTags = true
@@ -136,7 +138,7 @@ Sub ListAsciiDoc(thePackage)
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			diagCounter = diagCounter + 1
 			Session.Output(".Illustrasjon av pakke "&thePackage.Name&"")
-			Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Illustrasjon av pakke: "&thePackage.Name&"""]")
+			Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Bildet viser en illustrasjon av innholdet i UML-pakken "&thePackage.Name&". Alle detaljene kommer i teksten nedenfor.""]")
 		end if
 	next
 
@@ -148,49 +150,51 @@ Sub ListAsciiDoc(thePackage)
 		Session.Output("'''")
 		Session.Output(" ")
 		Session.Output("."&diag.Name&" ")
-		Session.Output("image::diagrammer/"&diag.Name&".png[link=diagrammer/"&diag.Name&".png, Alt=""Diagramm: "&diag.Name&"""]")
+		Session.Output("image::diagrammer/"&diag.Name&".png[link=diagrammer/"&diag.Name&".png, Alt=""Diagramm med navn "&diag.Name&" som viser UML-klasser beskrevet i teksten nedenfor.""]")
 	Next
 
 	For each element in thePackage.Elements
 		If Ucase(element.Stereotype) = "FEATURETYPE" Then
-			Call ObjektOgDatatyper(element)
+			Call ObjektOgDatatyper(innrykk,element)
 		End if
 	Next
 		
 	For each element in thePackage.Elements
 		If Ucase(element.Stereotype) = "DATATYPE" Then
-			Call ObjektOgDatatyper(element)
+			Call ObjektOgDatatyper(innrykk,element)
 		End if
 	Next
 
 	For each element in thePackage.Elements
 		If Ucase(element.Stereotype) = "UNION" Then
-			Call ObjektOgDatatyper(element)
+			Call ObjektOgDatatyper(innrykk,element)
 		End if
 	Next
 
 	For each element in thePackage.Elements
 		If Ucase(element.Stereotype) = "CODELIST" Then
-			Call Kodelister(element)
+			Call Kodelister(innrykk,element)
 		End if
 		If Ucase(element.Stereotype) = "ENUMERATION" Then
-			Call Kodelister(element)
+			Call Kodelister(innrykk,element)
 		End if
 		If element.Type = "Enumeration" Then
-			Call Kodelister(element)
+			Call Kodelister(innrykk,element)
 		End if
 	Next
 		
 	dim pack as EA.Package
+	innrykkLokal = innrykk & "="
+'	innrykkLokal = innrykk
 	for each pack in thePackage.Packages
-		Call ListAsciiDoc(pack)
+		Call ListAsciiDoc(innrykkLokal,pack)
 	next
 
 	Set imgFSO = Nothing
 end sub
 
 '-----------------ObjektOgDatatyper-----------------
-	Sub ObjektOgDatatyper(element)
+	Sub ObjektOgDatatyper(innrykk,element)
 	Dim att As EA.Attribute
 	dim tag as EA.TaggedValue
 	Dim con As EA.Connector
@@ -213,9 +217,9 @@ end sub
 
 	Session.Output("[["&LCase(element.Name)&"]]")
 	if element.Abstract = 1 then
-		Session.Output("==== «"&element.Stereotype&"» "&element.Name&" (abstrakt)")
+		Session.Output(innrykk&"==== «"&element.Stereotype&"» "&element.Name&" (abstrakt)")
 	else
-		Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
+		Session.Output(innrykk&"==== «"&element.Stereotype&"» "&element.Name&"")
 	end if
 	Session.Output("*Definisjon:* "&getCleanDefinition(element.Notes)&"")
 	Session.Output(" ")
@@ -226,7 +230,7 @@ end sub
 			if tag.Value <> "" then	
 				if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" and LCase(tag.Name) <> "sosi_bildeavmodellelement" then
 					if listTags = false then
-						Session.Output("===== Profilparametre i tagged values")
+						Session.Output(innrykk&"===== Profilparametre i tagged values")
 						Session.Output("[cols=""20,80""]")
 						Session.Output("|===")
 						listTags = true
@@ -247,13 +251,13 @@ end sub
 				Session.Output(" ")
 				Session.Output("'''")
 				Session.Output(".Illustrasjon av objekttype "&element.Name&"")
-				Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Illustrasjon av objekttype: "&element.Name&"""]")
+				Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Bilde tatt fra lufta av objekttypen "&element.Name&", med påtegning av streker som viser hvor geometrien til objektet skal måles fra.""]")
 			end if
 		next
 	end if
 
 	if element.Attributes.Count > 0 then
-		Session.Output("===== Egenskaper")
+		Session.Output(innrykk&"===== Egenskaper")
 		for each att in element.Attributes
 			Session.Output("[cols=""20,80""]")
 			Session.Output("|===")
@@ -305,14 +309,14 @@ end sub
 	end if
 
 
-	Relasjoner(element)
+	call Relasjoner(innrykk,element)
 
 	if element.Methods.Count > 0 then
-		Operasjoner(element)
+		call Operasjoner(innrykk,element)
 	end if
 
 	if element.Constraints.Count > 0 then
-		Restriksjoner(element)
+		call Restriksjoner(innrykk,element)
 	end if
 
 ' Supertype
@@ -321,7 +325,7 @@ end sub
 		set supplier = Repository.GetElementByID(con.SupplierID)
 		If con.Type = "Generalization" And supplier.ElementID <> element.ElementID Then
 			if numberSpecializations = 0 then
-				Session.Output("===== Arv og realiseringer")
+				Session.Output(innrykk&"===== Arv og realiseringer")
 				Session.Output("[cols=""20,80""]")
 				Session.Output("|===")
 			end if
@@ -342,7 +346,7 @@ end sub
 			set client = Repository.GetElementByID(con.ClientID)
 			If supplier.ElementID = element.ElementID then 'dette er en generalisering
 				if numberSpecializations = 0 and numberGeneralizations = 0 then
-					Session.Output("===== Arv og realiseringer")
+					Session.Output(innrykk&"===== Arv og realiseringer")
 					Session.Output("[cols=""20,80""]")
 					Session.Output("|===")
 				end if		
@@ -364,7 +368,7 @@ end sub
 		set supplier = Repository.GetElementByID(con.SupplierID)
 		If con.Type = "Realisation" And supplier.ElementID <> element.ElementID Then
 			if numberSpecializations = 0 and numberGeneralizations = 0 and numberRealisations = 0 then
-				Session.Output("===== Arv og realiseringer")
+				Session.Output(innrykk&"===== Arv og realiseringer")
 				Session.Output("[cols=""20,80""]")
 				Session.Output("|===")
 			end if		
@@ -391,7 +395,7 @@ End sub
 
 
 '-----------------CodeList-----------------
-Sub Kodelister(element)
+Sub Kodelister(innrykk,element)
 	Dim att As EA.Attribute
 	dim tag as EA.TaggedValue
 	dim utvekslingsalias, codeListUrl, asdict
@@ -402,12 +406,12 @@ Sub Kodelister(element)
 
 	Session.Output(" ")
 	Session.Output("[["&LCase(element.Name)&"]]")
-	Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
+	Session.Output(innrykk&"==== «"&element.Stereotype&"» "&element.Name&"")
 	Session.Output("*Definisjon:* "&getCleanDefinition(element.Notes)&"")
 	Session.Output(" ")
 
 	if element.TaggedValues.Count > 0 then
-		Session.Output("===== Profilparametre i tagged values")
+		Session.Output(innrykk&"===== Profilparametre i tagged values")
 		Session.Output("[cols=""20,80""]")
 		Session.Output("|===")
 		for each tag in element.TaggedValues								
@@ -428,7 +432,7 @@ Sub Kodelister(element)
 				diagCounter = diagCounter + 1
 				Session.Output("'''")
 				Session.Output(".Illustrasjon av kodeliste: "&element.Name&"""]")
-				Session.Output("image::"&tag.Value&"["&tag.Value&", Alt=""Illustrasjon av kodeliste: "&element.Name&"""]")
+				Session.Output("image::"&tag.Value&"["&tag.Value&", Alt=""Illustrasjon av hva kodelisten "&element.Name&" kan inneholde.""]")
 			end if
 			if LCase(tag.Name) = "codelist" and tag.Value <> "" then
 				codeListUrl = tag.Value
@@ -436,14 +440,14 @@ Sub Kodelister(element)
 		next
 	end if
 
-	if codeListUrl <> "" and asdict then
-		Session.Output("Koder fra ekstern kodeliste kan hentes fra register: "&codeListUrl&"")	
-		Session.Output(" ")
-	end if
+'	if codeListUrl <> "" and asdict then
+'		Session.Output("Koder fra ekstern kodeliste kan hentes fra register: "&codeListUrl&"")	
+'		Session.Output(" ")
+'	end if
 
 
 	if element.Attributes.Count > 0 then
-		Session.Output("===== Koder i modellen")
+		Session.Output(innrykk&"===== Koder i modellen")
 	end if
 	utvekslingsalias = false
 	for each att in element.Attributes
@@ -491,7 +495,7 @@ End sub
 
 
 '-----------------Relasjoner-----------------
-sub Relasjoner(element)
+sub Relasjoner(innrykk,element)
 	Dim generalizations
 	Dim con
 	Dim supplier
@@ -519,7 +523,7 @@ sub Relasjoner(element)
 				If con.ClientEnd.Role <> "" Then
 					if skrivRoller = false then
 						Session.Output("")
-						Session.Output("===== Roller")
+						Session.Output(innrykk&"===== Roller")
 						Session.Output("[cols=""20,80""]")
 						Session.Output("|===")
 						skrivRoller = true
@@ -533,7 +537,7 @@ sub Relasjoner(element)
 				'End If
 					If con.ClientEnd.RoleNote <> "" Then
 						Session.Output("|Definisjon: ")
-						Session.Output("|" & con.ClientEnd.RoleNote)
+						Session.Output("|" & getCleanDefinition(con.ClientEnd.RoleNote))
 						Session.Output(" ")
 					End If
 					If con.ClientEnd.Cardinality <> "" Then
@@ -566,7 +570,7 @@ sub Relasjoner(element)
 					End If
 					If con.SupplierEnd.RoleNote <> "" Then
 						Session.Output("|Fra rolle definisjon: ")
-						Session.Output("|" & con.SupplierEnd.RoleNote)
+						Session.Output("|" & getCleanDefinition(con.SupplierEnd.RoleNote))
 						Session.Output(" ")
 					End If
 					If con.SupplierEnd.Cardinality <> "" Then
@@ -587,7 +591,7 @@ sub Relasjoner(element)
 				If con.SupplierEnd.Role <> "" Then
 					if skrivRoller = false then
 						Session.Output("")
-						Session.Output("===== Roller")
+						Session.Output(innrykk&"===== Roller")
 						Session.Output("[cols=""20,80""]")
 						Session.Output("|===")
 						skrivRoller = true
@@ -602,7 +606,7 @@ sub Relasjoner(element)
 				'	End If
 					If con.SupplierEnd.RoleNote <> "" Then
 						Session.Output("|Definisjon:")
-						Session.Output("|" & con.SupplierEnd.RoleNote)
+						Session.Output("|" & getCleanDefinition(con.SupplierEnd.RoleNote))
 						Session.Output(" ")
 					End If
 					If con.SupplierEnd.Cardinality <> "" Then
@@ -635,7 +639,7 @@ sub Relasjoner(element)
 					End If
 					If con.ClientEnd.RoleNote <> "" Then
 						Session.Output("|Fra rolle definisjon: ")
-						Session.Output("|" & con.ClientEnd.RoleNote)
+						Session.Output("|" & getCleanDefinition(con.ClientEnd.RoleNote))
 						Session.Output(" ")
 					End If
 					If con.ClientEnd.Cardinality <> "" Then
@@ -660,11 +664,11 @@ end sub
 
 
 '-----------------Operasjoner-----------------
-sub Operasjoner(element)
+sub Operasjoner(innrykk,element)
 	Dim meth as EA.Method
 
 	Session.Output("")
-	Session.Output("===== Operasjoner")
+	Session.Output(innrykk&"===== Operasjoner")
 
 						
 	For Each meth In element.Methods
@@ -674,7 +678,7 @@ sub Operasjoner(element)
 		Session.Output("|*" & meth.Name & "*")
 		Session.Output(" ")
 		Session.Output("|Beskrivelse: ")
-		Session.Output("|" & meth.Notes & "")
+		Session.Output("|" & getCleanDefinition(meth.Notes) & "")
 		Session.Output(" ")
 	'	Session.Output("|Stereotype: ")
 	'	Session.Output("|" & meth.Stereotype & "")
@@ -693,11 +697,11 @@ end sub
 
 
 '-----------------Restriksjoner-----------------
-sub Restriksjoner(element)
+sub Restriksjoner(innrykk,element)
 	Dim constr as EA.Constraint
 
 	Session.Output("")
-	Session.Output("===== Restriksjoner")
+	Session.Output(innrykk&"===== Restriksjoner")
 
 						
 	For Each constr In element.Constraints
@@ -707,7 +711,7 @@ sub Restriksjoner(element)
 		Session.Output("|*" & constr.Name & "*")
 		Session.Output(" ")
 		Session.Output("|Beskrivelse: ")
-		Session.Output("|" & constr.Notes & "")
+		Session.Output("|" & getCleanDefinition(constr.Notes) & "")
 		Session.Output(" ")
 	'	Session.Output("|Type: ")
 	'	Session.Output("|" & constr.Type & "")
@@ -738,7 +742,7 @@ sub attrbilde(att,typ)
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			Session.Output(" +")
 			Session.Output("Illustrasjon av " & typ & " "&att.Name&"")
-			Session.Output("image:"&tag.Value&"[link="&tag.Value&",width=100,height=100, Alt=""Illustrasjon av " & typ & ": "&att.Name&"""]")
+			Session.Output("image:"&tag.Value&"[link="&tag.Value&",width=100,height=100, Alt=""Bilde av " & typ & " "&att.Name&" som er forklart i teksten.""]")
 		end if
 	next
 end sub
@@ -786,15 +790,23 @@ end function
 '-----------------Function getCleanDefinition Start-----------------
 function getCleanDefinition(txt)
 	'removes all formatting in notes fields, except crlf
-    Dim res, tegn, i, u
+    Dim res, tegn, i, u, forrige
     u=0
 	getCleanDefinition = ""
-
+		forrige = " "
 		res = ""
 		txt = Trim(txt)
 		For i = 1 To Len(txt)
 		  tegn = Mid(txt,i,1)
-			if tegn = "," then tegn = " " 'for adoc
+			'for adoc
+			if tegn = "(" and forrige = "(" then
+				res = res + " "
+			end if
+			if tegn = ")" and forrige = ")" then
+				res = res + " "
+			end if
+			if tegn = "," then tegn = " " 
+			'for xml
 			If tegn = "<" Then
 				u = 1
 				tegn = " "
@@ -810,7 +822,7 @@ function getCleanDefinition(txt)
 					res = res + Mid(txt,i,1)
 				end if
 			End If
-		  
+			forrige = tegn
 		Next
 		
 	getCleanDefinition = res
