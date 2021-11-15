@@ -251,7 +251,7 @@ end sub
 				Session.Output(" ")
 				Session.Output("'''")
 				Session.Output(".Illustrasjon av objekttype "&element.Name&"")
-				Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Bilde tatt fra lufta av objekttypen "&element.Name&", med påtegning av streker som viser hvor geometrien til objektet skal måles fra.""]")
+				Session.Output("image::"&tag.Value&"[link="&tag.Value&", Alt=""Bilde av objekttypen "&element.Name&", med eventuelle påtegning av streker som viser hvor geometrien til objektet skal måles fra.""]")
 			end if
 		next
 	end if
