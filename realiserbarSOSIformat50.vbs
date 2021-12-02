@@ -5,7 +5,7 @@ option explicit
 '  
 ' Script Name: realiserbarSOSIformat50 
 ' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
-
+' Version: 0.5 Date: 2021-11-17 SOSI_navn på egenskap skal samsvare med eventuellt SOSI_navn på typen
 ' Version: alfa0.4 Date: 2021-07-16 geometriegenskaper kan mangle tag SOSI_navn, men alle roller blir testet
 ' Version: alfa0.3
 ' Date: 2018-03-28
@@ -127,7 +127,7 @@ sub OnProjectBrowserScript()
 					mess = mess + ""&Chr(13)&Chr(10)
 					mess = mess + "Starter validering av pakke [" & thePackage.Name &"]."&Chr(13)&Chr(10)
 
-					box = Msgbox (mess, vbOKCancel, "realiserbarSOSIformat50 alfa0.4-2021-07-16")
+					box = Msgbox (mess, vbOKCancel, "realiserbarSOSIformat50 versjon 0.5-2021-11-17")
 					select case box
 						case vbOK
 							dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
@@ -168,7 +168,7 @@ sub OnProjectBrowserScript()
 
 							if not abort then
 								'give an initial feedback in system output 
-								Session.Output("realiserbarSOSIformat50 alfa0.4-2021-07-16 startet. "&Now())
+								Session.Output("realiserbarSOSIformat50 versjon 0.5-2021-11-17 startet. "&Now())
 								'Check model for script breaking structures
 								if scriptBreakingStructuresInModel(thePackage) then
 									Session.Output("Kritisk feil: Kan ikke validere struktur og innhold før denne feilen er rettet.")
@@ -382,7 +382,7 @@ sub kravProduktforstavelse(package)
 			Session.Output("Error: missing package tagged value xmlns: [«" &package.element.Stereotype& "» " &package.Name& "]. [/krav/produktforstavelse]")
 			globalErrorCounter = globalErrorCounter + 1
 	end if
-	if len(forstavelse) > 0 and forstavelse <> "app" then
+	if len(forstavelse) > 0 and forstavelse <> "app" and globalLogLevelIsWarning then
 			Session.Output("Warning: package tagged value xmlns is not app but: " & forstavelse & " [«" &package.element.Stereotype& "» " &package.Name& "]. [/krav/produktforstavelse]")
 			globalWarningCounter = globalWarningCounter + 1
 	end if
@@ -459,6 +459,10 @@ sub kravObjektegenskap(attr)
 						Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" & attr.Name & "] tagged value SOSI_navn is not legal SOSI-name: [" &getTaggedValue(attr,"SOSI_navn")& "]. [/krav/objektegenskap]")
 						globalErrorCounter = globalErrorCounter + 1
 					end if
+					if getTaggedValue(attr,"SOSI_navn") <> getTaggedValue(datatype,"SOSI_navn") and getTaggedValue(datatype,"SOSI_navn") <> "" and globalLogLevelIsWarning then
+						Session.Output("Warning: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" & attr.Name & "] tagged value SOSI_navn [" &getTaggedValue(attr,"SOSI_navn")& "] is not same as SOSI-name on type: [" &getTaggedValue(datatype,"SOSI_navn")& "]. [/krav/objektegenskap]")
+						globalWarningCounter = globalWarningCounter + 1
+					end if
 				end if
 			end if
 		else
@@ -499,9 +503,11 @@ sub kravObjektegenskapstype(attr)
 			set datatype = Repository.GetElementByID(attr.ClassifierID)
 			if datatype.Name <> attr.Type then
 				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"].")
+				globalErrorCounter = globalErrorCounter + 1
 			end if
 		else
 			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
+			globalErrorCounter = globalErrorCounter + 1
 		end if
 	else
 		call reqUmlProfile(attr)
