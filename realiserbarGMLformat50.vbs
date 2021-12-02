@@ -6,6 +6,7 @@ option explicit
 ' Script Name: realiserbarGMLformat50 
 ' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
 
+' Version: 0.5-2021-11-15 kontroll av at egenskaper med sti i tV defaultCodeSpace samsvarer med sti i tV codeList på kodelisteklassen
 ' Version: alfa0.4-2021-11-11 laget felle for intern EA-feil der diagram fortsatt har ID til en slettet konnektor
 ' Version: alfa0.3-2021-07-13 laget felle for intern EA-feil der egenskap fortsatt har ID til en slettet datatypeklasse
 ' Version: alfa0.2
@@ -104,7 +105,7 @@ sub OnProjectBrowserScript()
 					mess = mess + ""&Chr(13)&Chr(10)
 					mess = mess + "Starter validering av pakke [" & thePackage.Name &"]."&Chr(13)&Chr(10)
 
-					box = Msgbox (mess, vbOKCancel, "realiserbarGMLformat50 alfa0.3-2021-07-13")
+					box = Msgbox (mess, vbOKCancel, "realiserbarGMLformat50 versjon 0.4-2021-11-15")
 					select case box
 						case vbOK
 							dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
@@ -121,6 +122,7 @@ sub OnProjectBrowserScript()
 							do while not correctInput
 						
 								logLevelFromInputBox = InputBox(logLevelInputBoxText, "Velg loggnivå", "W")
+								logLevel = UCase(logLevelFromInputBox)
 								select case true 
 									case UCase(logLevelFromInputBox) = "E"	
 										globalLogLevelIsWarning = false
@@ -145,21 +147,8 @@ sub OnProjectBrowserScript()
 
 							if not abort then
 								'give an initial feedback in system output 
-								Session.Output("realiserbarGMLformat50 alfa0.3-2021-07-13 startet. "&Now())
-								'Check model for script breaking structures
-								if scriptBreakingStructuresInModel(thePackage) then
-									Session.Output("Kritisk feil: Kan ikke validere struktur og innhold før denne feilen er rettet.")
-									Session.Output("Aborterer skript.")
-									exit sub
-								end if
-							PopulatePackageDependenciesShownElementIDList(thePackage)
-							'	call populatePackageIDList(thePackage)
-							'	call populateClassifierIDList(thePackage)
-							'	call findPackageDependencies(thePackage.Element)
-							'	call getElementIDsOfExternalReferencedElements(thePackage)
-							'	call findPackagesToBeReferenced()
-							'	call checkPackageDependency(thePackage)
-							'	call dependencyLoop(thePackage.Element)
+								Session.Output("realiserbarGMLformat50 versjon 0.4-2021-11-15 startet. "&Now())
+
 							  
                 'For /req/Uml/Profile:
 							  Set ProfileTypes = CreateObject("System.Collections.ArrayList")
@@ -176,7 +165,23 @@ sub OnProjectBrowserScript()
 								StartTime = timer 
 								startPackageName = thePackage.Name
 								Session.Output("-----Starter test av pakke ["&startPackageName&"]-----") 	
-																
+
+								'Check model for script breaking structures
+								if scriptBreakingStructuresInModel(thePackage) then
+									Session.Output("Kritisk feil: Kan ikke validere struktur og innhold før denne feilen er rettet.")
+									Session.Output("Aborterer skript.")
+									exit sub
+								end if
+								PopulatePackageDependenciesShownElementIDList(thePackage)
+								'	call populatePackageIDList(thePackage)
+								'	call populateClassifierIDList(thePackage)
+								'	call findPackageDependencies(thePackage.Element)
+								'	call getElementIDsOfExternalReferencedElements(thePackage)
+								'	call findPackagesToBeReferenced()
+								'	call checkPackageDependency(thePackage)
+								'	call dependencyLoop(thePackage.Element)
+
+
 								FindInvalidElementsInASPackage(thePackage) 
 								
 								Elapsed = formatnumber((Timer - StartTime),2)
@@ -289,7 +294,7 @@ sub FindInvalidElementsInPackage(package)
 
 						call kravObjektegenskap(currentAttribute)
 						call kravObjektegenskapstype(currentAttribute)
-
+						call kravKoderegistersti(currentAttribute)
 					next
 				end if
 						'if debug then Session.Output("Debug: role to be tested: [«" &role.Stereotype& "» " &role.Name& "].")
@@ -297,6 +302,7 @@ sub FindInvalidElementsInPackage(package)
 						'if debug then Session.Output("Debug: constraint to be tested: [«" &constraint.Stereotype& "» " &constraint.Name& "].")
 			end if
 			if UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION" or currentElement.Type = "Enumeration" then
+				' teste om tV asDictionary og tV codeList er konsistente TBD
 			end if
 		end if
 	next
@@ -337,11 +343,11 @@ sub kravProduktforstavelse(package)
 	forstavelse = getPackageTaggedValue(package,"xmlns")
 	if debug then Session.Output("Debug: package tagged value xmlns: " & forstavelse & " [«" &package.element.Stereotype& "» " &package.Name& "]. [/krav/produktforstavelse]")
 	if len(forstavelse) = 0 then
-			Session.Output("Error: missing package tagged value xmlns: [«" &package.element.Stereotype& "» " &package.Name& "]. [/krav/produktforstavelse]")
+			Session.Output("Error: Package [«" &package.element.Stereotype& "» " &package.Name& "] missing  tagged value xmlns. [/krav/produktforstavelse]")
 			globalErrorCounter = globalErrorCounter + 1
 	end if
 	if len(forstavelse) > 0 and forstavelse <> "app" then
-			Session.Output("Warning: package tagged value xmlns is not app but: " & forstavelse & " [«" &package.element.Stereotype& "» " &package.Name& "]. [/krav/produktforstavelse]")
+			Session.Output("Warning: Package [«" &package.element.Stereotype& "» " &package.Name& "] tagged value xmlns is not app but: [" & forstavelse & "] [«" &package.element.Stereotype& "» " &package.Name& "]. [/krav/produktforstavelse]")
 			globalWarningCounter = globalWarningCounter + 1
 	end if
 end sub
@@ -417,7 +423,7 @@ sub kravObjektegenskapstype(attr)
 			dim datatype as EA.Element
 			set datatype = Repository.GetElementByID(attr.ClassifierID)
 			if datatype.Name <> attr.Type then
-				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"].")
+				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"]  [/krav/produktforstavelse].")
 			end if
 		else
 			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
@@ -427,6 +433,32 @@ sub kravObjektegenskapstype(attr)
 		call reqUmlProfile(attr)
 	end if
 	
+end sub
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Sub Name: kravKoderegistersti
+' Author: Kent Jonsrud
+' Date: 2021-11-15
+' Purpose: egenskaper med sti i tV defaultCodeSpace samsvarer med sti i tV codeList på kodelisteklassen
+
+sub kravKoderegistersti(attr)
+	if getTaggedValue(attr,"defaultCodeSpace") <> "" then
+		if debug then Session.Output("Debug: datatype to be tested: [" &attr.Type& "] datatype ClassifierID: [" &attr.ClassifierID& "].")
+		if attr.ClassifierID <> 0 then
+			if isElement(attr.ClassifierID) then
+				dim datatype as EA.Element
+				set datatype = Repository.GetElementByID(attr.ClassifierID)
+				if getTaggedValue(attr,"defaultCodeSpace") <> getTaggedValue(datatype,"codeList") then
+					Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a value in tagged value defaultCodeSpace ["&getTaggedValue(attr,"defaultCodeSpace")&"] that is not corresponding to tagged value codeList ["&getTaggedValue(datatype,"codeList")&"] in its type class.")
+				end if
+			end if
+		else
+			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a value in tagged value defaultCodeSpace ["&getTaggedValue(attr,"defaultCodeSpace")&"] but its type is not connected to a class.")
+		end if
+	end if
 end sub
 '-------------------------------------------------------------END--------------------------------------------------------------------------------------------
 
@@ -837,7 +869,7 @@ end function
 				If modelLink.Type = "Package" Or modelLink.Type = "Usage" Or modelLink.Type = "Dependency" Then
                     If modelLink.ClientID = thePackageElementID Then
         '                packageDependenciesShownElementIDList.Add(modelLink.SupplierID)
-                        If diagramLink.IsHidden And logLevel = "Warning" Then
+                        If diagramLink.IsHidden And logLevel = "W" Then
                             set supplier = Repository.GetElementByID(modelLink.SupplierID)
                             set client = Repository.GetElementByID(modelLink.ClientID)
                             Session.Output("Warning: Diagram [" & diagram.Name & "] contains hidden dependency link between elements " & supplier.Name & " and " & client.Name & ".")
@@ -955,6 +987,7 @@ globalWarningCounter = 0
 dim startPackageName
 dim debug
 debug = false
+Dim logLevel
 
 'List of well known type names defined in iso 19109:2015
 dim ProfileTypes
