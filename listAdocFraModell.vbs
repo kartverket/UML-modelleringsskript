@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.22 Date: 2021-12-07 Kent Jonsrud: linjeskift i noter endres ikke lenger til blanke
 ' Version: 0.21 Date: 2021-11-25 Kent Jonsrud: endra nøsting til å nøste kun fire nivå ned (AS(FT og UP(FT og UP og UP::FT og (UP/)UP2::FT etc.)))
 ' Version: 0.20 Date: 2021-11-15 Kent Jonsrud: endra på Alt= , dobbeltparenteser, kun en lenke til ekstern kodeliste, nøsting av underpakker
 ' Version: 0.19 Date: 2021-10-05 Kent Jonsrud: satt inn Alt= i alle image:
@@ -877,17 +878,14 @@ function getCleanDefinition(txt)
 				u = 0
 				tegn = " "
 			end if
-			If tegn < " " Then
-				res = res + " "
-			Else
-				if u = 0 then
-					res = res + Mid(txt,i,1)
-				end if
-			End If
+			if u = 0 then
+				res = res + tegn
+			end if
+
 			forrige = tegn
 		'	Session.Output(" tegn" & tegn)
 		Next
-		
+
 	getCleanDefinition = res
 end function
 '-----------------Function getCleanDefinition End-----------------
