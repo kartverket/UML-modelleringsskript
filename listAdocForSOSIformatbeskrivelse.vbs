@@ -2,10 +2,10 @@ Option Explicit
 
 !INC Local Scripts.EAConstants-VBScript
 
-' Script Name: listAdocForSOSIformatbeskrivelse2
+' Script Name: listAdocForSOSIformatbeskrivelse
 ' Purpose: Genererer SOSI-formatbeskrivelse i AsciiDoc syntaks
 '
-' Version 0.5A 2021-12-08 endret FeatureType til Objekttype og mappet fra isogeometrityper til sosigeometrityper, geometrityper først i lista
+' Version 0.5 2021-12-08 endret FeatureType til Objekttype og mappet fra isogeometrityper til sosigeometrityper
 ' Version 0.4 2021-09-10 feilretting
 ' Version 0.3 2021-09-09 skriver ikke ut abstrakte klasser
 ' Version 0.2 2021-09-06 feilretting
@@ -105,7 +105,6 @@ if element.AttributesEx.Count > 0 then
 	Session.Output("|*Mult.:* ")
 	Session.Output(" ")
 
-	call listGeometritype("", ".", element)	
 	call listDatatype("", "..", element)	
 	
 	' kun roller? (vises ikke i Ex.Count)
@@ -118,55 +117,6 @@ end if
 End sub
 '-----------------ObjektOgDatatyper End-----------------
 
-
-'--------------------Start Sub-------------
-sub listGeometritype(egenskap, punktum, element)
-Dim pktum, eskap, stereo, supereg, superpktum
-Dim datatype As EA.Element
-Dim att As EA.Attribute
-dim super as EA.Element
-dim conn as EA.Collection
-
-for each conn in element.Connectors
-	if conn.Type = "Generalization" then
-		if element.ElementID = conn.ClientID then
-			set super = Repository.GetElementByID(conn.SupplierID)
-			supereg = egenskap
-			superpktum = punktum
-			call listGeometritype(supereg,superpktum,super)
-		end if
-	end if
-next
-		
-if element.Attributes.Count > 0 then
-	for each att in element.Attributes
-			stereo = ""
-			if att.Type = "Punkt" or att.Type = "Kurve" or att.Type = "Flate" then
-			' GM_Curve etc. TBD
-				Session.Output("|"&egenskap&att.name&"")
-				Session.Output("|"&att.Type&"")
-				if getTaggedValue(att,"SOSI_navn") = "" then
-					Session.Output("|."&UCase(att.Type)&"")
-				else
-					Session.Output("|."&UCase(getTaggedValue(att,"SOSI_navn"))&"")
-				end if
-				Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
-			else
-				if getSosiGeometritype(att.Type) <> "" then
-					Session.Output("|"&egenskap&att.name&"")
-					Session.Output("|"&att.Type&"")			
-					Session.Output("|"&"."&getSosiGeometritype(att.Type)&"")
-					Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
-
-				end if
-			end if
-	next
-end if
-
-
-end sub
-
-'--------------------End Sub-------------
 
 
 '--------------------Start Sub-------------
@@ -193,20 +143,20 @@ if element.Attributes.Count > 0 then
 			stereo = ""
 			if att.Type = "Punkt" or att.Type = "Kurve" or att.Type = "Flate" then
 			' GM_Curve etc. TBD
-	'			Session.Output("|"&egenskap&att.name&"")
-	'			Session.Output("|"&att.Type&"")
-	'			if getTaggedValue(att,"SOSI_navn") = "" then
-	'				Session.Output("|."&UCase(att.Type)&"")
-	'			else
-	'				Session.Output("|."&UCase(getTaggedValue(att,"SOSI_navn"))&"")
-	'			end if
-	'			Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+				Session.Output("|"&egenskap&att.name&"")
+				Session.Output("|"&att.Type&"")
+				if getTaggedValue(att,"SOSI_navn") = "" then
+					Session.Output("|."&UCase(att.Type)&"")
+				else
+					Session.Output("|."&UCase(getTaggedValue(att,"SOSI_navn"))&"")
+				end if
+				Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
 			else
 				if getSosiGeometritype(att.Type) <> "" then
-	'				Session.Output("|"&egenskap&att.name&"")
-	'				Session.Output("|"&att.Type&"")			
-	'				Session.Output("|"&"."&getSosiGeometritype(att.Type)&"")
-	'				Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+					Session.Output("|"&egenskap&att.name&"")
+					Session.Output("|"&att.Type&"")			
+					Session.Output("|"&"."&getSosiGeometritype(att.Type)&"")
+					Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
 				else
 					Session.Output("|"&egenskap&att.name&"")
 					if att.ClassifierID <> 0 then
