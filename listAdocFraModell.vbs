@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.23 Date: 2021-12-08 Kent Jonsrud: AS på 3. nivå, FT og UP på samme nivå under (kan justeres på linje ca. 200)
 ' Version: 0.22 Date: 2021-12-07 Kent Jonsrud: linjeskift i noter endres ikke lenger til blanke
 ' Version: 0.21 Date: 2021-11-25 Kent Jonsrud: endra nøsting til å nøste kun fire nivå ned (AS(FT og UP(FT og UP og UP::FT og (UP/)UP2::FT etc.)))
 ' Version: 0.20 Date: 2021-11-15 Kent Jonsrud: endra på Alt= , dobbeltparenteser, kun en lenke til ekstern kodeliste, nøsting av underpakker
@@ -109,7 +110,7 @@ Sub ListAsciiDoc(innrykk,thePackage)
 
 		Session.Output(innrykk&" Pakke: "&thePackage.Name&"")
 	end if
-	Session.Output("*Definisjon:* "&getCleandefinition(thePackage.Notes)&"")
+	Session.Output("*Definisjon:* "&getCleanDefinition(thePackage.Notes)&"")
 
 	if thePackage.element.TaggedValues.Count > 0 then
 		listTags = false
@@ -191,14 +192,14 @@ Sub ListAsciiDoc(innrykk,thePackage)
 	Next
 
 '	ALT 1 Underpakker flatt på samme nivå som Application Schema
-	innrykkLokal = innrykk
+'	innrykkLokal = innrykk
 
 '	ALT 2 Nøsting av pakker ned til et nivå under Application Schema
-'	if innrykk = "====" then 
-'		innrykkLokal = "===="
-'	else
-'		innrykkLokal = innrykk & "="
-'	end if
+	if innrykk = "====" then 
+		innrykkLokal = "===="
+	else
+		innrykkLokal = innrykk & "="
+	end if
 
 '	ALT 3 TBD Nøsting helt ned med utskrift av Pakke::Klasse (Pakke/Pakke2::Klasse TBD)
 '	innrykkLokal = innrykk & "="
