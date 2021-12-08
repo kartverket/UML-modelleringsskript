@@ -5,6 +5,7 @@ Option Explicit
 ' Script Name: listAdocForSOSIformatbeskrivelse
 ' Purpose: Genererer SOSI-formatbeskrivelse i AsciiDoc syntaks
 '
+' Version 0.5 2021-12-08 endret FeatureType til Objekttype og mappet fra isogeometrityper til sosigeometrityper
 ' Version 0.4 2021-09-10 feilretting
 ' Version 0.3 2021-09-09 skriver ikke ut abstrakte klasser
 ' Version 0.2 2021-09-06 feilretting
@@ -150,14 +151,21 @@ if element.Attributes.Count > 0 then
 				end if
 				Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
 			else
-				Session.Output("|"&egenskap&att.name&"")
-				if att.ClassifierID <> 0 then
-					set datatype = Repository.GetElementByID(att.ClassifierID)
-					stereo = "«" & datatype.Stereotype & "» "
+				if getSosiGeometritype(attr.Type) <> "" then
+					Session.Output("|"&egenskap&att.name&"")
+					Session.Output("|"&att.Type&"")			
+					Session.Output("|"&punktum&getSosiGeometritype(attr.Type)&"")
+					Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+				else
+					Session.Output("|"&egenskap&att.name&"")
+					if att.ClassifierID <> 0 then
+						set datatype = Repository.GetElementByID(att.ClassifierID)
+						stereo = "«" & datatype.Stereotype & "» "
+					end if
+					Session.Output("|"&stereo&att.Type&"")			
+					Session.Output("|"&punktum&getTaggedValue(att,"SOSI_navn")&"")
+					Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
 				end if
-				Session.Output("|"&stereo&att.Type&"")			
-				Session.Output("|"&punktum&getTaggedValue(att,"SOSI_navn")&"")
-				Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
 			end if
 			Session.Output(" ")	
 			
@@ -225,7 +233,26 @@ end sub
 '--------------------End Sub-------------
 
 
-
+function getSosiGeometritype(type)
+		'fra Ralisering i SOSI-format versjon 5.0 tabell 8.2:
+		getSosiGeometritype = ""
+		if type = "GM_Point" then
+			getSosiGeometritype = "PUNKT"
+		end if
+		if type = "GM_MultiPoint" then
+			getSosiGeometritype = "SVERM"
+		end if
+		if type = "GM_Curve" or type = "GM_CompositeCurve" then
+			getSosiGeometritype = "KURVE"
+		end if
+		if type = "GM_Surface" or type = "GM_CompositeSurface" then
+			getSosiGeometritype = "FLATE"
+		end if
+		'fra "etablert praksis"
+		if type = "GM_Object" or type = "GM_Primitive" then
+			getSosiGeometritype = "OBJEKT"
+		end if
+end function
 
 '-----------------Funksjon for full path-----------------
 function getPath(package)
