@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.24 Date: 2021-12-09 Kent Jonsrud: AS på 2. nivå (===), FT og UP på nivåer under ned til 5. nivå (=====), tilpasset :toclevel: 4 og [discrete]
 ' Version: 0.23 Date: 2021-12-08 Kent Jonsrud: AS på 3. nivå, FT og UP på samme nivå under (kan justeres på linje ca. 200)
 ' Version: 0.22 Date: 2021-12-07 Kent Jonsrud: linjeskift i noter endres ikke lenger til blanke
 ' Version: 0.21 Date: 2021-11-25 Kent Jonsrud: endra nøsting til å nøste kun fire nivå ned (AS(FT og UP(FT og UP og UP::FT og (UP/)UP2::FT etc.)))
@@ -80,6 +81,7 @@ Sub OnProjectBrowserScript()
 			if not imgFSO.FolderExists(imgparent) then
 				imgFSO.CreateFolder imgparent
 			end if
+			Session.Output("// Start of UML-model")
 			innrykk = "==="
 			Call ListAsciiDoc(innrykk,thePackage)
 			Session.Output("// End of UML-model")
@@ -88,7 +90,7 @@ Sub OnProjectBrowserScript()
             Session.Prompt "This script does not support items of this type.", promptOK
 
     End Select
-
+	Set imgFSO = Nothing
 End Sub
 
 
@@ -102,13 +104,17 @@ Sub ListAsciiDoc(innrykk,thePackage)
 	Dim listTags, innrykkLokal, bilde, bildetekst, alternativbildetekst
 		
 	if thePackage.Element.Stereotype <> "" then
-		Session.Output(innrykk&" Pakke «"&thePackage.Element.Stereotype&"» "&thePackage.Name&"")
+		Session.Output(innrykk&" Pakke: «"&thePackage.Element.Stereotype&"» "&thePackage.Name&"")
 	else
 		Session.Output("")
 		Session.Output("<<<")
 		Session.Output("'''")
+		if innrykk = "=====" then
+			Session.Output(innrykk & "  Underpakke:" & thePackage.Name & "")
+		else
+			Session.Output(innrykk&" Pakke: "&thePackage.Name&"")
+		end if
 
-		Session.Output(innrykk&" Pakke: "&thePackage.Name&"")
 	end if
 	Session.Output("*Definisjon:* "&getCleanDefinition(thePackage.Notes)&"")
 
@@ -119,7 +125,8 @@ Sub ListAsciiDoc(innrykk,thePackage)
 				if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" then
 					if listTags = false then
 						Session.Output(" ")	
-						Session.Output("===== Profilparametre i tagged values")
+						Session.Output("[discrete]")
+						Session.Output(innrykk & "= Profilparametre i tagged values")
 						Session.Output("[cols=""20,80""]")
 						Session.Output("|===")
 						listTags = true
@@ -147,6 +154,7 @@ Sub ListAsciiDoc(innrykk,thePackage)
 			if getPackageTaggedValue(thePackage,"SOSI_alternativbildetekst") <> "" then alternativbildetekst = getPackageTaggedValue(thePackage,"SOSI_alternativbildetekst")
 			Session.Output(bildetekst)
 			Session.Output("image::" & bilde & "[link=" & bilde & ", Alt=""" & alternativbildetekst & """]")
+			Session.Output(" ")
 		end if
 	next
 	
@@ -194,9 +202,9 @@ Sub ListAsciiDoc(innrykk,thePackage)
 '	ALT 1 Underpakker flatt på samme nivå som Application Schema
 '	innrykkLokal = innrykk
 
-'	ALT 2 Nøsting av pakker ned til et nivå under Application Schema
-	if innrykk = "====" then 
-		innrykkLokal = "===="
+'	ALT 2 Nøsting av pakker ned til nivå 4 under Application Schema
+	if innrykk = "=====" then 
+		innrykkLokal = "====="
 	else
 		innrykkLokal = innrykk & "="
 	end if
@@ -209,7 +217,7 @@ Sub ListAsciiDoc(innrykk,thePackage)
 		Call ListAsciiDoc(innrykkLokal,pack)
 	next
 
-	Set imgFSO = Nothing
+'	Set imgFSO = Nothing
 end sub
 
 '-----------------ObjektOgDatatyper-----------------
@@ -239,7 +247,7 @@ end sub
 	if element.Abstract = 1 then
 		elementnavn = elementnavn & " (abstrakt)"
 	end if
-	if innrykk = "====" then
+	if innrykk = "=====" then
 		Session.Output(innrykk & " " & pakke.Name & "::" & elementnavn & "")
 	else
 		Session.Output(innrykk&"= "&elementnavn&"")
@@ -253,7 +261,8 @@ end sub
 			if tag.Value <> "" then	
 				if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" and LCase(tag.Name) <> "sosi_bildeavmodellelement" then
 					if listTags = false then
-						Session.Output("===== Profilparametre i tagged values")
+						Session.Output("[discrete]")
+						Session.Output(innrykk & "== Profilparametre i tagged values")
 						Session.Output("[cols=""20,80""]")
 						Session.Output("|===")
 						listTags = true
@@ -288,7 +297,8 @@ end sub
 	end if
 
 	if element.Attributes.Count > 0 then
-		Session.Output("===== Egenskaper")
+		Session.Output("[discrete]")
+		Session.Output(innrykk & "== Egenskaper")
 		for each att in element.Attributes
 			Session.Output("[cols=""20,80""]")
 			Session.Output("|===")
@@ -356,7 +366,9 @@ end sub
 		set supplier = Repository.GetElementByID(con.SupplierID)
 		If con.Type = "Generalization" And supplier.ElementID <> element.ElementID Then
 			if numberSpecializations = 0 then
-				Session.Output("===== Arv og realiseringer")
+				Session.Output(" ")
+				Session.Output("[discrete]")
+				Session.Output(innrykk & "== Arv og realiseringer")
 				Session.Output("[cols=""20,80""]")
 				Session.Output("|===")
 			end if
@@ -377,7 +389,9 @@ end sub
 			set client = Repository.GetElementByID(con.ClientID)
 			If supplier.ElementID = element.ElementID then 'dette er en generalisering
 				if numberSpecializations = 0 and numberGeneralizations = 0 then
-					Session.Output("===== Arv og realiseringer")
+					Session.Output(" ")
+					Session.Output("[discrete]")
+					Session.Output(innrykk & "== Arv og realiseringer")
 					Session.Output("[cols=""20,80""]")
 					Session.Output("|===")
 				end if		
@@ -399,7 +413,8 @@ end sub
 		set supplier = Repository.GetElementByID(con.SupplierID)
 		If con.Type = "Realisation" And supplier.ElementID <> element.ElementID Then
 			if numberSpecializations = 0 and numberGeneralizations = 0 and numberRealisations = 0 then
-				Session.Output("===== Arv og realiseringer")
+				Session.Output("[discrete]")
+				Session.Output(innrykk & "== Arv og realiseringer")
 				Session.Output("[cols=""20,80""]")
 				Session.Output("|===")
 			end if		
@@ -439,7 +454,7 @@ Sub Kodelister(innrykk,element,pakke)
 	Session.Output("[["&LCase(element.Name)&"]]")
 	
 	elementnavn = "«"&element.Stereotype&"» "&element.Name&""
-	if innrykk = "====" then
+	if innrykk = "=====" then
 		Session.Output(innrykk & " " & pakke.Name & "::" & elementnavn & "")
 	else
 		Session.Output(innrykk & "= " & elementnavn&"")
@@ -450,7 +465,8 @@ Sub Kodelister(innrykk,element,pakke)
 	Session.Output(" ")
 
 	if element.TaggedValues.Count > 0 then
-		Session.Output("===== Profilparametre i tagged values")
+		Session.Output("[discrete]")
+		Session.Output(innrykk & "== Profilparametre i tagged values")
 		Session.Output("[cols=""20,80""]")
 		Session.Output("|===")
 		for each tag in element.TaggedValues								
@@ -486,7 +502,8 @@ Sub Kodelister(innrykk,element,pakke)
 
 
 	if element.Attributes.Count > 0 then
-		Session.Output("===== Koder i modellen")
+		Session.Output("[discrete]")
+		Session.Output(innrykk & "== Koder i modellen")
 	end if
 	utvekslingsalias = false
 	for each att in element.Attributes
@@ -561,8 +578,9 @@ sub Relasjoner(innrykk,element)
 				End If
 				If con.ClientEnd.Role <> "" Then
 					if skrivRoller = false then
-						Session.Output("")
-						Session.Output("===== Roller")
+						Session.Output(" ")
+						Session.Output("[discrete]")
+						Session.Output(innrykk & "== Roller")
 						Session.Output("[cols=""20,80""]")
 						Session.Output("|===")
 						skrivRoller = true
@@ -629,8 +647,9 @@ sub Relasjoner(innrykk,element)
 				End If
 				If con.SupplierEnd.Role <> "" Then
 					if skrivRoller = false then
-						Session.Output("")
-						Session.Output("===== Roller")
+						Session.Output(" ")
+						Session.Output("[discrete]")
+						Session.Output(innrykk & "== Roller")
 						Session.Output("[cols=""20,80""]")
 						Session.Output("|===")
 						skrivRoller = true
@@ -706,8 +725,9 @@ end sub
 sub Operasjoner(innrykk,element)
 	Dim meth as EA.Method
 
-	Session.Output("")
-	Session.Output("===== Operasjoner")
+	Session.Output(" ")
+	Session.Output("[discrete]")
+	Session.Output(innrykk & "== Operasjoner")
 
 						
 	For Each meth In element.Methods
@@ -739,8 +759,9 @@ end sub
 sub Restriksjoner(innrykk,element)
 	Dim constr as EA.Constraint
 
-	Session.Output("")
-	Session.Output("===== Restriksjoner")
+	Session.Output(" ")
+	Session.Output("[discrete]")
+	Session.Output(innrykk & "== Restriksjoner")
 
 						
 	For Each constr In element.Constraints
