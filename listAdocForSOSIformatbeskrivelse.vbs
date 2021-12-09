@@ -5,6 +5,7 @@ Option Explicit
 ' Script Name: listAdocForSOSIformatbeskrivelse
 ' Purpose: Genererer SOSI-formatbeskrivelse i AsciiDoc syntaks
 '
+' Version 0.6.1 2021-12-09 flere smårettinger
 ' Version 0.6 2021-12-09 smårettinger
 ' Version 0.5 2021-12-08 endret FeatureType til Objekttype og mappet fra isogeometrityper til sosigeometrityper
 ' Version 0.4 2021-09-10 feilretting
@@ -34,7 +35,7 @@ Sub OnProjectBrowserScript()
 			Repository.ClearOutput "Script"
 			Dim thePackage As EA.Package
 			set thePackage = Repository.GetTreeSelectedObject()
-
+			Session.Output("// Start of SOSI-format")
 			Call ListAsciiDoc(thePackage)
 			Session.Output("// End of SOSI-format")
         Case Else
@@ -98,6 +99,8 @@ if element.Name <> "" then
 end if
 
 if element.AttributesEx.Count > 0 then
+	Session.Output(" ")
+	Session.Output("[discrete]")
 	Session.Output("===== Modellelementnavn og SOSI_navn") 
 	Session.Output("[cols=""20,20,20,10""]")
 	Session.Output("|===")
