@@ -5,6 +5,7 @@ Option Explicit
 ' Script Name: listAdocForSOSIformatbeskrivelse
 ' Purpose: Genererer SOSI-formatbeskrivelse i AsciiDoc syntaks
 '
+' Version 0.6 2021-12-09 smårettinger
 ' Version 0.5 2021-12-08 endret FeatureType til Objekttype og mappet fra isogeometrityper til sosigeometrityper
 ' Version 0.4 2021-09-10 feilretting
 ' Version 0.3 2021-09-09 skriver ikke ut abstrakte klasser
@@ -13,7 +14,7 @@ Option Explicit
 '						vise stereotypenavn foran datatyper og kodelister
 '
 '
-' TBD: 
+' TBD:  objekttypen kun har roller
 ' TBD: opprydding !!!
 '
 Dim imgfolder, imgparent, parentimg
@@ -92,7 +93,7 @@ dim externalPackage
 if element.Name <> "" then
 	Session.Output(" ")
 '	Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
-	Session.Output("==== Objekttype "&element.Name&"")
+	Session.Output("==== Objekttype: "&element.Name&"")
 end if
 
 if element.AttributesEx.Count > 0 then
@@ -107,7 +108,7 @@ if element.AttributesEx.Count > 0 then
 
 	call listDatatype("", "..", element)	
 	
-	' kun roller? (vises ikke i Ex.Count)
+		' TBD hva hvis objekttypen kun har roller? (dette vises ikke i Ex.Count) (men svært uvanlig i sosiverden)
 	
 	Session.Output("|===")
 
