@@ -14,7 +14,7 @@ Option Explicit
 '						vise stereotypenavn foran datatyper og kodelister
 '
 '
-' TBD:  objekttypen kun har roller
+' TBD: objekttyper som kun har roller
 ' TBD: opprydding !!!
 '
 Dim imgfolder, imgparent, parentimg
@@ -92,6 +92,7 @@ dim externalPackage
 	
 if element.Name <> "" then
 	Session.Output(" ")
+	Session.Output("[discrete]")
 '	Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
 	Session.Output("==== Objekttype: "&element.Name&"")
 end if
