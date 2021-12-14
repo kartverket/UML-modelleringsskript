@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.25 Date: 2021-12-14 Kent Jonsrud: skille ocl fra beskrivelse med linjeskift før --, og komma fjernes kun fra bildetekst
 ' Version: 0.24 Date: 2021-12-09 Kent Jonsrud: AS på 2. nivå (===), FT og UP på nivåer under ned til 5. nivå (=====), tilpasset :toclevel: 4 og [discrete]
 ' Version: 0.23 Date: 2021-12-08 Kent Jonsrud: AS på 3. nivå, FT og UP på samme nivå under (kan justeres på linje ca. 200)
 ' Version: 0.22 Date: 2021-12-07 Kent Jonsrud: linjeskift i noter endres ikke lenger til blanke
@@ -771,7 +772,7 @@ sub Restriksjoner(innrykk,element)
 		Session.Output("|*" & Trim(constr.Name) & "*")
 		Session.Output(" ")
 		Session.Output("|Beskrivelse: ")
-		Session.Output("|" & getCleanDefinition(constr.Notes) & "")
+		Session.Output("|" & getCleanRestriction(constr.Notes) & "")
 		Session.Output(" ")
 	'	Session.Output("|Type: ")
 	'	Session.Output("|" & constr.Type & "")
@@ -890,7 +891,7 @@ function getCleanDefinition(txt)
 			if tegn = ")" and forrige = ")" then
 				res = res + " "
 			end if
-			if tegn = "," then tegn = " " 
+'			if tegn = "," then tegn = " " 
 			'for xml
 			If tegn = "<" Then
 				u = 1
@@ -912,6 +913,99 @@ function getCleanDefinition(txt)
 end function
 '-----------------Function getCleanDefinition End-----------------
 
+'-----------------Function getCleanRestriction Start-----------------
+function getCleanRestriction(txt)
+	'removes all formatting in notes fields, except crlf
+    Dim res, tegn, i, u, forrige
+    u=0
+	getCleanRestriction = ""
+		forrige = " "
+		res = ""
+		txt = Trimutf8(txt)
+		For i = 1 To Len(txt)
+		  tegn = Mid(txt,i,1)
+			'for adoc \|
+			if tegn = "|" then
+				res = res + "\"
+			end if
+			if tegn = "(" and forrige = "(" then
+				res = res + " "
+			end if
+			if tegn = ")" and forrige = ")" then
+				res = res + " "
+			end if
+			if tegn = "-" and forrige <> "-" then
+				u = 1
+			end if
+			if tegn = "-" and forrige = "-" then
+				u = 0
+				res = res + vbCrLf  + "-"
+			end if
+
+			if tegn = "," then tegn = " " 
+			'for xml
+			If tegn = "<" Then
+				u = 1
+				tegn = " "
+			end if 
+			If tegn = ">" Then
+				u = 0
+				tegn = " "
+			end if
+			if u = 0 then
+				res = res + tegn
+			end if
+
+			forrige = tegn
+		'	Session.Output(" tegn" & tegn)
+		Next
+
+	getCleanRestriction = res
+end function
+'-----------------Function getCleanRestriction End-----------------
+
+'-----------------Function getCleanBildetekst Start-----------------
+function getCleanBildetekst(txt)
+	'removes all formatting in notes fields, except crlf
+    Dim res, tegn, i, u, forrige
+    u=0
+	getCleanBildetekst = ""
+		forrige = " "
+		res = ""
+		txt = Trimutf8(txt)
+		For i = 1 To Len(txt)
+		  tegn = Mid(txt,i,1)
+			'for adoc \|
+			if tegn = "|" then
+				res = res + "\"
+			end if
+			if tegn = "(" and forrige = "(" then
+				res = res + " "
+			end if
+			if tegn = ")" and forrige = ")" then
+				res = res + " "
+			end if
+			if tegn = "," then tegn = " " 
+			'for xml
+			If tegn = "<" Then
+				u = 1
+				tegn = " "
+			end if 
+			If tegn = ">" Then
+				u = 0
+				tegn = " "
+			end if
+			if u = 0 then
+				res = res + tegn
+			end if
+
+			forrige = tegn
+		'	Session.Output(" tegn" & tegn)
+		Next
+
+	getCleanBildetekst = res
+end function
+'-----------------Function getCleanBildetekst End-----------------
 
 '-----------------Function Trimutf8 Start-----------------
 function Trimutf8(txt)
