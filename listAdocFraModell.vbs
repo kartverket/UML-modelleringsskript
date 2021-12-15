@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.26 Date: 2021-12-15 Kent Jonsrud: retting av småfeil etter forrige retting av småfeil
 ' Version: 0.25 Date: 2021-12-14 Kent Jonsrud: skille ocl fra beskrivelse med linjeskift før --, og komma fjernes kun fra bildetekst
 ' Version: 0.24 Date: 2021-12-09 Kent Jonsrud: AS på 2. nivå (===), FT og UP på nivåer under ned til 5. nivå (=====), tilpasset :toclevel: 4 og [discrete]
 ' Version: 0.23 Date: 2021-12-08 Kent Jonsrud: AS på 3. nivå, FT og UP på samme nivå under (kan justeres på linje ca. 200)
@@ -916,8 +917,10 @@ end function
 '-----------------Function getCleanRestriction Start-----------------
 function getCleanRestriction(txt)
 	'removes all formatting in notes fields, except crlf
-    Dim res, tegn, i, u, forrige
+    Dim res, tegn, i, u, forrige, v, kommentarlinje
+	kommentarlinje = 0
     u=0
+	v=0
 	getCleanRestriction = ""
 		forrige = " "
 		res = ""
@@ -934,15 +937,32 @@ function getCleanRestriction(txt)
 			if tegn = ")" and forrige = ")" then
 				res = res + " "
 			end if
-			if tegn = "-" and forrige <> "-" then
-				u = 1
-			end if
-			if tegn = "-" and forrige = "-" then
-				u = 0
-				res = res + vbCrLf  + "-"
+	'		if tegn = "-" and forrige <> "-" then
+	'			u = 1
+	'		end if
+			if tegn = "-" then
+				if forrige = "-" then
+					u = 0
+					if kommentarlinje > 0 then
+						res = res + " + " + vbCrLf  + "-"
+					else
+						res = res + vbCrLf  + "-"
+					end if
+					kommentarlinje = kommentarlinje + 1
+					forrige = " "
+					v = 1
+				else
+					u = 1
+				end if
+			else
+				if forrige = "-" and v = 0 then
+					res = res + "-"
+					u = 0
+				end if
+				v = 0
 			end if
 
-			if tegn = "," then tegn = " " 
+		'	if tegn = "," then tegn = " " 
 			'for xml
 			If tegn = "<" Then
 				u = 1
