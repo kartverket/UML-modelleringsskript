@@ -8,6 +8,10 @@ Option Explicit
 ' Date: 08.04.2021
 ' Version: 0.1ish
 '
+' Versjon 0.22 2021-12-20 Kent: skriver ut SOSI-format-geometrityper i stedet for iso-geometrityper der SOSI_navn mangler på geometriegenskapen
+' Versjon 0.21 2021-12-17 Geir: endret kapittel nummerering og lagt til header på egenskapstabellen og restriksjonstabellen, tagget med "v0.21"
+' Versjon 0.20 2021-12-15 Geir: endret "FeaturType" til "Objekttype: " i overskrifteene, tagget med "v0.20"
+' Versjon 0.19 2021-10-14 Geir: feilretting, lagt inn håndtering av kodelisteverdier uten SOSI_bildeAvModellelement, tagget med "v0.19"
 ' Versjon 0.18 2021-10-14 Geir: feilretting, slik at taggen "fkb_objekttype" blir korrekt håndtert ved utlisting av kodelister, tagget med "v0.18"
 ' Versjon 0.17 2021-10-13 Kent: la inn mer rekusrivitet så egenskaper i supertyper kan presiseres (AtributesEX virker ikke), resatte et flagg - linje 1035
 ' Versjon 0.16 2021-10-13 tilpasninger av Geir Myhr Øien, lagt inn lenke til kodelister som er angitt tagged valuse "defaultcodespace"#, tagget med "v0.16"
@@ -109,7 +113,7 @@ Sub ListAsciiDoc(thePackage)
 
 	if InStr(LCase(thePackage.Name),"fotogrammetrisk") = 0 then
 	
-		Session.Output("=== "&thePackage.Name&"")
+		' Session.Output("=== "&thePackage.Name&"")  v0.21
 		if thePackage.Notes <> "" then Session.Output("*Pakkens definisjon:* "&thePackage.Notes&"")
 
 		if thePackage.element.TaggedValues.Count > 0 then
@@ -227,7 +231,8 @@ Sub ObjektOgDatatyper(element)
 	Session.Output(" ")
 	
 	Session.Output("[["&LCase(element.Name)&"]]")
-	Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
+	'Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")   'v0.20
+	Session.Output("=== Objekttype: "&element.Name&"")   'v0.20 og v0.21
 	For Each con In element.Connectors
 		set supplier = Repository.GetElementByID(con.SupplierID)
 		If con.Type = "Generalization" And supplier.ElementID <> element.ElementID Then
@@ -244,7 +249,8 @@ Sub ObjektOgDatatyper(element)
 	
 	if element.Notes <> "" then
 '		Session.Output("*Tilleggsinformasjon for fotogrammetrisk registrering:* "&element.Notes&"")
-		Session.Output("===== Tilleggsinformasjon for fotogrammetrisk registrering")
+		Session.Output("[discrete]")  'v0.21
+		Session.Output("==== Tilleggsinformasjon for fotogrammetrisk registrering") 'v0.21
 		Session.Output(""&element.Notes&"")
 		Session.Output(" ")
 	end if
@@ -278,8 +284,9 @@ Sub ObjektOgDatatyper(element)
 	next
 
 'if element.Attributes.Count > 0 then
-		Session.Output("===== Føringer")
-		Session.Output("[cols=""25,75""]")
+		Session.Output("[discrete]")  'v0.21
+		Session.Output("==== Føringer")  'v0.21
+		Session.Output("[cols=""h,2""]")
 		Session.Output("|===")
 		for each att in element.AttributesEx
 		if att.name = "Registreringsmetode" or att.name = "Tilleggsbeskrivelse" or att.name = "Grunnrissreferanse" or att.name = "Høydereferanse" then
@@ -377,9 +384,10 @@ if element.AttributesEx.Count > 0 then
 	Session.Output(" ")  'v0.14
 	Session.Output("<<<")  'v0.14
 	Session.Output(" ")  'v0.14
-	Session.Output("===== Egenskapstabell for objekttype: "&element.Name&"") 'type, length(?), FKB-standard A/B/C/   'v0.14
+	Session.Output("[discrete]")  'v0.21
+	Session.Output("==== Egenskapstabell for objekttype: "&element.Name&"") 'type, length(?), FKB-standard A/B/C/   'v0.14 og v0.21
 '	Session.Output("[cols=""15,15,15,7,7,7,7,7""]")
-	Session.Output("[cols=""20,20,20,10""]")
+	Session.Output("[cols=""20,20,20,10"", options=""header""]") 'v0.21
 	Session.Output("|===")
 	Session.Output("|*Navn:* ")
 	Session.Output("|*Type:* ")
@@ -509,6 +517,7 @@ dim utvekslingsalias
 	Session.Output("|===")
 	Session.Output("|===")
 Session.Output(" ")
+Session.Output("[discrete]")  'v0.21
 Session.Output("==== «"&element.Stereotype&"» "&element.Name&"")
 Session.Output("Definisjon: "&getCleanDefinition(element.Notes)&"")
 Session.Output(" ")
@@ -896,10 +905,11 @@ dim conn as EA.Collection
 		else
 			stereo = ""
 			if att.Type = "Punkt" or att.Type = "Sverm" or att.Type = "Kurve" or att.Type = "Flate" or Mid(att.Type,1,3) = "GM_" then
+				' v0.24 dersom tagg SOSI_navn ikke finnes på geometriegenskapen skrives mest sansynlige sosi-geometritype ut som sosinavn
 				Session.Output("|"&egenskap&att.name&"")
 				Session.Output("|"&att.Type&"")
 				if getTaggedValue(att,"SOSI_navn") = "" then
-					Session.Output("|."&UCase(att.Type)&"")
+					Session.Output("|."&getSosiGeometritype(att.Type)&"")
 				else
 					Session.Output("|."&UCase(getTaggedValue(att,"SOSI_navn"))&"")
 				end if
@@ -1011,9 +1021,10 @@ sub FKBRestriksjoner(element)
 		if LCase(Mid(constr.Name,1,20)) <> "_presiseringavkoder_" then
 			if restriksjon = 0 then
 				Session.Output("")
-				Session.Output("===== Restriksjoner")
+				Session.Output("[discrete]")  'v0.21
+				Session.Output("==== Restriksjoner") 'v0.21
 				restriksjon = 1
-				Session.Output("[cols=""20,80""]") 'v0.14
+				Session.Output("[cols=""20,80"", options=""header""]") 'v0.14 og v0.21
 				Session.Output(" ")  'v0.14
 				Session.Output("|===")  'v0.14
 				Session.Output("|*Navn:* ")  'v0.14
@@ -1037,8 +1048,9 @@ sub FKBRestriksjoner(element)
 		if LCase(Mid(constr.Name,1,20)) = "_presiseringavkoder_" then
 			if presisering = 0 then
 				Session.Output("")
-				Session.Output("===== Presiseringer til beskrivelsen av kodelistekoder")
-				Session.Output("Figurer og skisser knyttet til bruk av bestemte kodelister og koder.")
+				Session.Output("[discrete]")  'v0.21
+				Session.Output("==== Presiseringer til beskrivelsen av kodelistekoder") 'v0.21
+				'Session.Output("Figurer og skisser knyttet til bruk av bestemte kodelister og koder.") 'v0.21
 				Session.Output(" ")
 				presisering = 1
 			end if
@@ -1062,13 +1074,14 @@ sub FKBRestriksjoner(element)
 								for each tag in att.TaggedValues   'v0.14
 									if LCase(tag.Name) = "fkb_objekttype" then  'v0.18
 										if LCase(tag.Value) = LCase(element.Name) then  'v0.18
-											Session.Output("")  'v0.18
+											Session.Output(" ")  'v0.19
 											'Session.Output("===== " & element.Name & "." & egenskapsnavn & " : " & datatype.Name & " - Kode : " & att.Name & "")  'v0.18-erstattes av linjene under
 											'Session.Output("*Definisjon :* " & getCleanDefinition(att.Notes) & "")  'v0.18-erstattes av linjene under
+											Session.Output("[discrete]")  'v0.21
 											Session.Output("===== " & datatype.Name & " - Kodenavn: " & att.Name & "")  'v0.18
 											Session.Output("*Definisjon:* " & getCleanDefinition(att.Notes) & "")  'v0.18
 											call kodebilde(att)  'v0.18
-											Session.Output("")  'v0.18
+											Session.Output(" ")  'v0.19
 											objekttypenavn = 1  'v0.18
 										else  'v0.18
 											' dersom tagg verdien ikke er lik element navnet skal ikke attributen skrives ut  'v0.18
@@ -1078,18 +1091,19 @@ sub FKBRestriksjoner(element)
 								next  'v0.14
 							end if  'v0.14
 							if objekttypenavn = 0 then  'v0.14
-								Session.Output("")  'v0.14
+								Session.Output(" ")  'v0.19
 								'Session.Output("===== " & element.Name & "." & egenskapsnavn & " : " & datatype.Name & " - Kode : " & att.Name & "")  v0.14-erstattes av linjene under
 								'Session.Output("*Definisjon :* " & getCleanDefinition(att.Notes) & "")  v0.14-erstattes av linjene under
+								Session.Output("[discrete]")  'v0.21
 								Session.Output("===== " & datatype.Name & " - Kodenavn: " & att.Name & "")  'v0.14
 								Session.Output("*Definisjon:* " & getCleanDefinition(att.Notes) & "")  'v0.14
 								call kodebilde(att)  'v0.14
-								Session.Output("")  'v0.14
+								Session.Output(" ")  'v0.19
 							end if  'v0.14
 						next
 					end if  'v0.14
 				else
-					Session.Output("===== Fant ingen klasse med presiseringer i restriksjonen: " & constr.Name & " - " & egenskapsnavn & " : " & datatype.Name & "")
+					Session.Output("==== Fant ingen klasse med presiseringer i restriksjonen: " & constr.Name & " - " & egenskapsnavn & " : " & datatype.Name & "")
 				end if
 			end if
 		end if
@@ -1337,6 +1351,26 @@ function getCleanDefinition(txt)
 end function
 '-----------------Function getCleanDefinition End-----------------
 
+function getSosiGeometritype(gtype)
+		'fra Realisering i SOSI-format versjon 5.0 tabell 8.2:
+		getSosiGeometritype = gtype
+		if gtype = "GM_Point" or UCase(gtype) = "PUNKT" then
+			getSosiGeometritype = "PUNKT"
+		end if
+		if gtype = "GM_MultiPoint" or UCase(gtype) = "SVERM" then
+			getSosiGeometritype = "SVERM"
+		end if
+		if gtype = "GM_Curve" or gtype = "GM_CompositeCurve" or UCase(gtype) = "KURVE" then
+			getSosiGeometritype = "KURVE"
+		end if
+		if gtype = "GM_Surface" or gtype = "GM_CompositeSurface" or UCase(gtype) = "FLATE" then
+			getSosiGeometritype = "FLATE"
+		end if
+		'fra "etablert praksis"
+		if gtype = "GM_Object" or gtype = "GM_Primitive" or UCase(gtype) = "OBJEKT" then
+			getSosiGeometritype = "OBJEKT"
+		end if
+end function
 
 
 function getTaggedValue(element,taggedValueName)
