@@ -5,13 +5,15 @@ option explicit
 ' script:		listSOSIKontrollfiler
 ' purpose:		Generate files for SOSI validator. Lager filer for SOSI-Kontroll fra SOSI-5.0 modeller.
 ' author:		Kent
-' version:		2018-03-01, 04.13
-' version:		2018-09-07 self associations and self datatypes are detected, not other types of circular usages or inheritance loops.
-' version:		2019-03-20 for egenskaper med defaultCodeSpace ansees kodelisten som eksternt forvaltet og tom(!), og stien til den eksterne lista legges rett i o-fila .
-' version:		2019-04-03 retta feil vedr. SOSI_lengde og SOSI_datatype, datatyper arver fra sine supertyper
+'
+' version:		2021-12-23 bruker stien i defalutCodeSpace uansett innhold, fullsti, retting for egenskaper som arver geometrityper
+' version:		2019-08-02 feilrettet og forbedret (?) støtte for arv mellom datatyper
 ' version:		2019-07-31 utelater SOSI-kontroll av elementer med tagged value xsdEncodingRule = notEncoded
 '    			Objekttyper som manglende geometriegenskap legges under .OBJEKT
-' version:		2019-08-02 feilrettet og forbedret (?) støtte for arv mellom datatyper
+' version:		2019-04-03 retta feil vedr. SOSI_lengde og SOSI_datatype, datatyper arver fra sine supertyper
+' version:		2019-03-20 for egenskaper med defaultCodeSpace ansees kodelisten som eksternt forvaltet og tom(!), og stien til den eksterne lista legges rett i o-fila .
+' version:		2018-09-07 self associations and self datatypes are detected, not other types of circular usages or inheritance loops.
+' version:		2018-03-01, 04.13
 '
 '	Kjente svakheter:
 '	Hvis filene ikke dukker opp i en underkatalog under der .eap-fila ligger kan man lete på en tempsti ala:
@@ -39,7 +41,7 @@ option explicit
 sub listFeatureTypesForEnValgtPakke()
 	' Show and clear the script output window
 	Repository.EnsureOutputVisible "Script"
-	DIM i
+	DIM i, fullsti
 	Dim theElement as EA.Element
 	Set theElement = Repository.GetTreeSelectedObject()
 	if not theElement is nothing  then
@@ -48,7 +50,7 @@ sub listFeatureTypesForEnValgtPakke()
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
 					dim message
 			dim box
-			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2019-08-02" & vbCrLf & "Starter listing av modell som følger SOSI 5.0-regler til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
+			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2021-12-23" & vbCrLf & "Starter listing av modell som følger SOSI 5.0-regler til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
 			select case box
 			case vbOK
 				dim kortnavn
@@ -65,17 +67,18 @@ sub listFeatureTypesForEnValgtPakke()
 				Repository.WriteOutput "Script", Now & "Starter listing til SOSIKontrollfiler for pakke : [" & theElement.Name & "], valgt SOSI_kortnavn: " & vbCrLf & kortnavn, 0
 
 				Set sosFSO=CreateObject("Scripting.FileSystemObject")
-				if not sosFSO.FolderExists(kortnavn) then
-					sosFSO.CreateFolder kortnavn
+				fullsti = sosFSO.GetParentFolderName(Repository.ConnectionString())				
+				if not sosFSO.FolderExists(fullsti & "/" & kortnavn) then
+					sosFSO.CreateFolder fullsti & "/" & kortnavn
 				end if
 				'TBD to be version agnostic we must replace 50 here with the value in SOSI_versjon (except the dots)
-				if not sosFSO.FolderExists(kortnavn & "\kap50") then
-					sosFSO.CreateFolder kortnavn & "\kap50"
+				if not sosFSO.FolderExists(fullsti & "/" & kortnavn & "\kap50") then
+					sosFSO.CreateFolder fullsti & "/" & kortnavn & "\kap50"
 				end if
-				defFile = kortnavn & "\" & "Def_" & getNCNameX(kortnavn) & ".50"
-				objFile = kortnavn & "\kap50\" & getNCNameX(kortnavn) & "_o.50"
-				utvFile = kortnavn & "\kap50\" & getNCNameX(kortnavn) & "_u.50"
-				eleFile = kortnavn & "\kap50\" & getNCNameX(kortnavn) & "_d.50"
+				defFile = fullsti & "/" & kortnavn & "\" & "Def_" & getNCNameX(kortnavn) & ".50"
+				objFile = fullsti & "/" & kortnavn & "\kap50\" & getNCNameX(kortnavn) & "_o.50"
+				utvFile = fullsti & "/" & kortnavn & "\kap50\" & getNCNameX(kortnavn) & "_u.50"
+				eleFile = fullsti & "/" & kortnavn & "\kap50\" & getNCNameX(kortnavn) & "_d.50"
 				'Repository.WriteOutput "Script", Now & " sosFolder: " & kortnavn & " objFile: " & objFile & " utvFile: " & utvFile & " eleFile: " & eleFile, 0
 				Set def = sosFSO.CreateTextFile(defFile,True,False)
 				Set obj = sosFSO.CreateTextFile(objFile,True,False)
@@ -290,20 +293,21 @@ sub listDatatypes(element,prikkniv)
 							sositype = "T"
 						end if
 						sosierlik = "="
-						if getTaggedValue(attr,"defaultCodeSpace") <> getTaggedValue(datatype,"codeList") then
-			'				Repository.WriteOutput "Script", "Info: egenskapen [" & Element.Name & "." & attr.Name & "]  har kodelistesti [" & getTaggedValue(attr,"defaultCodeSpace") & "]  men datatypeklassen [" & datatype.Name & "] har ulik kodelistesti [" & getTaggedValue(datatype,"codeList") & "].",0
-						end if
-						'if getTaggedValue(datatype,"asDictionary") = "true" then
-							'midlertidig! kun for kommunenummer og målemetoder
-							if attr.Name = "kommunenummer" or attr.Name = "fylkesnummer" or attr.Name = "målemetode" or attr.Name = "målemetodeHøyde" then
-								'bygger først på at egenskapen peker til korrekt sti (uten filtype)
-								koder = getTaggedValue(attr,"defaultCodeSpace")
-								sosierlik = "><"
-							else				
-								' legg ut kodene som vanlig
-								koder = getKoder(datatype)
+						if getTaggedValue(attr,"defaultCodeSpace") <> "" then
+							if getTaggedValue(attr,"defaultCodeSpace") <> getTaggedValue(datatype,"codeList") then
+								Repository.WriteOutput "Script", "Info: egenskapen [" & Element.Name & "." & attr.Name & "]  har kodelistesti [" & getTaggedValue(attr,"defaultCodeSpace") & "]  men datatypeklassen [" & datatype.Name & "] har ulik kodelistesti [" & getTaggedValue(datatype,"codeList") & "].",0
 							end if
-						'end if
+							if getTaggedValue(datatype,"asDictionary") <> "true" then
+								Repository.WriteOutput "Script", "Info: kodelista [" & datatype.Name & "]  har ikke en tagged value asDictionary satt til true.",0
+							end if
+
+							koder = getTaggedValue(attr,"defaultCodeSpace")
+							sosierlik = "><"
+
+						else				
+							' legger ut kodene som vanlig
+							koder = getKoder(datatype)
+						end if
 						if koder = "" then
 							sosierlik = "><"
 						end if
@@ -538,6 +542,28 @@ function getSosiGeometrityper(element)
 		else
 			getSosiGeometrityper = Mid(typer,2,Len(typer))
 		end if
+		if getSosiGeometrityper = "" then
+		'	arver geometritype?
+			if getParentId(element) <> 0 then
+				dim super as EA.Element
+				set super = Repository.GetElementByID(getParentId(element))
+				getSosiGeometrityper = getSosiGeometrityper(super)
+			end if
+		end if
+		
+end function
+
+
+function getParentId(element)
+	getParentId = 0
+	dim conn as EA.Collection
+	for each conn in element.Connectors
+		if conn.Type = "Generalization" then
+			if element.ElementID = conn.ClientID then
+				getParentId = conn.SupplierID
+			end if
+		end if
+	next
 end function
 
 
