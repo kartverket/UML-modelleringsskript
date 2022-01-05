@@ -6,6 +6,8 @@ option explicit
 ' purpose:		Generate files for SOSI validator. Lager filer for SOSI-Kontroll fra SOSI-5.0 modeller.
 ' author:		Kent
 '
+'
+' version:		2022-02-04 URI til lovlig SOSI-type T, uppercase på SOSI-navn der tV SOSI_navn mangler (roller)
 ' version:		2021-12-23 bruker stien i defalutCodeSpace uansett innhold, fullsti, retting for egenskaper som arver geometrityper
 ' version:		2019-08-02 feilrettet og forbedret (?) støtte for arv mellom datatyper
 ' version:		2019-07-31 utelater SOSI-kontroll av elementer med tagged value xsdEncodingRule = notEncoded
@@ -721,6 +723,12 @@ function getBasicSOSIType(umltype)
 	end if
 	if umltype = "Real" then
 		getBasicSOSIType = "D"
+	end if
+	if UCase(umltype) = "URI" then
+		getBasicSOSIType = "T"
+	end if
+	if UCase(umltype) = "Any" then
+		getBasicSOSIType = "T"
 	end if
 end function
 
