@@ -4,27 +4,30 @@ option explicit
 
 ' script:		listGMLExample
 ' purpose:		Generates GML example objects from all non-abstract feature types in the model
-' version:		2018-09-11, 09-12, 09-14, 09-16(single class), 10-04 utf8
-' version:		2019-05-04 complete solid example, two xml elements where max multiplicity > 1
-' version:		2019-05-31 Union fixed
-' version:		2019-06-13 fixed minor flaws after testruns on all UML-patterns
-' version:		2019-07-31 utelater eksempel av elementer med tagged value xsdEncodingRule = notEncoded
-' version:		2020-04-03 fixed self associations, started on associations to abstract classes
-' version:		2020-04-15 attributes and associations to abstract classes
-' version:		2020-11-03 inherited roles point to (first of) concrete subtypes of abstract supertype
-' version:		2020-11-19 able to select 2D epsg/0/4326 or 3D epsg/0/5972 (25832+NN2000) geometries (and temporary test of SOSI-format-example)
-' version:		2020-11-20 elaborate on the CompositeXxx 
-' version:		2020-11-21 gml:id only on content of CompositeXxx and EPSG/0/4326
-' version:		2021-04-28/29 each new geometry example to move aside from the previous
-' version:		2021-06-08 disabled test for notEncoded, (for FKB 5.0, to be rolled back later?)
-' version:		2021-07-17/08-13 reads real example codelist codes from external registries
-' version:		2021-08-26 detect trailing slash in namespace, move point into surface of same object (for FKB 5.0)
-' version:		2021-10-01 bug fix on point geometry position, attr-tV-defaultCodeSpace primary code url source / class-tV-codeList secondary source
+' note:         Important vbs-snag: decimal point character for numbers need to be set to "." in the regional settings
+'
 ' author: 		Kent Jonsrud
 '
+' version:		2022-01-04 write http:// on URI attributes, move central points into surfaces, write debug as xml comments
+' 				Codelist Url - (datatype,"codeList") vs. (attr,"defaultCodeSpace") line 259
+' version:		2021-08-26 detect trailing slash in namespace, move point into surface of same object (for FKB 5.0)
+' version:		2021-07-17/08-13 reads real example codelist codes from external registries
+' version:		2021-06-08 disabled test for notEncoded, (for FKB 5.0, to be rolled back later?)
+' version:		2021-04-28/29 each new geometry example to move aside from the previous
+' version:		2020-11-21 gml:id only on content of CompositeXxx and EPSG/0/4326
+' version:		2020-11-20 elaborate on the CompositeXxx 
+' version:		2020-11-19 able to select 2D epsg/0/4326 or 3D epsg/0/5972 (25832+NN2000) geometries (and temporary test of SOSI-format-example)
+' version:		2020-11-03 inherited roles point to (first of) concrete subtypes of abstract supertype
+' version:		2020-04-15 attributes and associations to abstract classes
+' version:		2020-04-03 fixed self associations, started on associations to abstract classes
+' version:		2019-07-31 utelater eksempel av elementer med tagged value xsdEncodingRule = notEncoded
+' version:		2019-06-13 fixed minor flaws after testruns on all UML-patterns
+' version:		2019-05-31 Union fixed
+' version:		2019-05-04 complete solid example, two xml elements where max multiplicity > 1
+' version:		2018-09-11, 09-12, 09-14, 09-16(single class), 10-04 utf8
+'
 ' 				candidates for improvement:
-' TBD soon: 	Codelist Url - (datatype,"codeList") vs. (attr,"defaultCodeSpace") line 259
-' TBD:			add the prefix on elements from external as packages, sort (roles!) by tagged value sequenceNumber
+' TBD:			add the prefix on elements from external as packages, sort (attributes?+roles!) by tagged value sequenceNumber
 ' TBD:			multiple codelist codes and enumeration codes should have first and second code, now it has first code twice
 ' TBD:          utf8 (for all codes with any sami characters) does not survive the clipboard, should write directly to file
 ' TBD:          utf8 on model names in the gml:Solid-part
@@ -35,7 +38,6 @@ option explicit
 ' TBD:			standard (getFeatureById-) container for the single object selection
 ' TBD:			documentation and cleanup
 
-' TBN:          Important vbs-snag: decimal point character for numbers need to be set to "." in the regional settings
 
 	DIM epsg, debug, namespace, kortnavn, pnteller, cuteller, suteller, soteller, obteller, eastoffset, eastdelta
 	'roof - astarting on 1
@@ -174,12 +176,12 @@ sub listFeatureTypes(pkg)
  	set elements = pkg.Elements 
 	dim i, sosinavn, sositype, sosilengde, sosimin, sosimax, koder, prikkniv, sosierlik, superlist
 	dim indent, ftname
-	if debug then Repository.WriteOutput "Script", "Debug: pkg.Name [" & pkg.Name & "].",0
+	if debug then Repository.WriteOutput "Script", "<!-- Debug: pkg.Name [" & pkg.Name & "]. -->",0
 	for i = 0 to elements.Count - 1 
 		dim currentElement as EA.Element 
 		set currentElement = elements.GetAt( i ) 
 				
-		if debug then Repository.WriteOutput "Script", "Debug: currentElement.Name [«" & currentElement.Stereotype & "» " & currentElement.Name & "] currentElement.Type [" & currentElement.Type & "] currentElement.Abstract [" & currentElement.Abstract & "].",0
+		if debug then Repository.WriteOutput "Script", "<!-- Debug: currentElement.Name [«" & currentElement.Stereotype & "» " & currentElement.Name & "] currentElement.Type [" & currentElement.Type & "] currentElement.Abstract [" & currentElement.Abstract & "]. -->",0
 		if currentElement.Type = "Class" and LCase(currentElement.Stereotype) = "featuretype" and currentElement.Abstract = 0 then
 		'ZZZ?		if currentElement.Type = "Class" and ( LCase(currentElement.Stereotype) = "featuretype" or LCase(currentElement.Stereotype) = "" ) and currentElement.Abstract = 0 then
 			
@@ -220,16 +222,16 @@ sub listDatatypes(ftname,element,indent)
 	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef, selfref, subID
 	dim indent0, indent1, superlist
 	
-				
-	if debug then Repository.WriteOutput "Script", "Debug: --------listDatatypes element.Name [" & element.Name & "] element.ElementID [" & element.ElementID & "].",0
+	eastoffset = eastoffset + eastdelta		
+	if debug then Repository.WriteOutput "Script", "<!-- Debug: --------listDatatypes element.Name [" & element.Name & "] element.ElementID [" & element.ElementID & "]. -->",0
 'ZZZ	if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
 	if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "" or LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
 		
 		for each conn in element.Connectors
-			if debug then Repository.WriteOutput "Script", "Debug: conn.Type [" & conn.Type & "] conn.ClientID [" & conn.ClientID & "] conn.SupplierID [" & conn.SupplierID & "].",0
+			if debug then Repository.WriteOutput "Script", "<!-- Debug: conn.Type [" & conn.Type & "] conn.ClientID [" & conn.ClientID & "] conn.SupplierID [" & conn.SupplierID & "]. -->",0
 			if conn.Type = "Generalization" then
 				if element.ElementID = conn.ClientID then
-					if debug then Repository.WriteOutput "Script", "Debug: supertype [" & Repository.GetElementByID(conn.SupplierID).Name & "].",0
+					if debug then Repository.WriteOutput "Script", "<!-- Debug: supertype [" & Repository.GetElementByID(conn.SupplierID).Name & "]. -->",0
 '					superlist = getSupertypes(ftname, conn.SupplierID, indent)
 					set super = Repository.GetElementByID(conn.SupplierID)
 					call listDatatypes(ftname,super,indent)
@@ -241,7 +243,7 @@ sub listDatatypes(ftname,element,indent)
 		dim attr as EA.Attribute
 		for each attr in element.Attributes
 			if getSosiGeometritype(attr) = "" then
-				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] not geometry.",0
+				if debug then Repository.WriteOutput "Script", "<!-- Debug: attr.Name [" & attr.Name & "] not geometry. -->",0
 				if attr.ClassifierID <> 0 and getBasicSOSIType(attr.Type) = "*" then
 					set datatype = Repository.GetElementByID(attr.ClassifierID)
 					'see if the datatype has a supertype, if so then write all its elements first - TBD
@@ -265,10 +267,15 @@ sub listDatatypes(ftname,element,indent)
 							else
 								if getTaggedValue(datatype,"asDictionary") = "true" then
 								'	if getTaggedValue(datatype,"codeList") <> "" and getTaggedValue(datatype,"codeList") = getTaggedValue(attr,"defaultCodeSpace") then
-									if getTaggedValue(datatype,"codeList") <> "" or getTaggedValue(attr,"defaultCodeSpace") <> "" then
+									if getTaggedValue(datatype,"codeList") <> "" then
 										dim code1, code2, codeListUrl
-										codeListUrl = getTaggedValue(attr,"defaultCodeSpace")
-										if codeListUrl = "" or Mid(codeListUrl,1,4) <> "http" then codeListUrl = getTaggedValue(datatype,"codeList")
+										codeListUrl = getTaggedValue(datatype,"codeList")
+										if getTaggedValue(attr,"defaultCodeSpace") <> "" then
+											if getTaggedValue(attr,"defaultCodeSpace") <> codeListUrl then
+												Repository.WriteOutput "Script", "<!-- Info: attr.Name [" & attr.Name & "] has a tagged value defaultCodeSpace [" & getTaggedValue(attr,"defaultCodeSpace") & "] that is different from the codelist class tagged value codeList [" & codeListUrl & "]. -->",0
+											end if
+											codeListUrl = getTaggedValue(attr,"defaultCodeSpace")
+										end if
 										call get2firstCodes(codeListUrl,code1,code2)
 										if code1 <> "" then
 											SessionOutput(indent & "<" & attr.Name & ">" & code1 & "</" & attr.Name & ">")
@@ -329,7 +336,7 @@ sub listDatatypes(ftname,element,indent)
 				end if
 			else
 				'geometry type 
-				if debug then Repository.WriteOutput "Script", "Debug: attr.Name [" & attr.Name & "] is geometry: " & getSosiGeometritype(attr) & ".",0
+				if debug then Repository.WriteOutput "Script", "<!-- Debug: attr.Name [" & attr.Name & "] is geometry: " & getSosiGeometritype(attr) & ". -->",0
 				SessionOutput(indent & "<" & utf8(attr.Name) & ">")
 				call listGeometryType(ftname, attr.Type, indent & "  ")			
 				SessionOutput(indent & "</" & utf8(attr.Name) & ">")
@@ -338,7 +345,7 @@ sub listDatatypes(ftname,element,indent)
 					call listGeometryType(ftname, attr.Type, indent & "  ")			
 					SessionOutput(indent & "</" & utf8(attr.Name) & ">")
 				end if
-				eastoffset = eastoffset + eastdelta
+	'			eastoffset = eastoffset + eastdelta
 			end if
 
 			'if Union then jump out of the loop after first(!) variant, this does not support well Unions having several different datatypes 
@@ -354,8 +361,8 @@ sub listDatatypes(ftname,element,indent)
 			else
 				'Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
 				'Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens SOSI_navn [" & getTaggedValue(Repository.GetElementByID(conn.ClientID).Name,"SOSI_navn") & "].",0
-				if debug then Repository.WriteOutput "Script", "Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens navn [" & Repository.GetElementByID(conn.SupplierID).Name & "], conn.SupplierID [" & conn.SupplierID & "].",0
-				if debug then Repository.WriteOutput "Script", "Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens navn [" & Repository.GetElementByID(conn.ClientID).Name & "], conn.ClientID [" & conn.ClientID & "].",0
+				if debug then Repository.WriteOutput "Script", "<!-- Debug: Supplier Role.Name [" & conn.SupplierEnd.Role & "] datatypens navn [" & Repository.GetElementByID(conn.SupplierID).Name & "], conn.SupplierID [" & conn.SupplierID & "]. -->",0
+				if debug then Repository.WriteOutput "Script", "<!-- Debug: Client Role.Name [" & conn.ClientEnd.Role & "] datatypens navn [" & Repository.GetElementByID(conn.ClientID).Name & "], conn.ClientID [" & conn.ClientID & "]. -->",0
 
 				if conn.ClientID = element.ElementID then
 				'	if getConnectorEndTaggedValue(conn.SupplierEnd,"xsdEncodingRule") <> "notEncoded" then
@@ -368,8 +375,6 @@ sub listDatatypes(ftname,element,indent)
 							call listComposition(ftname,umlnavn,datatype,indent,conn.SupplierEnd.Cardinality)
 						else
 							call listAssociation(ftname,umlnavn,datatype,indent,conn.SupplierEnd.Cardinality,conn.SupplierEnd.Navigable,element.Name)
-							if debug then Session.Output("<!-- DEBUG rolle: ["&conn.SupplierEnd.Role&"] ordering:["&conn.SupplierEnd.Ordering&"]-->")
-							if debug then Session.Output("<!-- DEBUG connector id: ["&conn.ConnectorId&"] type: ["&conn.Type&"] sequence no:["&conn.SequenceNo&"]-->")
 						end if
 				'	end if
 
@@ -383,8 +388,6 @@ sub listDatatypes(ftname,element,indent)
 							call listComposition(ftname,umlnavn,datatype,indent,conn.ClientEnd.Cardinality)
 						else
 							call listAssociation(ftname,umlnavn,datatype,indent,conn.ClientEnd.Cardinality,conn.ClientEnd.Navigable,element.Name)
-							if debug then Session.Output("<!-- DEBUG rolle: ["&conn.ClientEnd.Role&"] ordering:["&conn.ClientEnd.Ordering&"]-->")
-							if debug then Session.Output("<!-- DEBUG connector id: ["&conn.ConnectorId&"] type: ["&conn.Type&"] sequence no:["&conn.SequenceNo&"]-->")
 						end if
 				'	end if
 				end if
@@ -461,7 +464,7 @@ sub listAssociation(ftname,umlnavn,datatype,indent,cardinality,navigable,element
 			SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
 		end if
 '								SessionOutput(indent & "<" & utf8(umlnavn) & " xlink:href=""#" & utf8(datatype.Name) & "." & selfref & """/>")
-		if debug then Repository.WriteOutput "Script", "Debug: .Cardinality [" & cardinality & "].",0
+		if debug then Repository.WriteOutput "Script", "<!-- Debug: .Cardinality [" & cardinality & "]. -->",0
 		if cardinality <> "0..1" and cardinality <> "1..1" and cardinality <> "1" then
 			if datatype.Abstract = 1 then
 				'must move down to make an example of a instanciable subtype of the class pointed to TODO, NB needed on mandatory attributes!
@@ -475,10 +478,10 @@ sub listAssociation(ftname,umlnavn,datatype,indent,cardinality,navigable,element
 end sub
 
 function listBaseType(ftname,umlname, umltype)
-	listBaseType = "*"
+	listBaseType = "FIX"
 	if umltype = "CharacterString" then
 		if umlname = "navnerom" or umlname = "namespace" then
-			listBaseType = "http://data.geonorge.no/SOSI/" & Kortnavn 
+			listBaseType = "http://data.geonorge.no/sosi/" & Kortnavn 
 		else
 			if umlname = "lokalId" or umlname = "localId" then
 				listBaseType = ftname & ".1"
@@ -501,6 +504,9 @@ function listBaseType(ftname,umlname, umltype)
 	end if
 	if umltype = "Real" then
 		listBaseType = "21.21"
+	end if
+	if UCase(umltype) = "URI" then
+		listBaseType = "http://"
 	end if
 end function
 
@@ -528,7 +534,7 @@ sub get2firstCodes(codeListUrl,code1,code2)
 	code2 = ""
 	' testing http get
 	if codeListUrl <> "" then
-		if debug then Session.Output("<!-- DEBUG codeListUrl: " & codeListUrl & " -->")
+	'	Session.Output("<!-- DEBUG codeListUrl: " & codeListUrl & " -->")
 		Dim httpObject
 		Dim parseText, line, linepart, part, kodenavn, kodedef, ualias, kodelistenavn
 		Set httpObject = CreateObject("MSXML2.XMLHTTP")
@@ -1371,12 +1377,12 @@ function getFirstConcreteSubtypeName(datatype,subID)
 				
 '	if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
 	if datatype.Abstract = 1 then
-		if debug then Repository.WriteOutput "Script", "Debug: --------datatype.Name [" & datatype.Name & "] datatype.ElementID [" & datatype.ElementID & "].",0
+		if debug then Repository.WriteOutput "Script", "<!-- Debug: --------datatype.Name [" & datatype.Name & "] datatype.ElementID [" & datatype.ElementID & "]. -->",0
 		for each conn in datatype.Connectors
-			if debug then Repository.WriteOutput "Script", "Debug: conn.Type [" & conn.Type & "] conn.ClientID [" & conn.ClientID & "] conn.SupplierID [" & conn.SupplierID & "].",0
+			if debug then Repository.WriteOutput "Script", "<!-- Debug: conn.Type [" & conn.Type & "] conn.ClientID [" & conn.ClientID & "] conn.SupplierID [" & conn.SupplierID & "]. -->",0
 			if conn.Type = "Generalization" then
 				if datatype.ElementID <> conn.ClientID then
-					if debug then Repository.WriteOutput "Script", "Debug: subbtype [" & Repository.GetElementByID(conn.ClientID).Name & "].",0
+					if debug then Repository.WriteOutput "Script", "<!-- Debug: subbtype [" & Repository.GetElementByID(conn.ClientID).Name & "]. -->",0
 					set subber = Repository.GetElementByID(conn.ClientID)
 					getFirstConcreteSubtypeName =  getFirstConcreteSubtypeName(subber,subID)
 					exit function
@@ -1402,7 +1408,7 @@ function getFirstConcreteSubtypeID(datatype)
 				
 '	if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
 	if datatype.Abstract = 1 then
-		if debug then Repository.WriteOutput "Script", "Debug: --------datatype.Name [" & datatype.Name & "] datatype.ElementID [" & datatype.ElementID & "].",0
+		if debug then Repository.WriteOutput "Script", "<!-- Debug: --------datatype.Name [" & datatype.Name & "] datatype.ElementID [" & datatype.ElementID & "]. -->",0
 		call getFirstConcreteSubtypeName(datatype,subID)
 	end if
 	getFirstConcreteSubtypeID = subID
@@ -1531,7 +1537,7 @@ sub initCoord()
 	q2(4) = 6662034.72
 	q3(4) = 90.80
 		
-	r1 = 568513.83
+	r1 = 568413.83
 	r2 = 6662030.36
 	r3 = 90.67	
 	
