@@ -8,6 +8,7 @@ option explicit
 '
 ' author: 		Kent Jonsrud
 '
+' version:		2022-01-05 fixed an error in one single corner of solid geometry, even spacing between features
 ' version:		2022-01-04 write http:// on URI attributes, move central points into surfaces, write debug as xml comments
 ' 				Codelist Url - (datatype,"codeList") vs. (attr,"defaultCodeSpace") line 259
 ' version:		2021-08-26 detect trailing slash in namespace, move point into surface of same object (for FKB 5.0)
@@ -27,6 +28,7 @@ option explicit
 ' version:		2018-09-11, 09-12, 09-14, 09-16(single class), 10-04 utf8
 '
 ' 				candidates for improvement:
+' TBD:			variants of solid geometry (multisurface, multiple features etc.)
 ' TBD:			add the prefix on elements from external as packages, sort (attributes?+roles!) by tagged value sequenceNumber
 ' TBD:			multiple codelist codes and enumeration codes should have first and second code, now it has first code twice
 ' TBD:          utf8 (for all codes with any sami characters) does not survive the clipboard, should write directly to file
@@ -51,7 +53,7 @@ option explicit
 	'curve - starting on 1
 	dim q1(5), q2(5), q3(5)
 		
-
+	debug = false
 
 sub listGMLExample()
 	' Show and clear the script output window
@@ -184,7 +186,7 @@ sub listFeatureTypes(pkg)
 		if debug then Repository.WriteOutput "Script", "<!-- Debug: currentElement.Name [«" & currentElement.Stereotype & "» " & currentElement.Name & "] currentElement.Type [" & currentElement.Type & "] currentElement.Abstract [" & currentElement.Abstract & "]. -->",0
 		if currentElement.Type = "Class" and LCase(currentElement.Stereotype) = "featuretype" and currentElement.Abstract = 0 then
 		'ZZZ?		if currentElement.Type = "Class" and ( LCase(currentElement.Stereotype) = "featuretype" or LCase(currentElement.Stereotype) = "" ) and currentElement.Abstract = 0 then
-			
+
 			SessionOutput("  <wfs:member>")
 			SessionOutput("    <" & utf8(currentElement.Name) & " gml:id="""& utf8(currentElement.Name) & ".1"">")
 			
@@ -196,6 +198,7 @@ sub listFeatureTypes(pkg)
 			
 			SessionOutput("    </" & utf8(currentElement.Name) & ">")
 			SessionOutput("  </wfs:member>")
+			eastoffset = eastoffset + eastdelta	
 
 		end if
 	
@@ -222,7 +225,7 @@ sub listDatatypes(ftname,element,indent)
 	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef, selfref, subID
 	dim indent0, indent1, superlist
 	
-	eastoffset = eastoffset + eastdelta		
+'	eastoffset = eastoffset + eastdelta		
 	if debug then Repository.WriteOutput "Script", "<!-- Debug: --------listDatatypes element.Name [" & element.Name & "] element.ElementID [" & element.ElementID & "]. -->",0
 'ZZZ	if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
 	if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "" or LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
@@ -276,6 +279,8 @@ sub listDatatypes(ftname,element,indent)
 											end if
 											codeListUrl = getTaggedValue(attr,"defaultCodeSpace")
 										end if
+										if debug then Repository.WriteOutput "Script", "<!-- Debug: codeListUrl [" & codeListUrl & "]. -->",0
+	
 										call get2firstCodes(codeListUrl,code1,code2)
 										if code1 <> "" then
 											SessionOutput(indent & "<" & attr.Name & ">" & code1 & "</" & attr.Name & ">")
@@ -1150,7 +1155,8 @@ sub generateSolidExample(elementName, indent, height)
 	
 '	calculate the central point and mean height
 
-	for i = 0 to posNum - 2
+'	for i = 0 to posNum - 2
+	for i = 0 to posNum - 1
 		s1(i,0) = s1(i,0) + eastoffset
 		z1(0) = z1(0) + s1(i,0)
 		z1(1) = z1(1) + s1(i,1)
@@ -1461,7 +1467,7 @@ sub initCoord()
 	suteller=0
 	soteller=0
 	obteller=0
-	debug = false
+'	debug = false
 	epsg = 5972
 	eastdelta = 100.00
 	eastoffset = 0.00
@@ -1537,7 +1543,8 @@ sub initCoord()
 	q2(4) = 6662034.72
 	q3(4) = 90.80
 		
-	r1 = 568413.83
+'	r1 = 568413.83
+	r1 = 568513.83
 	r2 = 6662030.36
 	r3 = 90.67	
 	
