@@ -7,7 +7,8 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
-' Version: 0.26 Date: 2021-12-15 Kent Jonsrud: retting av småfeil etter forrige retting av småfeil
+' Version: 0.27 Date: 2022-01-17 Kent Jonsrud: endra Alt= til alt= på alternative bildetekster
+' Version: 0.26 Date: 2021-12-15 Kent Jonsrud: retting av småfeil etter forrige retting
 ' Version: 0.25 Date: 2021-12-14 Kent Jonsrud: skille ocl fra beskrivelse med linjeskift før --, og komma fjernes kun fra bildetekst
 ' Version: 0.24 Date: 2021-12-09 Kent Jonsrud: AS på 2. nivå (===), FT og UP på nivåer under ned til 5. nivå (=====), tilpasset :toclevel: 4 og [discrete]
 ' Version: 0.23 Date: 2021-12-08 Kent Jonsrud: AS på 3. nivå, FT og UP på samme nivå under (kan justeres på linje ca. 200)
@@ -155,7 +156,7 @@ Sub ListAsciiDoc(innrykk,thePackage)
 			alternativbildetekst = "Bildet viser en illustrasjon av innholdet i UML-pakken "&thePackage.Name&". Alle detaljene kommer i teksten nedenfor."
 			if getPackageTaggedValue(thePackage,"SOSI_alternativbildetekst") <> "" then alternativbildetekst = getPackageTaggedValue(thePackage,"SOSI_alternativbildetekst")
 			Session.Output(bildetekst)
-			Session.Output("image::" & bilde & "[link=" & bilde & ", Alt=""" & alternativbildetekst & """]")
+			Session.Output("image::" & bilde & "[link=" & bilde & ", alt=""" & alternativbildetekst & """]")
 			Session.Output(" ")
 		end if
 	next
@@ -168,7 +169,7 @@ Sub ListAsciiDoc(innrykk,thePackage)
 		Session.Output("'''")
 		Session.Output(" ")
 		Session.Output("."&diag.Name&" ")
-		Session.Output("image::diagrammer/"&diag.Name&".png[link=diagrammer/"&diag.Name&".png, Alt=""Diagram med navn "&diag.Name&" som viser UML-klasser beskrevet i teksten nedenfor.""]")
+		Session.Output("image::diagrammer/"&diag.Name&".png[link=diagrammer/"&diag.Name&".png, alt=""Diagram med navn "&diag.Name&" som viser UML-klasser beskrevet i teksten nedenfor.""]")
 	Next
 
 	For each element in thePackage.Elements
@@ -293,7 +294,7 @@ end sub
 				Session.Output(" ")
 				Session.Output("'''")
 				Session.Output(bildetekst)
-				Session.Output("image::" & bilde & "[link=" & bilde & ", Alt=""" & alternativbildetekst & """]")
+				Session.Output("image::" & bilde & "[link=" & bilde & ", alt=""" & alternativbildetekst & """]")
 			end if
 		next
 	end if
@@ -489,7 +490,7 @@ Sub Kodelister(innrykk,element,pakke)
 				diagCounter = diagCounter + 1
 				Session.Output("'''")
 				Session.Output(".Illustrasjon av kodeliste: "&element.Name&"""]")
-				Session.Output("image::"&tag.Value&"["&tag.Value&", Alt=""Illustrasjon av hva kodelisten "&element.Name&" kan inneholde.""]")
+				Session.Output("image::"&tag.Value&"["&tag.Value&", alt=""Illustrasjon av hva kodelisten "&element.Name&" kan inneholde.""]")
 			end if
 			if LCase(tag.Name) = "codelist" and tag.Value <> "" then
 				codeListUrl = tag.Value
@@ -804,7 +805,7 @@ sub attrbilde(att,typ)
 		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
 			Session.Output(" +")
 			Session.Output("Illustrasjon av " & typ & " "&att.Name&"")
-			Session.Output("image:"&tag.Value&"[link="&tag.Value&",width=100,height=100, Alt=""Bilde av " & typ & " "&att.Name&" som er forklart i teksten.""]")
+			Session.Output("image:"&tag.Value&"[link="&tag.Value&",width=100,height=100, alt=""Bilde av " & typ & " "&att.Name&" som er forklart i teksten.""]")
 		end if
 	next
 end sub
