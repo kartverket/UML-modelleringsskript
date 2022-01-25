@@ -7,7 +7,10 @@ option explicit
 ' author:		Kent
 '
 '
-' version:		2022-02-04 URI til lovlig SOSI-type T, uppercase på SOSI-navn der tV SOSI_navn mangler (roller)
+' version:		2022-01-25 legger ut koder på gammel måte, koder hentes fra sti til eksterne kodelister
+'				NB må kjøres pånytt for hver endring i registeret ! og kanskje synkroniseres med når nye sosikontrollfiler distribueres
+' version:		2022-01-19 sti til kodelister hentes alternativt fra kodelisteklassen hvis defaultCodeSpace mangler
+' version:		2022-01-04 URI mappes til lovlig SOSI-type T, uppercase på SOSI-navn der tV SOSI_navn mangler (roller)
 ' version:		2021-12-23 bruker stien i defalutCodeSpace uansett innhold, fullsti, retting for egenskaper som arver geometrityper
 ' version:		2019-08-02 feilrettet og forbedret (?) støtte for arv mellom datatyper
 ' version:		2019-07-31 utelater SOSI-kontroll av elementer med tagged value xsdEncodingRule = notEncoded
@@ -52,7 +55,7 @@ sub listFeatureTypesForEnValgtPakke()
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
 					dim message
 			dim box
-			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2021-12-23" & vbCrLf & "Starter listing av modell som følger SOSI 5.0-regler til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
+			box = Msgbox ("Skript listSOSIKontrollfiler" & vbCrLf & vbCrLf & "Skriptversjon 2022-01-25" & vbCrLf & "Starter listing av modell som følger SOSI 5.0-regler til SOSIKontrollfiler for pakke : [" & theElement.Name & "].",1)
 			select case box
 			case vbOK
 				dim kortnavn
@@ -233,7 +236,7 @@ sub listDatatypes(element,prikkniv)
 	dim conn as EA.Collection
 	dim sconn as EA.Collection
 	dim connEnd as EA.ConnectorEnd
-	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef
+	dim i, umlnavn, sosinavn, sositype, sosilengde, sosimin, sosimax, sosierlik, koder, prikkniv1, roleEndElementID, sosidef, codelistUrl
 				
 	if element.Type = "Datatype" or (element.Type = "Class" and LCase(element.Stereotype) = "datatype" or LCase(element.Stereotype) = "union" or LCase(element.Stereotype) = "featuretype") then
 
@@ -303,12 +306,20 @@ sub listDatatypes(element,prikkniv)
 								Repository.WriteOutput "Script", "Info: kodelista [" & datatype.Name & "]  har ikke en tagged value asDictionary satt til true.",0
 							end if
 
-							koder = getTaggedValue(attr,"defaultCodeSpace")
-							sosierlik = "><"
-
-						else				
-							' legger ut kodene som vanlig
-							koder = getKoder(datatype)
+'							koder = getTaggedValue(attr,"defaultCodeSpace")
+'							sosierlik = "><"
+							codelistUrl = getTaggedValue(attr,"defaultCodeSpace")
+							koder = getAlleKoder(codelistUrl)
+						else
+							if getTaggedValue(datatype,"codeList") <> "" then
+'								koder = getTaggedValue(datatype,"codeList")
+'								sosierlik = "><"
+								codelistUrl = getTaggedValue(datatype,"codeList")
+								koder = getAlleKoder(codelistUrl)
+							else
+								' legger ut kodene som vanlig
+								koder = getKoder(datatype)
+							end if
 						end if
 						if koder = "" then
 							sosierlik = "><"
@@ -527,6 +538,78 @@ function getKoder(element)
 		getKoder = ""
 	else
 		getKoder = Mid(koder,2,Len(koder))
+	end if
+end function
+
+
+
+function getAlleKoder(codeListUrl)
+	getAlleKoder = ""
+	Dim codelist
+	codelist = ""
+	dim code1
+	dim code2 
+	code1 = ""
+	code2 = ""
+	' testing http get
+	if codeListUrl <> "" then
+	'	Session.Output("<!-- DEBUG codeListUrl: " & codeListUrl & " -->")
+		Dim httpObject
+		Dim parseText, line, linepart, part, kodenavn, kodedef, ualias, kodelistenavn
+		Set httpObject = CreateObject("MSXML2.XMLHTTP")
+	'	httpObject.open "GET", "http://skjema.geonorge.no/SOSI/basistype/Integer.html", false
+		httpObject.open "GET", codeListUrl & ".gml", false
+		httpObject.send
+		if httpObject.status = 200 then
+	'		Session.Output("DEBUG gml:Dictionary: "&httpObject.responseText&"")
+	''		parseText = split(split(split(ResponseXML,SearchTag)(1),"</")(0),">")(1)
+			parseText = split(httpObject.responseText,"<",-1,1)
+			
+
+			kodelistenavn = ""
+			for each line in parseText
+	'			Session.Output("DEBUG line: "&line&"")
+				if mid(line,1,25) = "gml:identifier codeSpace=" then
+					linepart = split(line,">",-1,1)
+					for each part in linepart
+						ualias = part
+					next
+					if code1 = "" then
+						code1 = ualias
+					else
+						if code2 = "" then
+							code2 = ualias
+							getAlleKoder = getAlleKoder + ualias
+						else
+							getAlleKoder = getAlleKoder + "," + ualias		
+						end if
+					end if
+				end if
+				if mid(line,1,16) = "gml:description>" then
+				linepart = split(line,">",-1,1)
+					for each part in linepart
+						kodedef = part
+					next
+				end if		
+				if mid(line,1,9) = "gml:name>" then
+				linepart = split(line,">",-1,1)
+					for each part in linepart
+						kodenavn = part
+					next
+				end if					
+				
+
+
+
+				ualias = ""
+								
+			next
+	'		Session.Output("|===")
+		else
+	'		Session.Output("Kodeliste kunne ikke hentes fra register: "&codeListUrl&"")	
+	'		Session.Output(" ")		
+			if debug then Session.Output("<!-- DEBUG feil ved lesing av kodeliste: ["&codeListUrl&"] status:["&httpObject.status&"]-->")
+		end if
 	end if
 end function
 
