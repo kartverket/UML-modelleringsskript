@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.28 Date: 2022-06-10 Kent Jonsrud: dersom diagrammer har beskrivelse så legges denne inn i alt=
 ' Version: 0.27 Date: 2022-01-17 Kent Jonsrud: endra Alt= til alt= på alternative bildetekster
 ' Version: 0.26 Date: 2021-12-15 Kent Jonsrud: retting av småfeil etter forrige retting
 ' Version: 0.25 Date: 2021-12-14 Kent Jonsrud: skille ocl fra beskrivelse med linjeskift før --, og komma fjernes kun fra bildetekst
@@ -169,7 +170,11 @@ Sub ListAsciiDoc(innrykk,thePackage)
 		Session.Output("'''")
 		Session.Output(" ")
 		Session.Output("."&diag.Name&" ")
-		Session.Output("image::diagrammer/"&diag.Name&".png[link=diagrammer/"&diag.Name&".png, alt=""Diagram med navn "&diag.Name&" som viser UML-klasser beskrevet i teksten nedenfor.""]")
+		if diag.Notes <> "" then
+			Session.Output("image::diagrammer/"&diag.Name&".png[link=diagrammer/"&diag.Name&".png, alt="""&diag.Notes&"""]")
+		else
+			Session.Output("image::diagrammer/"&diag.Name&".png[link=diagrammer/"&diag.Name&".png, alt=""Diagram med navn "&diag.Name&" som viser UML-klasser beskrevet i teksten nedenfor.""]")
+		end if
 	Next
 
 	For each element in thePackage.Elements
