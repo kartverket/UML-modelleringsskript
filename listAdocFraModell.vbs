@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Version: 0.29 Date: 2022-06-17 Jostein Amlien: Definert og tatt i bruk noen enkle funksjoner for Asciidoc-syntaks
 ' Version: 0.28 Date: 2022-06-10 Kent Jonsrud: dersom diagrammer har beskrivelse så legges denne inn i alt=
 ' Version: 0.27 Date: 2022-01-17 Kent Jonsrud: endra Alt= til alt= på alternative bildetekster
 ' Version: 0.26 Date: 2021-12-15 Kent Jonsrud: retting av småfeil etter forrige retting
@@ -65,15 +66,15 @@ Dim imgFSO
 ' Project Browser Script main function
 Sub OnProjectBrowserScript()
 
-    Dim treeSelectedType
-    treeSelectedType = Repository.GetTreeSelectedItemType()
+	Dim treeSelectedType
+	treeSelectedType = Repository.GetTreeSelectedItemType()
 
-    Select Case treeSelectedType
+	Select Case treeSelectedType
 
-        Case otPackage
+		Case otPackage
 			Repository.EnsureOutputVisible "Script"
 			Repository.ClearOutput "Script"
-            ' Code for when a package is selected
+			' Code for when a package is selected
 			diagCounter = 0
 			figurcounter = 0
 			Dim innrykk
@@ -89,11 +90,11 @@ Sub OnProjectBrowserScript()
 			innrykk = "==="
 			Call ListAsciiDoc(innrykk,thePackage)
 			Session.Output("// End of UML-model")
-        Case Else
-            ' Error message
-            Session.Prompt "This script does not support items of this type.", promptOK
+		Case Else
+			' Error message
+			Session.Prompt "This script does not support items of this type.", promptOK
 
-    End Select
+	End Select
 	Set imgFSO = Nothing
 End Sub
 
@@ -128,21 +129,16 @@ Sub ListAsciiDoc(innrykk,thePackage)
 			if tag.Value <> "" then	
 				if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" then
 					if listTags = false then
-						Session.Output(" ")	
-						Session.Output("[discrete]")
-						Session.Output(innrykk & "= Profilparametre i tagged values")
-						Session.Output("[cols=""20,80""]")
-						Session.Output("|===")
+						Call adocStorDiskretOverskrift(innrykk, "Profilparametre i tagged values")
+						Call adocStartTabell("20,80")
 						listTags = true
 					end if
-					Session.Output("|"&tag.Name&"")
-					Session.Output("|"&tag.Value&"")
-					Session.Output(" ")			
+					Call adocTabellRad( tag.Name, tag.Value)
 				end if
 			end if
 		next
 		if listTags = true then
-			Session.Output("|===")
+			adocAvsluttTabell
 		end if
 	end if
 
@@ -175,7 +171,10 @@ Sub ListAsciiDoc(innrykk,thePackage)
 		else
 			Session.Output("image::diagrammer/"&diag.Name&".png[link=diagrammer/"&diag.Name&".png, alt=""Diagram med navn "&diag.Name&" som viser UML-klasser beskrevet i teksten nedenfor.""]")
 		end if
+
 	Next
+
+'-----------------Elementer----------------- 
 
 	For each element in thePackage.Elements
 		If Ucase(element.Stereotype) = "FEATURETYPE" Then
@@ -195,17 +194,19 @@ Sub ListAsciiDoc(innrykk,thePackage)
 		End if
 	Next
 
+'	For each element in thePackage.Elements
+'		If Ucase(element.Stereotype) = "FEATURETYPE" OR Ucase(element.Stereotype) = "DATATYPE" OR Ucase(element.Stereotype) = "UNION" Then
+'			Call ObjektOgDatatyper(innrykk,element,thePackage)
+'		End if
+'	Next
+
 	For each element in thePackage.Elements
-		If Ucase(element.Stereotype) = "CODELIST" Then
-			Call Kodelister(innrykk,element,thePackage)
-		End if
-		If Ucase(element.Stereotype) = "ENUMERATION" Then
-			Call Kodelister(innrykk,element,thePackage)
-		End if
-		If element.Type = "Enumeration" Then
+		If Ucase(element.Stereotype) = "CODELIST" OR Ucase(element.Stereotype) = "ENUMERATION" OR element.Type = "Enumeration" Then
 			Call Kodelister(innrykk,element,thePackage)
 		End if
 	Next
+
+'----------------- Underpakker ----------------- 
 
 '	ALT 1 Underpakker flatt på samme nivå som Application Schema
 '	innrykkLokal = innrykk
@@ -269,20 +270,16 @@ end sub
 			if tag.Value <> "" then	
 				if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" and LCase(tag.Name) <> "sosi_bildeavmodellelement" then
 					if listTags = false then
-						Session.Output("[discrete]")
-						Session.Output(innrykk & "== Profilparametre i tagged values")
-						Session.Output("[cols=""20,80""]")
-						Session.Output("|===")
+						Call adocDiskretOverskrift(innrykk, "Profilparametre i tagged values")
+						Call adocStartTabell("20,80")
 						listTags = true
 					end if
-					Session.Output("|"&tag.Name&"")
-					Session.Output("|"&tag.Value&"")
-					Session.Output(" ")			
+					Call adocTabellRad( tag.Name, tag.Value)			
 				end if
 			end if
 		next
 		if listTags = true then
-			Session.Output("|===")
+			adocAvsluttTabell
 		end if
 		
 
@@ -305,29 +302,18 @@ end sub
 	end if
 
 	if element.Attributes.Count > 0 then
-		Session.Output("[discrete]")
-		Session.Output(innrykk & "== Egenskaper")
+		Call adocDiskretOverskrift(innrykk, "Egenskaper")
 		for each att in element.Attributes
-			Session.Output("[cols=""20,80""]")
-			Session.Output("|===")
-			Session.Output("|*Navn:* ")
-			Session.Output("|*"&att.name&"*")
-			Session.Output(" ")
-			Session.Output("|Definisjon: ")
-			Session.Output("|"&getCleanDefinition(att.Notes)&"")
-			Session.Output(" ")
-			Session.Output("|Multiplisitet: ")
-			Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]")
-			Session.Output(" ")
+			Call adocStartTabell("20,80")
+			
+			Call adocTabellRad( adocBold("Navn:"), adocBold(att.Name))
+			Call adocTabellRad( "Definisjon:", getCleanDefinition(att.Notes))
+			Call adocTabellRad( "Multiplisitet:", bounds(att))
 			if not att.Default = "" then
-				Session.Output("|Initialverdi: ")
-				Session.Output("|"&att.Default&"")
-				Session.Output(" ")
+				Call adocTabellRad( "Initialverdi:", att.Default)
 			end if
 			if not att.Visibility = "Public" then
-				Session.Output("|Visibilitet: ")
-				Session.Output("|"&att.Visibility&"")
-				Session.Output(" ")
+				Call adocTabellRad( "Visibilitet:", att.Visibility)
 			end if
 			Session.Output("|Type: ")
 			if att.ClassifierID <> 0 then
@@ -353,7 +339,7 @@ end sub
 					Session.Output(""&tag.Name& ": "&tag.Value&" + ")
 				next
 			end if
-			Session.Output("|===")
+			adocAvsluttTabell
 		next
 	end if
 
@@ -375,10 +361,8 @@ end sub
 		If con.Type = "Generalization" And supplier.ElementID <> element.ElementID Then
 			if numberSpecializations = 0 then
 				Session.Output(" ")
-				Session.Output("[discrete]")
-				Session.Output(innrykk & "== Arv og realiseringer")
-				Session.Output("[cols=""20,80""]")
-				Session.Output("|===")
+				Call adocDiskretOverskrift(innrykk, "Arv og realiseringer")
+				Call adocStartTabell("20,80")
 			end if
 			numberSpecializations = numberSpecializations + 1
 			Session.Output("|Supertype: ")
@@ -398,10 +382,8 @@ end sub
 			If supplier.ElementID = element.ElementID then 'dette er en generalisering
 				if numberSpecializations = 0 and numberGeneralizations = 0 then
 					Session.Output(" ")
-					Session.Output("[discrete]")
-					Session.Output(innrykk & "== Arv og realiseringer")
-					Session.Output("[cols=""20,80""]")
-					Session.Output("|===")
+					Call adocDiskretOverskrift(innrykk, "Arv og realiseringer")
+					Call adocStartTabell("20,80")
 				end if		
 				If numberGeneralizations = 0 Then
 					Session.Output("|Subtyper:")
@@ -421,10 +403,8 @@ end sub
 		set supplier = Repository.GetElementByID(con.SupplierID)
 		If con.Type = "Realisation" And supplier.ElementID <> element.ElementID Then
 			if numberSpecializations = 0 and numberGeneralizations = 0 and numberRealisations = 0 then
-				Session.Output("[discrete]")
-				Session.Output(innrykk & "== Arv og realiseringer")
-				Session.Output("[cols=""20,80""]")
-				Session.Output("|===")
+				Call adocDiskretOverskrift(innrykk, "Arv og realiseringer")
+				Call adocStartTabell("20,80")
 			end if		
 			set externalPackage = Repository.GetPackageByID(supplier.PackageID)
 			textVar=getPath(externalPackage)
@@ -441,7 +421,7 @@ end sub
 	next
 
 	If numberSpecializations + numberGeneralizations + numberRealisations > 0 then
-		Session.Output("|===")
+		adocAvsluttTabell
 	End If
 
 End sub
@@ -452,7 +432,7 @@ End sub
 Sub Kodelister(innrykk,element,pakke)
 	Dim att As EA.Attribute
 	dim tag as EA.TaggedValue
-	dim utvekslingsalias, codeListUrl, asdict, elementnavn
+	dim utvekslingsalias, codeListUrl, asdict, elementnavn, attDef
 	asdict = false
 	Session.Output(" ")
 	Session.Output("'''")
@@ -473,20 +453,17 @@ Sub Kodelister(innrykk,element,pakke)
 	Session.Output(" ")
 
 	if element.TaggedValues.Count > 0 then
-		Session.Output("[discrete]")
-		Session.Output(innrykk & "== Profilparametre i tagged values")
-		Session.Output("[cols=""20,80""]")
-		Session.Output("|===")
+		Call adocDiskretOverskrift(innrykk, "Profilparametre i tagged values")
+		
+		Call adocStartTabell("20,80")
 		for each tag in element.TaggedValues								
 			if tag.Value <> "" then	
 				if tag.Name <> "persistence" and tag.Name <> "SOSI_melding" and LCase(tag.Name) <> "sosi_bildeavmodellelement" then
-					Session.Output("|"&tag.Name&"")
-					Session.Output("|"&tag.Value&"")
-					Session.Output(" ")			
+					Call adocTabellRad( tag.Name, tag.Value)
 				end if	
 			end if
 		next
-		Session.Output("|===")
+		adocAvsluttTabell
 			
 		codeListUrl = ""	
 		for each tag in element.TaggedValues								
@@ -510,8 +487,7 @@ Sub Kodelister(innrykk,element,pakke)
 
 
 	if element.Attributes.Count > 0 then
-		Session.Output("[discrete]")
-		Session.Output(innrykk & "== Koder i modellen")
+		Call adocDiskretOverskrift(innrykk, "Koder i modellen")
 	end if
 	utvekslingsalias = false
 	for each att in element.Attributes
@@ -521,36 +497,30 @@ Sub Kodelister(innrykk,element,pakke)
 	next
 	if element.Attributes.Count > 0 then
 		if utvekslingsalias then
-			Session.Output("[cols=""25,60,15""]")
-			Session.Output("|===")
-			Session.Output("|*Kodenavn:* ")
-			Session.Output("|*Definisjon:* ")
-			Session.Output("|*Utvekslingsalias:* ")
-			Session.Output(" ")
+			Call adocStartTabell("25,60,15")
+			Call adocTabellRad3( adocBold("Kodenavn:"), adocBold("Definisjon:"), adocBold("Utvekslingsalias:") )
 			for each att in element.Attributes
-
-				Session.Output("|"&att.Name&"")
-				Session.Output("|"&getCleanDefinition(att.Notes)&"")
+			
 				if att.Default <> "" then
-					Session.Output("|"&att.Default&"")
+					attDef = att.Default
 				else
-					Session.Output("|")
+					attDef = " "
 				end if
+				Call adocTabellRad3( att.Name, getCleanDefinition(att.Notes), attDef)
+				
 				call attrbilde(att,"kodelistekode")
 			next
-			Session.Output("|===")
+			adocAvsluttTabell
 		else
-			Session.Output("[cols=""20,80""]")
-			Session.Output("|===")
-			Session.Output("|*Navn:* ")
-			Session.Output("|*Definisjon:* ")
-			Session.Output(" ")
+			Call adocStartTabell("20,80")
+			Call adocTabellRad( adocBold("Navn:"), adocBold("Definisjon:") )
 			for each att in element.Attributes
+''''''''''''''''''''				adocTabellRad2( att.Name, getCleanDefinition(att.Notes) )     '''''''''''''''
 				Session.Output("|"&att.Name&"")
 				Session.Output("|"&getCleanDefinition(att.Notes)&"")
 				call attrbilde(att,"kodelistekode")
 			next
-			Session.Output("|===")
+			adocAvsluttTabell
 		end if
 
 	end if
@@ -565,6 +535,7 @@ sub Relasjoner(innrykk,element)
 	Dim supplier
 	Dim client
 	Dim textVar, skrivRoller
+	DIM conType
 
 	skrivRoller = false
 
@@ -587,61 +558,44 @@ sub Relasjoner(innrykk,element)
 				If con.ClientEnd.Role <> "" Then
 					if skrivRoller = false then
 						Session.Output(" ")
-						Session.Output("[discrete]")
-						Session.Output(innrykk & "== Roller")
-						Session.Output("[cols=""20,80""]")
-						Session.Output("|===")
+						Call adocDiskretOverskrift(innrykk, "Roller")
+						Call adocStartTabell("20,80")
+						
 						skrivRoller = true
 					else
-						Session.Output("[cols=""20,80""]")
-						Session.Output("|===")
+						Call adocStartTabell("20,80")
 					end if
-					Session.Output("|*Rollenavn:* ")
-					Session.Output("|*" & con.ClientEnd.Role & "*")
-					Session.Output(" ")
+					Call adocTabellRad( adocbold("Rollenavn:"), adocBold("con.ClientEnd.Role") ) 
 				'End If
 					If con.ClientEnd.RoleNote <> "" Then
-						Session.Output("|Definisjon: ")
-						Session.Output("|" & getCleanDefinition(con.ClientEnd.RoleNote))
-						Session.Output(" ")
+						Call adocTabellRad( "Definisjon:", getCleanDefinition(con.ClientEnd.RoleNote) )
 					End If
 					If con.ClientEnd.Cardinality <> "" Then
-						Session.Output("|Multiplisitet: ")
-						Session.Output("|[" & con.ClientEnd.Cardinality&"]")
-						Session.Output(" ")
+						Call adocTabellRad( "Multiplisitet:", "[" & con.ClientEnd.Cardinality & "]" )
 					End If
 					If con.SupplierEnd.Aggregation <> 0 Then
-						Session.Output("|Assosiasjonstype: ")
 						if con.SupplierEnd.Aggregation = 2 then
-							Session.Output("|Komposisjon " & con.Type)
+							conType = "Komposisjon " & con.Type
 						else
-							Session.Output("|Aggregering " & con.Type)
+							conType = "Aggregering " & con.Type
 						end if
-						Session.Output(" ")
+						Call adocTabellRad( "Assosiasjonstype:", conType)
 					End If
 					If con.Name <> "" Then
-						Session.Output("|Assosiasjonsnavn: ")
-						Session.Output("|" & con.Name)
-						Session.Output(" ")
+						Call adocTabellRad( "Assosiasjonsnavn:", con.Name )
 					End If
 
 					Session.Output(textVar)
 					Session.Output("|<<"&LCase(client.Name)&","&"«" & client.Stereotype&"» "&client.Name&">>")
 				if false then
 					If con.SupplierEnd.Role <> "" Then
-						Session.Output("|Fra rolle: ")
-						Session.Output("|" & con.SupplierEnd.Role)
-						Session.Output(" ")
+						Call adocTabellRad( "Fra rolle:", con.SupplierEnd.Role )
 					End If
 					If con.SupplierEnd.RoleNote <> "" Then
-						Session.Output("|Fra rolle definisjon: ")
-						Session.Output("|" & getCleanDefinition(con.SupplierEnd.RoleNote))
-						Session.Output(" ")
+						Call adocTabellRad( "Fra rolle definisjon:", getCleanDefinition(con.SupplierEnd.RoleNote) )
 					End If
 					If con.SupplierEnd.Cardinality <> "" Then
-						Session.Output("|Fra multiplisitet: ")
-						Session.Output("|[" & con.SupplierEnd.Cardinality&"]")
-						Session.Output(" ")
+						Call adocTabellRad( "Fra multiplisitet:", con.SupplierEnd.Cardinality )
 					End If
 				End If
 				end if
@@ -656,73 +610,55 @@ sub Relasjoner(innrykk,element)
 				If con.SupplierEnd.Role <> "" Then
 					if skrivRoller = false then
 						Session.Output(" ")
-						Session.Output("[discrete]")
-						Session.Output(innrykk & "== Roller")
-						Session.Output("[cols=""20,80""]")
-						Session.Output("|===")
+						Call adocDiskretOverskrift(innrykk, "Roller")
+						Call adocStartTabell("20,80")
+						
 						skrivRoller = true
 					else
-						Session.Output("[cols=""20,80""]")
-						Session.Output("|===")
+						Call adocStartTabell("20,80")
 						
 					end if
-					Session.Output("|*Rollenavn:* ")
-					Session.Output("|*" & con.SupplierEnd.Role & "*")
-					Session.Output(" ")
-				'	End If
+					Call adocTabellRad( adocbold("Rollenavn:"), adocBold("con.SupplierEnd.Role") ) 
+				'	end if
 					If con.SupplierEnd.RoleNote <> "" Then
-						Session.Output("|Definisjon:")
-						Session.Output("|" & getCleanDefinition(con.SupplierEnd.RoleNote))
-						Session.Output(" ")
+						Call adocTabellRad( "Definisjon:", getCleanDefinition(con.SupplierEnd.RoleNote) )
 					End If
 					If con.SupplierEnd.Cardinality <> "" Then
-						Session.Output("|Multiplisitet: ")
-						Session.Output("|[" & con.SupplierEnd.Cardinality&"]")
-						Session.Output(" ")
+						Call adocTabellRad( "Multiplisitet:", "[" & con.SupplierEnd.Cardinality & "]" )
 					End If
 					If con.ClientEnd.Aggregation <> 0 Then
-						Session.Output("|Assosiasjonstype: ")
 						if con.ClientEnd.Aggregation = 2 then
-							Session.Output("|Komposisjon " & con.Type)
+							conType = "Komposisjon " & con.Type
 						else
-							Session.Output("|Aggregering " & con.Type)
+							conType = "Aggregering " & con.Type
 						end if
-						Session.Output(" ")
+						Call adocTabellRad( "Assosiasjonstype:", conType)
 					End If
+					
 					If con.Name <> "" Then
-						Session.Output("|Assosiasjonsnavn: ")
-						Session.Output("|" & con.Name)
-						Session.Output(" ")
+						Call adocTabellRad( "Assosiasjonsnavn:", con.Name )
 					End If
 
 					Session.Output(textVar)
 					Session.Output("|<<"&LCase(supplier.Name)&","&"«" & supplier.Stereotype&"» "&supplier.Name&">>")
 				if false then
 					If con.ClientEnd.Role <> "" Then
-						Session.Output("|Fra rolle: ")
-						Session.Output("|" & con.ClientEnd.Role)
-						Session.Output(" ")
+						Call adocTabellRad( "Fra rolle:", con.ClientEnd.Role )
 					End If
 					If con.ClientEnd.RoleNote <> "" Then
-						Session.Output("|Fra rolle definisjon: ")
-						Session.Output("|" & getCleanDefinition(con.ClientEnd.RoleNote))
-						Session.Output(" ")
+						Call adocTabellRad( "Fra rolle definisjon:", getCleanDefinition(con.ClientEnd.RoleNote) )
 					End If
 					If con.ClientEnd.Cardinality <> "" Then
-						Session.Output("|Fra multiplisitet: ")
-						Session.Output("|[" & con.ClientEnd.Cardinality&"]")
-						Session.Output(" ")
+						Call adocTabellRad( "Fra multiplisitet:", con.ClientEnd.Cardinality )
 					End If
 				End If
 				end if
 			End If
 			if skrivRoller = true then
-				Session.Output("|===")
+				adocAvsluttTabell
 			end if
 		End If
 	Next
-
-
 
 end sub
 '-----------------Relasjoner End-----------------
@@ -734,29 +670,22 @@ sub Operasjoner(innrykk,element)
 	Dim meth as EA.Method
 
 	Session.Output(" ")
-	Session.Output("[discrete]")
-	Session.Output(innrykk & "== Operasjoner")
+	Call adocDiskretOverskrift(innrykk, "Operasjoner")
 
 						
 	For Each meth In element.Methods
-		Session.Output("[cols=""20,80""]")
-		Session.Output("|===")
-		Session.Output("|*Navn:* ")
-		Session.Output("|*" & meth.Name & "*")
-		Session.Output(" ")
-		Session.Output("|Beskrivelse: ")
-		Session.Output("|" & getCleanDefinition(meth.Notes) & "")
-		Session.Output(" ")
-	'	Session.Output("|Stereotype: ")
-	'	Session.Output("|" & meth.Stereotype & "")
-	'	Session.Output(" ")
-	'	Session.Output("|Retur type: ")
-	'	Session.Output("|" & meth.ReturnType & "")
-	'	Session.Output(" ")
-	'	Session.Output("|Oppførsel: ")
-	'	Session.Output("|" & meth.Behaviour & "")
-	'	Session.Output(" ")
-		Session.Output("|===")
+		Call adocStartTabell("20,80")
+		
+		Call adocTabellRad( adocBold("Navn:"), adocBold(meth.Name) )
+		Call adocTabellRad( "Beskrivelse:", getCleanDefinition(meth.Notes) )
+
+''''''''''''''''''''''''''''''''''''''''''''''
+
+'''		Call adocTabellRad( "Stereotype:", meth.Stereotype)
+'''		Call adocTabellRad( "Retur type:", meth.ReturnType)
+'''		Call adocTabellRad( "Oppførsel:", meth.Behaviour)
+
+		adocAvsluttTabell
 	Next
 
 end sub
@@ -768,35 +697,87 @@ sub Restriksjoner(innrykk,element)
 	Dim constr as EA.Constraint
 
 	Session.Output(" ")
-	Session.Output("[discrete]")
-	Session.Output(innrykk & "== Restriksjoner")
+	Call adocDiskretOverskrift(innrykk, "Restriksjoner")
 
 						
 	For Each constr In element.Constraints
-		Session.Output("[cols=""20,80""]")
-		Session.Output("|===")
-		Session.Output("|*Navn:* ")
-		Session.Output("|*" & Trim(constr.Name) & "*")
-		Session.Output(" ")
-		Session.Output("|Beskrivelse: ")
-		Session.Output("|" & getCleanRestriction(constr.Notes) & "")
-		Session.Output(" ")
-	'	Session.Output("|Type: ")
-	'	Session.Output("|" & constr.Type & "")
-	'	Session.Output(" ")
-	'	Session.Output("|Status: ")
-	'	Session.Output("|" & constr.Status & "")
-	'	Session.Output(" ")
-	'	Session.Output("|Vekt: ")
-	'	Session.Output("|" & constr.Weight & "")
-	'	Session.Output(" ")
-		Session.Output("|===")
+		Call adocStartTabell("20,80")
+		
+		Call adocTabellRad( adocBold("Navn:"), adocBold(Trim(constr.Name)) )
+		Call adocTabellRad( "Beskrivelse:", getCleanRestriction(constr.Notes) )
+		
+'''''''''''''''''
+'''		Call adocTabellRad( "Type:", constr.Type)
+'''		Call adocTabellRad( "Status:", constr.Status)
+'''		Call adocTabellRad( "Vekt:", constr.Weight)
+
+		adocAvsluttTabell
+
 	Next
 
 end sub
 '-----------------Restriksjoner End-----------------
 
+'====================================================
 
+function bounds( att)
+''  Returnerer en formattert tekst som angir nedre og øvre grense for et intervall
+	bounds = att.LowerBound & ".." & att.UpperBound
+	bounds = "[" & bounds & "]"
+end function
+
+
+sub adocAvsluttTabell
+''  Skriver asciidoc-kode for å avslutte en tabell
+	Session.Output("|===")
+end sub
+
+sub adocStartTabell( kolonneBredder)
+''  Skriver asciidoc-kode for å opprette en tabell med angitte kolonnebredder
+	Session.Output("[cols=""" & kolonneBredder & """]")
+	Session.Output("|===")
+end sub
+
+sub adocTabellRad( parameter, verdi)
+''  Skriver asciidoc-kode for å skive ut en rad i en tabell med to kolonner
+	Session.Output("|" & parameter & " ")
+	Session.Output("|" & verdi & "")
+	Session.Output(" ")
+end sub
+
+sub adocTabellRad3( parameter, verdi, ekstra)
+''  Skriver asciidoc-kode for å skive ut en rad i en tabell med tre kolonner
+	Session.Output("|" & parameter & ": ")
+	Session.Output("|" & verdi & "")
+	Session.Output("|" & ekstra & "")
+	Session.Output(" ")
+end sub
+
+function adocBold( tekst)
+''	Returnerer asciidoc-kode for feit/bold tekst
+	adocBold = "*" & tekst & "*"
+end function 
+
+sub adocStorDiskretOverskrift(innrykk, overskrift)
+''  Skriver asciidoc-kode for en stor diskret overskrift
+''  Med stor med at den skal innledes med et linjeskift og være ett nivå lavere enn gjeldende nivå.
+''  Med diskret menees at den ikke skal vises i innholdsfortegnelsen
+''
+	Session.Output(" ")
+	Session.Output("[discrete]")
+	Session.Output(innrykk & "= "  & overskrift)
+end sub
+
+sub adocDiskretOverskrift(innrykk, overskrift)
+''  Skriver asciidoc-kode for en liten diskert overskrift
+''  Med liten med at den skal være to nivå lavere enn gjeldende nivå
+''  Med diskret menees at den ikke skal vises i innholdsfortegnelsen
+''	
+	Session.Output("[discrete]")
+	Session.Output(innrykk & "== " & overskrift)
+end sub
+
+'====================================================
 
 '------------------------------------------------------------START-------------------------------------------------------------------------------------------
 ' Func Name: attrbilde(att)
@@ -826,7 +807,7 @@ end sub
 
 function isElement(ID)
 	isElement = false
-	if 	Mid(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 113, 1) <> 0 then
+	if Mid(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 113, 1) <> 0 then
 		isElement = true
 	end if
 end function
@@ -856,65 +837,65 @@ end function
 
 
 function getTaggedValue(element,taggedValueName)
-		dim i, existingTaggedValue
-		getTaggedValue = ""
-		for i = 0 to element.TaggedValues.Count - 1
-			set existingTaggedValue = element.TaggedValues.GetAt(i)
-			if LCase(existingTaggedValue.Name) = LCase(taggedValueName) then
-				getTaggedValue = existingTaggedValue.Value
-			end if
-		next
+	dim i, existingTaggedValue
+	getTaggedValue = ""
+	for i = 0 to element.TaggedValues.Count - 1
+		set existingTaggedValue = element.TaggedValues.GetAt(i)
+		if LCase(existingTaggedValue.Name) = LCase(taggedValueName) then
+			getTaggedValue = existingTaggedValue.Value
+		end if
+	next
 end function
 
 function getPackageTaggedValue(package,taggedValueName)
-		dim i, existingTaggedValue
-		getPackageTaggedValue = ""
-		for i = 0 to package.element.TaggedValues.Count - 1
-			set existingTaggedValue = package.element.TaggedValues.GetAt(i)
-			if LCase(existingTaggedValue.Name) = LCase(taggedValueName) then
-				getPackageTaggedValue = existingTaggedValue.Value
-			end if
-		next
+	dim i, existingTaggedValue
+	getPackageTaggedValue = ""
+	for i = 0 to package.element.TaggedValues.Count - 1
+		set existingTaggedValue = package.element.TaggedValues.GetAt(i)
+		if LCase(existingTaggedValue.Name) = LCase(taggedValueName) then
+			getPackageTaggedValue = existingTaggedValue.Value
+		end if
+	next
 end function
 
 '-----------------Function getCleanDefinition Start-----------------
 function getCleanDefinition(txt)
 	'removes all formatting in notes fields, except crlf
-    Dim res, tegn, i, u, forrige
-    u=0
+	Dim res, tegn, i, u, forrige
+	u=0
 	getCleanDefinition = ""
-		forrige = " "
-		res = ""
-		txt = Trimutf8(txt)
-		For i = 1 To Len(txt)
-		  tegn = Mid(txt,i,1)
-			'for adoc \|
-			if tegn = "|" then
-				res = res + "\"
-			end if
-			if tegn = "(" and forrige = "(" then
-				res = res + " "
-			end if
-			if tegn = ")" and forrige = ")" then
-				res = res + " "
-			end if
+	forrige = " "
+	res = ""
+	txt = Trimutf8(txt)
+	For i = 1 To Len(txt)
+		tegn = Mid(txt,i,1)
+		'for adoc \|
+		if tegn = "|" then
+			res = res + "\"
+		end if
+		if tegn = "(" and forrige = "(" then
+			res = res + " "
+		end if
+		if tegn = ")" and forrige = ")" then
+			res = res + " "
+		end if
 '			if tegn = "," then tegn = " " 
-			'for xml
-			If tegn = "<" Then
-				u = 1
-				tegn = " "
-			end if 
-			If tegn = ">" Then
-				u = 0
-				tegn = " "
-			end if
-			if u = 0 then
-				res = res + tegn
-			end if
+		'for xml
+		If tegn = "<" Then
+			u = 1
+			tegn = " "
+		end if 
+		If tegn = ">" Then
+			u = 0
+			tegn = " "
+		end if
+		if u = 0 then
+			res = res + tegn
+		end if
 
-			forrige = tegn
-		'	Session.Output(" tegn" & tegn)
-		Next
+		forrige = tegn
+	'	Session.Output(" tegn" & tegn)
+	Next
 
 	getCleanDefinition = res
 end function
@@ -923,16 +904,16 @@ end function
 '-----------------Function getCleanRestriction Start-----------------
 function getCleanRestriction(txt)
 	'removes all formatting in notes fields, except crlf
-    Dim res, tegn, i, u, forrige, v, kommentarlinje
+	Dim res, tegn, i, u, forrige, v, kommentarlinje
 	kommentarlinje = 0
-    u=0
+	u=0
 	v=0
 	getCleanRestriction = ""
-		forrige = " "
+	forrige = " "
 		res = ""
 		txt = Trimutf8(txt)
 		For i = 1 To Len(txt)
-		  tegn = Mid(txt,i,1)
+			tegn = Mid(txt,i,1)
 			'for adoc \|
 			if tegn = "|" then
 				res = res + "\"
@@ -993,41 +974,41 @@ end function
 '-----------------Function getCleanBildetekst Start-----------------
 function getCleanBildetekst(txt)
 	'removes all formatting in notes fields, except crlf
-    Dim res, tegn, i, u, forrige
-    u=0
+	Dim res, tegn, i, u, forrige
+	u=0
 	getCleanBildetekst = ""
-		forrige = " "
-		res = ""
-		txt = Trimutf8(txt)
-		For i = 1 To Len(txt)
-		  tegn = Mid(txt,i,1)
-			'for adoc \|
-			if tegn = "|" then
-				res = res + "\"
-			end if
-			if tegn = "(" and forrige = "(" then
-				res = res + " "
-			end if
-			if tegn = ")" and forrige = ")" then
-				res = res + " "
-			end if
-			if tegn = "," then tegn = " " 
-			'for xml
-			If tegn = "<" Then
-				u = 1
-				tegn = " "
-			end if 
-			If tegn = ">" Then
-				u = 0
-				tegn = " "
-			end if
-			if u = 0 then
-				res = res + tegn
-			end if
+	forrige = " "
+	res = ""
+	txt = Trimutf8(txt)
+	For i = 1 To Len(txt)
+		tegn = Mid(txt,i,1)
+		'for adoc \|
+		if tegn = "|" then
+			res = res + "\"
+		end if
+		if tegn = "(" and forrige = "(" then
+			res = res + " "
+		end if
+		if tegn = ")" and forrige = ")" then
+			res = res + " "
+		end if
+		if tegn = "," then tegn = " " 
+		'for xml
+		If tegn = "<" Then
+			u = 1
+			tegn = " "
+		end if 
+		If tegn = ">" Then
+			u = 0
+			tegn = " "
+		end if
+		if u = 0 then
+			res = res + tegn
+		end if
 
-			forrige = tegn
-		'	Session.Output(" tegn" & tegn)
-		Next
+		forrige = tegn
+	'	Session.Output(" tegn" & tegn)
+	Next
 
 	getCleanBildetekst = res
 end function
@@ -1036,7 +1017,7 @@ end function
 '-----------------Function Trimutf8 Start-----------------
 function Trimutf8(txt)
 	'convert national characters back to utf8
-    Dim inp
+	Dim inp
 '	dim res, tegn, i, u, ÉéÄäÖöÜü-Áá &#233; forrige &#229;r i samme retning skal den h&#248; prim&#230;rt prim&#230;rt
 
 	inp = Trim(txt)
@@ -1068,43 +1049,43 @@ end function
 
 '-----------------Function nao Start-----------------
 function nao()
-					' I just want a correct xml timestamp to document when the script was run
-					dim m,d,t,min,sek,tm,td,tt,tmin,tsek
-					m = Month(Date)
-					if m < 10 then
-						tm = "0" & FormatNumber(m,0,0,0,0)
-					else
-						tm = FormatNumber(m,0,0,0,0)
-					end if
-					d = Day(Date)
-					if d < 10 then
-						td = "0" & FormatNumber(d,0,0,0,0)
-					else
-						td = FormatNumber(d,0,0,0,0)
-					end if
-					t = Hour(Time)
-					if t < 10 then
-						tt = "0" & FormatNumber(t,0,0,0,0)
-					else
-						tt = FormatNumber(t,0,0,0,0)
-					end if
-					if t = 0 then tt = "00"
-					min = Minute(Time)
-					if min < 10 then
-						tmin = "0" & FormatNumber(min,0,0,0,0)
-					else
-						tmin = FormatNumber(min,0,0,0,0)
-					end if
-					if min = 0 then tmin = "00"
-					sek = Second(Time)
-					if sek < 10 then
-						tsek = "0" & FormatNumber(sek,0,0,0,0)
-					else
-						tsek = FormatNumber(sek,0,0,0,0)
-					end if
-					if sek = 0 then tsek = "00"
-					'SessionOutput("  timeStamp=""" & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z""")
-					nao = Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z"
+	' I just want a correct xml timestamp to document when the script was run
+	dim m,d,t,min,sek,tm,td,tt,tmin,tsek
+	m = Month(Date)
+	if m < 10 then
+		tm = "0" & FormatNumber(m,0,0,0,0)
+	else
+		tm = FormatNumber(m,0,0,0,0)
+	end if
+	d = Day(Date)
+	if d < 10 then
+		td = "0" & FormatNumber(d,0,0,0,0)
+	else
+		td = FormatNumber(d,0,0,0,0)
+	end if
+	t = Hour(Time)
+	if t < 10 then
+		tt = "0" & FormatNumber(t,0,0,0,0)
+	else
+		tt = FormatNumber(t,0,0,0,0)
+	end if
+	if t = 0 then tt = "00"
+	min = Minute(Time)
+	if min < 10 then
+		tmin = "0" & FormatNumber(min,0,0,0,0)
+	else
+		tmin = FormatNumber(min,0,0,0,0)
+	end if
+	if min = 0 then tmin = "00"
+	sek = Second(Time)
+	if sek < 10 then
+		tsek = "0" & FormatNumber(sek,0,0,0,0)
+	else
+		tsek = FormatNumber(sek,0,0,0,0)
+	end if
+	if sek = 0 then tsek = "00"
+	'SessionOutput("  timeStamp=""" & Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z""")
+	nao = Year(Date) & "-" & tm & "-" & td & "T" & tt & ":" & tmin & ":" & tsek & "Z"
 end function
 '-----------------Function nao End-----------------
 
