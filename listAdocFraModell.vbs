@@ -177,30 +177,10 @@ Sub ListAsciiDoc(innrykk,thePackage)
 '-----------------Elementer----------------- 
 
 	For each element in thePackage.Elements
-		If Ucase(element.Stereotype) = "FEATURETYPE" Then
+		If Ucase(element.Stereotype) = "FEATURETYPE" OR Ucase(element.Stereotype) = "DATATYPE" OR Ucase(element.Stereotype) = "UNION" Then
 			Call ObjektOgDatatyper(innrykk,element,thePackage)
-		End if
-	Next
-		
-	For each element in thePackage.Elements
-		If Ucase(element.Stereotype) = "DATATYPE" Then
-			Call ObjektOgDatatyper(innrykk,element,thePackage)
-		End if
-	Next
+		End If
 
-	For each element in thePackage.Elements
-		If Ucase(element.Stereotype) = "UNION" Then
-			Call ObjektOgDatatyper(innrykk,element,thePackage)
-		End if
-	Next
-
-'	For each element in thePackage.Elements
-'		If Ucase(element.Stereotype) = "FEATURETYPE" OR Ucase(element.Stereotype) = "DATATYPE" OR Ucase(element.Stereotype) = "UNION" Then
-'			Call ObjektOgDatatyper(innrykk,element,thePackage)
-'		End if
-'	Next
-
-	For each element in thePackage.Elements
 		If Ucase(element.Stereotype) = "CODELIST" OR Ucase(element.Stereotype) = "ENUMERATION" OR element.Type = "Enumeration" Then
 			Call Kodelister(innrykk,element,thePackage)
 		End if
@@ -530,15 +510,12 @@ End sub
 
 '-----------------Relasjoner-----------------
 sub Relasjoner(innrykk,element)
-	Dim generalizations
 	Dim con
 	Dim supplier
 	Dim client
-	Dim textVar, skrivRoller
-	DIM conType
+	Dim skrivRoller
 
 	skrivRoller = false
-
 
 'assosiasjoner
 ' skriv ut roller - sortert etter tagged value sequenceNumber TBD
@@ -547,120 +524,81 @@ sub Relasjoner(innrykk,element)
 		If con.Type = "Association" or con.Type = "Aggregation" Then
 			set supplier = Repository.GetElementByID(con.SupplierID)
 			set client = Repository.GetElementByID(con.ClientID)
-			If supplier.elementID = element.elementID Then 'dette elementet er suppliersiden - implisitt at fraklasse er denne klassen
-				textVar="|Til klasse"
-				If con.ClientEnd.Navigable = "Navigable" Then 'Legg til info om klassen er navigerbar eller spesifisert ikke-navigerbar.
-				ElseIf con.ClientEnd.Navigable = "Non-Navigable" Then 
-					textVar=textVar+" _(ikke navigerbar)_:"
-				Else 
-					textVar=textVar+":" 
-				End If
-				If con.ClientEnd.Role <> "" Then
-					if skrivRoller = false then
-						Session.Output(" ")
-						Call adocDiskretOverskrift(innrykk, "Roller")
-						Call adocStartTabell("20,80")
-						
-						skrivRoller = true
-					else
-						Call adocStartTabell("20,80")
-					end if
-					Call adocTabellRad( adocbold("Rollenavn:"), adocBold("con.ClientEnd.Role") ) 
-				'End If
-					If con.ClientEnd.RoleNote <> "" Then
-						Call adocTabellRad( "Definisjon:", getCleanDefinition(con.ClientEnd.RoleNote) )
-					End If
-					If con.ClientEnd.Cardinality <> "" Then
-						Call adocTabellRad( "Multiplisitet:", "[" & con.ClientEnd.Cardinality & "]" )
-					End If
-					If con.SupplierEnd.Aggregation <> 0 Then
-						if con.SupplierEnd.Aggregation = 2 then
-							conType = "Komposisjon " & con.Type
-						else
-							conType = "Aggregering " & con.Type
-						end if
-						Call adocTabellRad( "Assosiasjonstype:", conType)
-					End If
-					If con.Name <> "" Then
-						Call adocTabellRad( "Assosiasjonsnavn:", con.Name )
-					End If
+			
+			If element.elementID = supplier.elementID and con.ClientEnd.Role <> ""  Then 
+				'dette elementet er suppliersiden - implisitt at fraklasse er denne klassen
+				Call skrivManglendeOverskrift( "Roller", innrykk, skrivRoller)
+				Call skrivRelasjon( con, con.SupplierEnd, con.ClientEnd, client) 
 
-					Session.Output(textVar)
-					Session.Output("|<<"&LCase(client.Name)&","&"«" & client.Stereotype&"» "&client.Name&">>")
-				if false then
-					If con.SupplierEnd.Role <> "" Then
-						Call adocTabellRad( "Fra rolle:", con.SupplierEnd.Role )
-					End If
-					If con.SupplierEnd.RoleNote <> "" Then
-						Call adocTabellRad( "Fra rolle definisjon:", getCleanDefinition(con.SupplierEnd.RoleNote) )
-					End If
-					If con.SupplierEnd.Cardinality <> "" Then
-						Call adocTabellRad( "Fra multiplisitet:", con.SupplierEnd.Cardinality )
-					End If
-				End If
-				end if
-			Else 'dette elementet er clientsiden, (rollen er på target)
-				textVar="|Til klasse"
-				If con.SupplierEnd.Navigable = "Navigable" Then
-				ElseIf con.SupplierEnd.Navigable = "Non-Navigable" Then
-					textVar=textVar+" _(ikke-navigerbar)_:"
-				Else
-					textVar=textVar+":"
-				End If
-				If con.SupplierEnd.Role <> "" Then
-					if skrivRoller = false then
-						Session.Output(" ")
-						Call adocDiskretOverskrift(innrykk, "Roller")
-						Call adocStartTabell("20,80")
-						
-						skrivRoller = true
-					else
-						Call adocStartTabell("20,80")
-						
-					end if
-					Call adocTabellRad( adocbold("Rollenavn:"), adocBold("con.SupplierEnd.Role") ) 
-				'	end if
-					If con.SupplierEnd.RoleNote <> "" Then
-						Call adocTabellRad( "Definisjon:", getCleanDefinition(con.SupplierEnd.RoleNote) )
-					End If
-					If con.SupplierEnd.Cardinality <> "" Then
-						Call adocTabellRad( "Multiplisitet:", "[" & con.SupplierEnd.Cardinality & "]" )
-					End If
-					If con.ClientEnd.Aggregation <> 0 Then
-						if con.ClientEnd.Aggregation = 2 then
-							conType = "Komposisjon " & con.Type
-						else
-							conType = "Aggregering " & con.Type
-						end if
-						Call adocTabellRad( "Assosiasjonstype:", conType)
-					End If
-					
-					If con.Name <> "" Then
-						Call adocTabellRad( "Assosiasjonsnavn:", con.Name )
-					End If
-
-					Session.Output(textVar)
-					Session.Output("|<<"&LCase(supplier.Name)&","&"«" & supplier.Stereotype&"» "&supplier.Name&">>")
-				if false then
-					If con.ClientEnd.Role <> "" Then
-						Call adocTabellRad( "Fra rolle:", con.ClientEnd.Role )
-					End If
-					If con.ClientEnd.RoleNote <> "" Then
-						Call adocTabellRad( "Fra rolle definisjon:", getCleanDefinition(con.ClientEnd.RoleNote) )
-					End If
-					If con.ClientEnd.Cardinality <> "" Then
-						Call adocTabellRad( "Fra multiplisitet:", con.ClientEnd.Cardinality )
-					End If
-				End If
-				end if
+			ElseIf element.elementID = client.elementID and con.SupplierEnd.Role <> "" Then
+				'dette elementet er clientsiden, (rollen er på target)
+				Call skrivManglendeOverskrift( "Roller", innrykk, skrivRoller)
+				Call skrivRelasjon( con, con.ClientEnd, con.SupplierEnd, supplier) 
+				
 			End If
-			if skrivRoller = true then
-				adocAvsluttTabell
-			end if
+			
 		End If
 	Next
 
 end sub
+
+
+sub skrivRelasjon( connector, currentEnd, targetEnd, target)
+
+	Dim textVar, linkVar, referanse
+	DIM conType
+
+	Call adocStartTabell("20,80")						
+	Call adocTabellRad( adocbold("Rollenavn:"), adocBold(targetEnd.Role) ) 
+'''''''''
+	If targetEnd.RoleNote <> "" Then
+		Call adocTabellRad( "Definisjon:", getCleanDefinition(targetEnd.RoleNote) )
+	End If
+	If targetEnd.Cardinality <> "" Then
+		Call adocTabellRad( "Multiplisitet:", "[" & targetEnd.Cardinality & "]" )
+	End If
+	If currentEnd.Aggregation <> 0 Then
+		if currentEnd.Aggregation = 2 then
+			conType = "Komposisjon " & connector.Type
+		else
+			conType = "Aggregering " & connector.Type
+		end if
+		Call adocTabellRad( "Assosiasjonstype:", conType)
+	End If
+	If connector.Name <> "" Then
+		Call adocTabellRad( "Assosiasjonsnavn:", connector.Name )
+	End If
+
+
+
+	textVar = "Til klasse"
+	If targetEnd.Navigable = "Navigable" Then 'Legg til info om klassen er navigerbar eller spesifisert ikke-navigerbar.
+		textVar = "Til klasse"
+	ElseIf targetEnd.Navigable = "Non-Navigable" Then 
+		textVar = "Til klasse " + adocKursiv("(ikke navigerbar):") 
+	Else 
+		textVar = "Til klasse:" 
+	End If
+	
+	Call adocTabellRad( textVar, adocLink( target) )
+
+	if false then
+		If currentEnd.Role <> "" Then
+			Call adocTabellRad( "Fra rolle:", currentEnd.Role )
+		End If
+		If currentEnd.RoleNote <> "" Then
+			Call adocTabellRad( "Fra rolle definisjon:", getCleanDefinition(currentEnd.RoleNote) )
+		End If
+		If currentEnd.Cardinality <> "" Then
+			Call adocTabellRad( "Fra multiplisitet:", currentEnd.Cardinality )
+		End If
+	End If
+	
+	adocAvsluttTabell	
+
+end sub
+
+
 '-----------------Relasjoner End-----------------
 
 
@@ -726,6 +664,28 @@ function bounds( att)
 	bounds = "[" & bounds & "]"
 end function
 
+function stereotype( element)
+	stereotype = "«" & element.Stereotype & "» "
+end function
+
+
+sub skrivManglendeOverskrift( overskrift, innrykk, overskriftFerdig)
+	'' skriver ut en overskift dersom den ikke er skrevet ut tidligere
+	if overskriftFerdig = false then
+		Session.Output(" ")
+		Call adocDiskretOverskrift(innrykk, overskrift)
+		overskriftFerdig = true
+	end if
+end sub
+
+
+function adocLink( target)
+	dim ref, tekst
+	
+	ref = LCase(target.Name)
+	tekst = stereotype(target) & target.Name
+	adocLink = "<<" & ref & "," & tekst & ">>"
+end function
 
 sub adocAvsluttTabell
 ''  Skriver asciidoc-kode for å avslutte en tabell
