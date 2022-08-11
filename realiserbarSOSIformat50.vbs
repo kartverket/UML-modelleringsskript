@@ -5,6 +5,8 @@ option explicit
 '  
 ' Script Name: realiserbarSOSIformat50 
 ' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
+
+' Version: 0.6 2022-08-09 fjerna felle for intern EA-feil (isElement) da den ikke virker i EA16
 ' Version: 0.5 Date: 2021-11-17 SOSI_navn på egenskap skal samsvare med eventuellt SOSI_navn på typen
 ' Version: alfa0.4 Date: 2021-07-16 geometriegenskaper kan mangle tag SOSI_navn, men alle roller blir testet
 ' Version: alfa0.3
@@ -127,7 +129,7 @@ sub OnProjectBrowserScript()
 					mess = mess + ""&Chr(13)&Chr(10)
 					mess = mess + "Starter validering av pakke [" & thePackage.Name &"]."&Chr(13)&Chr(10)
 
-					box = Msgbox (mess, vbOKCancel, "realiserbarSOSIformat50 versjon 0.5-2021-11-17")
+					box = Msgbox (mess, vbOKCancel, "realiserbarSOSIformat50 versjon 0.6-2022-08-09")
 					select case box
 						case vbOK
 							dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
@@ -168,7 +170,7 @@ sub OnProjectBrowserScript()
 
 							if not abort then
 								'give an initial feedback in system output 
-								Session.Output("realiserbarSOSIformat50 versjon 0.5-2021-11-17 startet. "&Now())
+								Session.Output("realiserbarSOSIformat50 versjon 0.6-2022-08-09 startet. "&Now())
 								'Check model for script breaking structures
 								if scriptBreakingStructuresInModel(thePackage) then
 									Session.Output("Kritisk feil: Kan ikke validere struktur og innhold før denne feilen er rettet.")
@@ -187,6 +189,8 @@ sub OnProjectBrowserScript()
 							'	call dependencyLoop(thePackage.Element)
 							  
                 'For /req/Uml/Profile:
+					if debug then Session.Output("Debug: setter opp testtabeller.")
+
 							  Set ProfileTypes = CreateObject("System.Collections.ArrayList")
 							  Set ExtensionTypes = CreateObject("System.Collections.ArrayList")
 							  Set CoreTypes = CreateObject("System.Collections.ArrayList")
@@ -440,7 +444,7 @@ end sub
 sub kravObjektegenskap(attr)
 	Dim t
 	if attr.ClassifierID <> 0 then
-		if isElement(attr.ClassifierID) then
+'		if isElement(attr.ClassifierID) then
 			dim datatype as EA.Element
 			set datatype = Repository.GetElementByID(attr.ClassifierID)
 			if datatype.Name <> attr.Type then
@@ -465,9 +469,9 @@ sub kravObjektegenskap(attr)
 					end if
 				end if
 			end if
-		else
-			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
-		end if
+'		else
+'			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
+'		end if
 	end if
 end sub
 '-------------------------------------------------------------END--------------------------------------------------------------------------------------------
@@ -478,12 +482,12 @@ end sub
 ' Date: 2021-07-13
 ' Purpose: tester om det finnes et element med denne ID-en.
 
-function isElement(ID)
-	isElement = false
-	if 	Mid(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 113, 1) <> 0 then
-		isElement = true
-	end if
-end function
+'function isElement(ID)
+'	isElement = false
+'	if 	Mid(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 145, 1) <> "0" then
+'		isElement = true
+'	end if
+'end function
 '-------------------------------------------------------------END--------------------------------------------------------------------------------------------
 
 
@@ -498,17 +502,17 @@ sub kravObjektegenskapstype(attr)
 	'Iso 19109 Requirement /req/uml/profile - well known types. Including Iso 19103 Requirements 22 and 25
 	if debug then Session.Output("Debug: datatype to be tested: [" &attr.Type& "].")
 	if attr.ClassifierID <> 0 then
-		if isElement(attr.ClassifierID) then
+'		if isElement(attr.ClassifierID) then
 			dim datatype as EA.Element
 			set datatype = Repository.GetElementByID(attr.ClassifierID)
 			if datatype.Name <> attr.Type then
 				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"].")
 				globalErrorCounter = globalErrorCounter + 1
 			end if
-		else
-			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
-			globalErrorCounter = globalErrorCounter + 1
-		end if
+'		else
+'			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
+'			globalErrorCounter = globalErrorCounter + 1
+'		end if
 	else
 		call reqUmlProfile(attr)
 	end if
@@ -773,6 +777,7 @@ function scriptBreakingStructuresInModel(thePackage)
 	set currentElement = thePackage.Element
 '	Note:  Dependency loops will not cause script to hang
 '	retVal=retVal or dependencyLoop(currentElement)
+	if debug then Session.Output("Debug: scriptBreakingStructuresInModel(thePackage): [" &thePackage.Name& "].")
 	
 	'Inheritance Loop Check
 	set elements = thePackage.elements
@@ -797,6 +802,8 @@ function dependencyLoop(thePackageElement)
 	dim checkedPackagesList
 	set checkedPackagesList = CreateObject("System.Collections.ArrayList")
 	retVal=dependencyLoopCheck(thePackageElement, checkedPackagesList)
+	if debug then Session.Output("Debug: dependencyLoop(thePackageElement): [«" &thePackageElement.Name& "].")
+
 	if retVal then
 		Session.Output("Error:  The dependency structure originating in [«" & thePackageElement.StereoType & "» " & thePackageElement.name & "] contains dependency loops [/req/uml/integration]")
 		Session.Output("          See the list above for the packages that are part of a loop.")
