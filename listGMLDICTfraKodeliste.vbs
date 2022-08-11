@@ -5,8 +5,11 @@ option explicit
 ' skriptnavn:       listGMLDICTfraKodeliste
 ' description:		Skriver kodeliste til gml:Dictionary.xml fil. på samme sti som .eap-fila ligger.
 ' author:			Kent
-' date  :			2017-06-29, 07-07,09-08,11-09,12-05, 2018-02-20, 2018-09-19
+' date  :			2022-08-11 skriver alltid ut på modellfilas fulle sti 
 ' date  :			2020-11-19 utvalgte tagged values ut i name-felt
+' date  :			2017-06-29, 07-07,09-08,11-09,12-05, 2018-02-20, 2018-09-19
+
+	DIM eaFSO
 	DIM objFSO
 	DIM outFile
 	DIM objFile
@@ -73,10 +76,13 @@ sub listKoderForEnValgtKodeliste()
 end sub
 
 sub listCodelistCodes(el,namespace)
-	dim presentasjonsnavn
-
+	dim presentasjonsnavn, fullsti
+	
+	Set eaFSO=CreateObject("Scripting.FileSystemObject")
+	fullsti = eaFSO.GetParentFolderName(Repository.ConnectionString())
+	
 	Set objFSO=CreateObject("Scripting.FileSystemObject")
-	outFile = el.Name&".xml"
+	outFile = fullsti & "/" & el.Name&".xml"
 	Set objFile = objFSO.CreateTextFile(outFile,True,False)
 	'  får ut 16-bits unicode ved å sette True som siste flagg i kallet over.
 	Repository.WriteOutput "Script", "Writes Codelist Name: " & el.Name & " to file " & outfile,0
