@@ -430,12 +430,12 @@ function attributtbeskrivelse( att)
 	
 	dim typ, stereo
 	if att.ClassifierID <> 0 then
-		if isElement(att.ClassifierID) then		
+	'	if isElement(att.ClassifierID) then		
 			stereo = Repository.GetElementByID(att.ClassifierID).Stereotype
 			typ = adocLink( att.Type, tekstformatStereotype(stereo) & att.Type )
-		else
-			typ = att.Type
-		end if
+	'	else
+	'		typ = att.Type
+	'	end if
 	else
 		typ = adocEksternLink( sosiBasistype( att.Type), att.Type)
 	end if
