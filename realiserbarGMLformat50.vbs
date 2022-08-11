@@ -6,9 +6,13 @@ option explicit
 ' Script Name: realiserbarGMLformat50 
 ' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
 
-' Version: 0.5-2021-11-15 kontroll av at egenskaper med sti i tV defaultCodeSpace samsvarer med sti i tV codeList på kodelisteklassen
+' Version: 0.6-2022-08-09 fjerna felle for intern EA-feil (isElement) da den ikke virker i EA16
+' Version: alfa0.5.1-2022-04-22 rettet felle for intern EA-feil for å virke i nye EA16
+' Version: alfa0.5-2021-11-15 kontroll av at egenskaper med sti i tV defaultCodeSpace samsvarer med sti i tV codeList på kodelisteklassen
 ' Version: alfa0.4-2021-11-11 laget felle for intern EA-feil der diagram fortsatt har ID til en slettet konnektor
 ' Version: alfa0.3-2021-07-13 laget felle for intern EA-feil der egenskap fortsatt har ID til en slettet datatypeklasse
+' Version: alfa0.4-2021-11-15
+
 ' Version: alfa0.2
 ' Date: 2018-03-27, 10-09
 
@@ -105,7 +109,7 @@ sub OnProjectBrowserScript()
 					mess = mess + ""&Chr(13)&Chr(10)
 					mess = mess + "Starter validering av pakke [" & thePackage.Name &"]."&Chr(13)&Chr(10)
 
-					box = Msgbox (mess, vbOKCancel, "realiserbarGMLformat50 versjon 0.4-2021-11-15")
+					box = Msgbox (mess, vbOKCancel, "realiserbarGMLformat50 versjon 0.6-2022-08-09")
 					select case box
 						case vbOK
 							dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
@@ -147,10 +151,11 @@ sub OnProjectBrowserScript()
 
 							if not abort then
 								'give an initial feedback in system output 
-								Session.Output("realiserbarGMLformat50 versjon 0.4-2021-11-15 startet. "&Now())
+								Session.Output("realiserbarGMLformat50 versjon 0.6-2022-08-09 startet. "&Now())
 
 							  
                 'For /req/Uml/Profile:
+							  if debug then Session.Output("Debug: setter opp testtabeller.")
 							  Set ProfileTypes = CreateObject("System.Collections.ArrayList")
 							  Set ExtensionTypes = CreateObject("System.Collections.ArrayList")
 							  Set CoreTypes = CreateObject("System.Collections.ArrayList")
@@ -172,7 +177,8 @@ sub OnProjectBrowserScript()
 									Session.Output("Aborterer skript.")
 									exit sub
 								end if
-								PopulatePackageDependenciesShownElementIDList(thePackage)
+								if debug then Session.Output("Debug: starter PopulatePackageDependenciesShownElementIDList(thePackage).")
+								'PopulatePackageDependenciesShownElementIDList(thePackage)
 								'	call populatePackageIDList(thePackage)
 								'	call populateClassifierIDList(thePackage)
 								'	call findPackageDependencies(thePackage.Element)
@@ -181,6 +187,7 @@ sub OnProjectBrowserScript()
 								'	call checkPackageDependency(thePackage)
 								'	call dependencyLoop(thePackage.Element)
 
+							  if debug then Session.Output("Debug: starter test.")
 
 								FindInvalidElementsInASPackage(thePackage) 
 								
@@ -237,9 +244,13 @@ end sub
 
 sub FindInvalidElementsInASPackage(package) 
 			
+	if debug then Session.Output("Debug: kravProduktnavnerom(package).")
 	call kravProduktnavnerom(package)
+	if debug then Session.Output("Debug: kravProduktforstavelse(package).")
 	call kravProduktforstavelse(package)
+	if debug then Session.Output("Debug: kravProduktbeskrivelse(package).")
 	call kravProduktbeskrivelse(package)
+	if debug then Session.Output("Debug: kravProduktversjon(package).")
 	call kravProduktversjon(package)
 
 
@@ -247,7 +258,7 @@ sub FindInvalidElementsInASPackage(package)
 
 
 
-
+	if debug then Session.Output("Debug: løper gjennom elementene i pakka.")
 	call FindInvalidElementsInPackage(package) 
 
 
@@ -419,15 +430,15 @@ sub kravObjektegenskapstype(attr)
 	'Iso 19109 Requirement /req/uml/profile - well known types. Including Iso 19103 Requirements 22 and 25
 	if debug then Session.Output("Debug: datatype to be tested: [" &attr.Type& "] datatype ClassifierID: [" &attr.ClassifierID& "].")
 	if attr.ClassifierID <> 0 then
-		if isElement(attr.ClassifierID) then
+'		if isElement(attr.ClassifierID) then
 			dim datatype as EA.Element
 			set datatype = Repository.GetElementByID(attr.ClassifierID)
 			if datatype.Name <> attr.Type then
 				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"]  [/krav/produktforstavelse].")
 			end if
-		else
-			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
-		end if
+'		else
+'			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
+'		end if
 	else
 	
 		call reqUmlProfile(attr)
@@ -448,13 +459,13 @@ sub kravKoderegistersti(attr)
 	if getTaggedValue(attr,"defaultCodeSpace") <> "" then
 		if debug then Session.Output("Debug: datatype to be tested: [" &attr.Type& "] datatype ClassifierID: [" &attr.ClassifierID& "].")
 		if attr.ClassifierID <> 0 then
-			if isElement(attr.ClassifierID) then
+'			if isElement(attr.ClassifierID) then
 				dim datatype as EA.Element
 				set datatype = Repository.GetElementByID(attr.ClassifierID)
 				if getTaggedValue(attr,"defaultCodeSpace") <> getTaggedValue(datatype,"codeList") then
 					Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a value in tagged value defaultCodeSpace ["&getTaggedValue(attr,"defaultCodeSpace")&"] that is not corresponding to tagged value codeList ["&getTaggedValue(datatype,"codeList")&"] in its type class.")
 				end if
-			end if
+'			end if
 		else
 			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a value in tagged value defaultCodeSpace ["&getTaggedValue(attr,"defaultCodeSpace")&"] but its type is not connected to a class.")
 		end if
@@ -467,12 +478,22 @@ end sub
 '------------------------------------------------------------START-------------------------------------------------------------------------------------------
 ' Func Name: isElement
 ' Author: Kent Jonsrud
-' Date: 2021-07-13
+' Date: 2021-07-13, 2022-04-22
 ' Purpose: tester om det finnes et element med denne ID-en.
 
 function isElement(ID)
+	Dim ret
 	isElement = false
-	if 	Mid(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 113, 1) <> 0 then
+	'	Session.Output("Debug: Repository.LibraryVersion: [" &Repository.LibraryVersion& "] datatype ClassifierID: [" &ID& "].")
+		ret = Repository.SQLQuery("select count(*) from t_object;")
+		Session.Output("Debug: return: [" &ret& "] datatype ClassifierID: [" &ID& "].")
+	if Repository.LibraryVersion < 1600 then
+		ret = Mid(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 113, 1)
+	else
+		ret = Mid(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 145, 1)
+	end if
+	
+	if 	ret <> "0" then
 		isElement = true
 	end if
 end function
@@ -933,11 +954,17 @@ end function
 ' Purpose: tester om det finnes en connector med denne ID-en.
 
 function isConnector(ID)
+	dim ret, antall
 	isConnector = false
-'	Session.Output(Mid(Repository.SQLQuery("select count(*) from t_connector;") , 113, 1))
+	ret = Repository.SQLQuery("select count(*) from t_connector where Connector_ID = " & ID & ";")
+'	Session.Output(ret)
+'	EA15:
+'	antall = Mid(ret,113,10)
+'	EA16:
+	antall = Mid(ret,145,10)
 '	Session.Output(Repository.SQLQuery("select count(*) from t_object where Object_ID = " & ID & ";"), 113, 1) )
 
-	if 	Mid(Repository.SQLQuery("select count(*) from t_connector where Connector_ID = " & ID & ";"), 113, 1) <> 0 then
+	if 	antall <> "0" then
 		isConnector = true
 	end if
 end function
