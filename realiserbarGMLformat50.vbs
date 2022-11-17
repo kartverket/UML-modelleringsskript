@@ -5,19 +5,18 @@ option explicit
 '  
 ' Script Name: realiserbarGMLformat50 
 ' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
-
+' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0
+' Formål: Validerer om modellen er realiserbar etter standarden SOSI Realisering i GML v.5.0 
+'
+' Version: 0.7 - 2022-11-17 implementert bedre test rundt krav om lenke til ekstern kodeliste 
 ' Version: 0.6-2022-08-09 fjerna felle for intern EA-feil (isElement) da den ikke virker i EA16
 ' Version: alfa0.5.1-2022-04-22 rettet felle for intern EA-feil for å virke i nye EA16
 ' Version: alfa0.5-2021-11-15 kontroll av at egenskaper med sti i tV defaultCodeSpace samsvarer med sti i tV codeList på kodelisteklassen
 ' Version: alfa0.4-2021-11-11 laget felle for intern EA-feil der diagram fortsatt har ID til en slettet konnektor
 ' Version: alfa0.3-2021-07-13 laget felle for intern EA-feil der egenskap fortsatt har ID til en slettet datatypeklasse
-' Version: alfa0.4-2021-11-15
+' Version: alfa0.2 2018-03-27, 10-09
 
-' Version: alfa0.2
-' Date: 2018-03-27, 10-09
-
-' Purpose: Validerer om modellen er realiserbar etter standarden SOSI Realisering i GML v.5.0 
-' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0 
+' --Model related requirements:
 ' *Implemented rules: 
 ' /krav/tegnsett	Tegnsett for alle tegn i alle GML datasett skal være UTF-8, og dette skal dokumenteres i XML-attributtet encoding i XML-angivelsen i starten på fila.	15
 ' /krav/filhode	Datafiler som skal brukes til å utveksle geografisk informasjon på GML-format skal inneholde et standard filhode og et standard filsluttmerke. Det skal ikke være datainnhold etter filsluttmerket. Filhodet skal inneholde angivelse av tegnsett, formatversjon og angivelse av datasettets spesifikasjon.	15
@@ -49,8 +48,8 @@ option explicit
 ' /krav/union	En klasse med stereotype «Union» beskriver et sett med mulige egenskaper. Kun en av egenskapene kan forekomme i hver instans. Modellelementet skal først realiseres direkte fra navnet på den egenskapen som bruker unionen og deretter klassenavnet til unionen og til slutt det valgte UML-modellelementnavnet i unionen.	29
 ' /krav/enumerering	En klasse med stereotype «enumeration» beskriver et lukket sett med lovlige koder. Kun en av disse kodene kan forekomme i en instans. Modellelementet skal realiseres direkte som enumererte verdier i GML-applikasjonsskjema.	30
 ' /krav/skjemakodeliste	Dersom modellelementet har en tagged value asDictionary med verdi false, eller mangler denne tagged value, skal kodene realiseres direkte som enumererte verdier i GML-applikasjonsskjema.	30
-' --/krav/koderegister	 Dersom kodelista er implementert i et register, angitt med tagged value asDictionary = true, skal koden valideres mot verdier i det levende registeret.	30
-' --/krav/koderegistersti 	Sti til registeret skal finnes i verdien til en tagged value codeList i kodelisteklassen. På egenskaper som bruker kodelista skal tilsvarende sti stå i en tagged value defaultCodeSpace.	30
+' *--/krav/koderegister	 Dersom kodelista er implementert i et register, angitt med tagged value asDictionary = true, skal koden valideres mot verdier i det levende registeret.	30
+' *--/krav/koderegistersti 	Sti til registeret skal finnes i verdien til en tagged value codeList i kodelisteklassen. På egenskaper som bruker kodelista skal tilsvarende sti stå i en tagged value defaultCodeSpace.	30
 ' /krav/kode	 Elementer i en klasse med stereotype «CodeList» eller «enumeration» beskriver lovlige koder. Modellelementet skal realiseres slik at kodens navn benyttes direkte i datasettet. (Ref. krav om NCName på koder). Dersom koden har en initialverdi skal denne initialverdien benyttes i datasettet istedenfor kodens navn.	31
 ' /krav/nøsteretning	Det kreves at geometrien til ytre flateavgrensninger nøstes i retning mot klokka, og indre avgrensinger i retning med klokka.	32
 ' i--/krav/eldreGeometritype 	Modellering av geometri i eldre fagområdestandarder skal kunne realiseres regelstyrt til GML i en produktspesifikasjon ved bruk av Tabell 8.1.	35
@@ -63,10 +62,10 @@ option explicit
 '
 ' /anbefaling/tekstformat	GML er et standardisert vokabular i tekstformatet XML og bør normalt ikke ha noe binærinnhold. GML-formatet bør ikke åpne for inkonsistens om datasettets tegnsett og bør ikke inneholde alternative binære tegnsettidentifikatorer som BOM (Byte Order Mark – ofte brukt til å angi tegnsett UTF-8 der formatet ikke har mulighet for å kode tegnsettinformasjon)	15
 ' /anbefaling/formKoordinatreferansesystem	Det anbefales å bruke http-URI-form eller URN på angivelsen av koordinatreferansesystemkodene for nyere datasett da disse kan brukes direkte som URL til beskrivelsen.		18
-' /anbefaling/kodingsregel	Det anbefales å benytte en tagged value xsdEncodingRule i UML-modellen med verdien sosi50 som angir i detalj hvordan skjemagenereringen skal utføres i henhold til denne standarden. Alternativt kan verdien settes til sosi som angir beste praksis etter reglene i standarden SOSI 4.x.	19
+' --/anbefaling/kodingsregel	Det anbefales å benytte en tagged value xsdEncodingRule i UML-modellen med verdien sosi50 som angir i detalj hvordan skjemagenereringen skal utføres i henhold til denne standarden. Alternativt kan verdien settes til sosi som angir beste praksis etter reglene i standarden SOSI 4.x.	19
 ' /anbefaling/enkeltGeometrisegment	Det anbefales å ikke legge inn flere geometrisegmenter i hver geometriprimitiv i datasett.	36
 ' /anbefaling/alternativeGeometrityper	For nyere datasett anbefales det å utveksle GML-data på den fulle modellbaserte måten som er beskrevet i vedlegg B i dette dokumentet. Programvare som robust skal kunne lese fra alle mulige kilder bør likevel kunne gjenkjenne alle de alternative forenklede geometritypene og mappe dem til de modellbaserte.		40
-' /anbefaling/topologibruk 	Topologi bør ikke brukes i et applikasjonsskjema med mindre det er absolutt påkrevet.		40
+' --/anbefaling/topologibruk 	Topologi bør ikke brukes i et applikasjonsskjema med mindre det er absolutt påkrevet.		40
 ' /anbefaling/CoveregeType 	Coverage-typer brukt i et applikasjonsskjema bør være enten RectifiedGridCoverage, ReferencableGridCoverage eller TimeSeriesTVP fra WaterML 2.0, eller en subtype.		41
 ' /anbefaling/tid 	 Det anbefales å benytte UTC som referansesystem for tid i alle temporale egenskaper da disse kan sammenlignes presist med andre temporale data uten å få inkonsistens på grunn av ulike tidssone og sommertidsoverganger.	45
 
@@ -103,13 +102,13 @@ sub OnProjectBrowserScript()
 				if UCase(thePackage.element.stereotype) = UCase("ApplicationSchema") then 
 				
 					dim box, mess
-					mess = "Indikerer om modellen kan realiseres etter standarden 'SOSI Realisering i GML versjon 5.0'"&Chr(13)&Chr(10)
+					mess = "Tester om modellen kan realiseres etter standarden 'SOSI Realisering i GML versjon 5.0'"&Chr(13)&Chr(10)
 					mess = mess + ""&Chr(13)&Chr(10)
 					mess = mess + "En liste med kravene det testes for ligger i kildekoden (linje 15++)."&Chr(13)&Chr(10)
 					mess = mess + ""&Chr(13)&Chr(10)
-					mess = mess + "Starter validering av pakke [" & thePackage.Name &"]."&Chr(13)&Chr(10)
+					mess = mess + "Velg loggnivå og start validering av pakke [" & thePackage.Name &"]."&Chr(13)&Chr(10)
 
-					box = Msgbox (mess, vbOKCancel, "realiserbarGMLformat50 versjon 0.6-2022-08-09")
+					box = Msgbox (mess, vbOKCancel, "realiserbarGMLformat50 versjon 0.7 - 2022-11-17")
 					select case box
 						case vbOK
 							dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
@@ -151,7 +150,7 @@ sub OnProjectBrowserScript()
 
 							if not abort then
 								'give an initial feedback in system output 
-								Session.Output("realiserbarGMLformat50 versjon 0.6-2022-08-09 startet. "&Now())
+								Session.Output("realiserbarGMLformat50 versjon 0.7 - 2022-11-17 startet. "&Now())
 
 							  
                 'For /req/Uml/Profile:
@@ -306,6 +305,7 @@ sub FindInvalidElementsInPackage(package)
 						call kravObjektegenskap(currentAttribute)
 						call kravObjektegenskapstype(currentAttribute)
 						call kravKoderegistersti(currentAttribute)
+
 					next
 				end if
 						'if debug then Session.Output("Debug: role to be tested: [«" &role.Stereotype& "» " &role.Name& "].")
@@ -314,6 +314,7 @@ sub FindInvalidElementsInPackage(package)
 			end if
 			if UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION" or currentElement.Type = "Enumeration" then
 				' teste om tV asDictionary og tV codeList er konsistente TBD
+				call kravKoderegister(currentElement)
 			end if
 		end if
 	next
@@ -369,7 +370,7 @@ end sub
 ' Sub Name: kravProduktbeskrivelse
 ' Author: Kent Jonsrud
 ' Date: 2018-02-09
-' Purpose: Test om tagged value targetNamespace finnes i pakka og om den har en gyldig uri som verdi.
+' Purpose: 
 
 sub kravProduktbeskrivelse(package)
 
@@ -382,7 +383,7 @@ end sub
 ' Sub Name: kravProduktversjon
 ' Author: Kent Jonsrud
 ' Date: 2018-02-09
-' Purpose: Test om tagged value targetNamespace finnes i pakka og om den har en gyldig uri som verdi.
+' Purpose: Test om tagged value version finnes i pakka.
 
 sub kravProduktversjon(package)
 
@@ -395,7 +396,7 @@ end sub
 ' Sub Name: kravObjekttype
 ' Author: Kent Jonsrud
 ' Date: 2018-02-09
-' Purpose: Test om tagged value targetNamespace finnes i pakka og om den har en gyldig uri som verdi.
+' Purpose:
 
 sub kravObjekttype(element)
 
@@ -405,10 +406,39 @@ end sub
 
 
 '------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Sub Name: kravKoderegister
+' Author: Kent Jonsrud
+' Date: 2022-11-17
+' Purpose: Dersom kodelista er implementert i et register, angitt med tagged value asDictionary = true, skal koden valideres mot verdier i det levende registeret.	30
+' *--/krav/koderegister	 Dersom kodelista er implementert i et register, angitt med tagged value asDictionary = true, skal koden valideres mot verdier i det levende registeret.	30
+
+sub kravKoderegister(currentElement)
+	dim code1, code2
+	code1 = ""
+	if getTaggedValue(currentElement,"asDictionary") = "true" then
+		if getTaggedValue(currentElement,"codeList") <> "" then
+			call get2firstCodes(getTaggedValue(currentElement,"codeList"),code1,code2)
+			if code1 = "" then
+				Session.Output("Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] has tagged value asDictionary= true but no working url in tagged value codeList: ["&getTaggedValue(currentElement,"codeList")&"]")
+				globalErrorCounter = globalErrorCounter + 1 
+'			else
+'				Session.Output("Info: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] has a working url in tagged value codeList: ["&getTaggedValue(currentElement,"codeList")&"] two first codes: ["&code1&","&code2&"]")
+			end if
+		else
+			Session.Output("Error: Class [«"&currentElement.Stereotype&"» "& currentElement.Name &"] has no value in tagged value codeList.")
+			globalErrorCounter = globalErrorCounter + 1 
+		end if
+	end if
+
+end sub
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
 ' Sub Name: kravObjektegenskap
 ' Author: Kent Jonsrud
 ' Date: 2018-02-09
-' Purpose: Test om tagged value targetNamespace finnes i pakka og om den har en gyldig uri som verdi.
+' Purpose: 
 
 sub kravObjektegenskap(attr)
 
@@ -435,6 +465,7 @@ sub kravObjektegenskapstype(attr)
 			set datatype = Repository.GetElementByID(attr.ClassifierID)
 			if datatype.Name <> attr.Type then
 				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"]  [/krav/produktforstavelse].")
+				globalErrorCounter = globalErrorCounter + 1 
 			end if
 '		else
 '			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] but also a attr.ClassifierID with a ElementID that is not used! ["&attr.ClassifierID&"].")
@@ -452,22 +483,31 @@ end sub
 '------------------------------------------------------------START-------------------------------------------------------------------------------------------
 ' Sub Name: kravKoderegistersti
 ' Author: Kent Jonsrud
-' Date: 2021-11-15
+' Date: 2021-11-15, 2022-08-09, 2022-11-16
 ' Purpose: egenskaper med sti i tV defaultCodeSpace samsvarer med sti i tV codeList på kodelisteklassen
 
 sub kravKoderegistersti(attr)
+	dim datatype as EA.Element
 	if getTaggedValue(attr,"defaultCodeSpace") <> "" then
 		if debug then Session.Output("Debug: datatype to be tested: [" &attr.Type& "] datatype ClassifierID: [" &attr.ClassifierID& "].")
 		if attr.ClassifierID <> 0 then
 '			if isElement(attr.ClassifierID) then
-				dim datatype as EA.Element
 				set datatype = Repository.GetElementByID(attr.ClassifierID)
 				if getTaggedValue(attr,"defaultCodeSpace") <> getTaggedValue(datatype,"codeList") then
 					Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a value in tagged value defaultCodeSpace ["&getTaggedValue(attr,"defaultCodeSpace")&"] that is not corresponding to tagged value codeList ["&getTaggedValue(datatype,"codeList")&"] in its type class.")
+					globalErrorCounter = globalErrorCounter + 1 
 				end if
 '			end if
 		else
 			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a value in tagged value defaultCodeSpace ["&getTaggedValue(attr,"defaultCodeSpace")&"] but its type is not connected to a class.")
+		end if
+	else
+		if attr.ClassifierID <> 0 then
+			set datatype = Repository.GetElementByID(attr.ClassifierID)
+			if (UCase(datatype.Stereotype) = "CODELIST"  Or UCase(datatype.Stereotype) = "ENUMERATION" or datatype.Type = "Enumeration") and getTaggedValue(datatype,"asDictionary") = "true" then
+				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has no tagged value defaultCodeSpace that shall correspond to tagged value codeList in its type class.")
+				globalErrorCounter = globalErrorCounter + 1 
+			end if
 		end if
 	end if
 end sub
@@ -479,7 +519,7 @@ end sub
 ' Func Name: isElement
 ' Author: Kent Jonsrud
 ' Date: 2021-07-13, 2022-04-22
-' Purpose: tester om det finnes et element med denne ID-en.
+' Purpose: tester om det finnes et element med denne ID-en. NB: Virker ikke i EA16!
 
 function isElement(ID)
 	Dim ret
@@ -951,7 +991,7 @@ end function
 ' Func Name: isConnector
 ' Author: Kent Jonsrud
 ' Date: 2021-11-11
-' Purpose: tester om det finnes en connector med denne ID-en.
+' Purpose: tester om det finnes en connector med denne ID-en. NB: Virker ikke i EA16!
 
 function isConnector(ID)
 	dim ret, antall
@@ -970,6 +1010,74 @@ function isConnector(ID)
 end function
 
 '-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+
+'-------------------------------------------------------------START--------------------------------------------------------------------------------------------
+' Sub Name: get2firstCodes
+' Author: Kent Jonsrud
+' Date: 2022-11-17
+' Purpose: Reads two first codes from an external code registry.
+
+sub get2firstCodes(codeListUrl,code1,code2)
+	Dim codelist
+	codelist = ""
+	code1 = ""
+	code2 = ""
+	' testing http get
+	if codeListUrl <> "" then
+	'	Session.Output("<!-- DEBUG codeListUrl: " & codeListUrl & " -->")
+		Dim httpObject
+		Dim parseText, line, linepart, part, kodenavn, kodedef, ualias, kodelistenavn
+		Set httpObject = CreateObject("MSXML2.XMLHTTP")
+	'	httpObject.open "GET", "http://skjema.geonorge.no/SOSI/basistype/Integer.html", false
+		httpObject.open "GET", codeListUrl & ".gml", false
+		httpObject.send
+		if httpObject.status = 200 then
+	'		Session.Output("DEBUG gml:Dictionary: "&httpObject.responseText&"")
+	''		parseText = split(split(split(ResponseXML,SearchTag)(1),"</")(0),">")(1)
+			parseText = split(httpObject.responseText,"<",-1,1)
+			
+
+			kodelistenavn = ""
+			for each line in parseText
+	'			Session.Output("DEBUG line: "&line&"")
+				if mid(line,1,25) = "gml:identifier codeSpace=" then
+					linepart = split(line,">",-1,1)
+					for each part in linepart
+						ualias = part
+					next
+				end if
+				if mid(line,1,16) = "gml:description>" then
+				linepart = split(line,">",-1,1)
+					for each part in linepart
+						kodedef = part
+					next
+				end if		
+				if mid(line,1,9) = "gml:name>" then
+				linepart = split(line,">",-1,1)
+					for each part in linepart
+						kodenavn = part
+					next
+				end if					
+				
+
+				if codelist <> "" and code1 <> "" and code2 = "" and ualias <> "" then code2 = ualias
+		'		if codelist <> "" and code1 <> "" and code2 = "" then code2 = kodenavn
+				if codelist <> "" and code1 = "" and ualias <> "" then code1 = ualias
+		'		if codelist <> "" and code1 = "" then code1 = kodenavn
+				if codelist = "" and ualias <> "" then codelist = ualias
+				ualias = ""
+				'if code2 <> "" then exit for					
+			next
+	'		Session.Output("|===")
+		else
+	'		Session.Output("Kodeliste kunne ikke hentes fra register: "&codeListUrl&"")	
+	'		Session.Output(" ")		
+			if debug then Session.Output("<!-- DEBUG feil ved lesing av kodeliste: ["&codeListUrl&"] status:["&httpObject.status&"]-->")
+		end if
+	end if
+end sub
+
 
 
 function getTaggedValue(element,taggedValueName)
