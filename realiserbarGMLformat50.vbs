@@ -7,10 +7,10 @@ option explicit
 ' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
 ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0
 ' Formål: Validerer om modellen er realiserbar etter standarden SOSI Realisering i GML v.5.0 
-'
+' Version: 0.8 - 2023-03-09 implementert test på /krav/objekttyperolle ved å sjekke om rollens tagged value inlineOrByReference har verdi byReference, TODO: sjekk om assosiasjonen er assoc-aggr-comp, sjekk om rollen peker til en FeatureType
 ' Version: 0.7 - 2022-11-17 implementert bedre test rundt krav om lenke til ekstern kodeliste 
-' Version: 0.6-2022-08-09 fjerna felle for intern EA-feil (isElement) da den ikke virker i EA16
-' Version: alfa0.5.1-2022-04-22 rettet felle for intern EA-feil for å virke i nye EA16
+' Version: 0.6-2022-08-09 fjerna felle for intern EA-feil (isElement) da den ikke virker i EA16 release
+' Version: alfa0.5.1-2022-04-22 rettet felle for intern EA-feil for å virke i nye EA16 beta
 ' Version: alfa0.5-2021-11-15 kontroll av at egenskaper med sti i tV defaultCodeSpace samsvarer med sti i tV codeList på kodelisteklassen
 ' Version: alfa0.4-2021-11-11 laget felle for intern EA-feil der diagram fortsatt har ID til en slettet konnektor
 ' Version: alfa0.3-2021-07-13 laget felle for intern EA-feil der egenskap fortsatt har ID til en slettet datatypeklasse
@@ -42,7 +42,7 @@ option explicit
 ' /krav/akseantall	 Antall akser skal alltid være lik det antallet som angitt i koordinatreferansesystembeskrivelsen. Se Tabell 6.1 Standardiserte koordinatsystemkoder.	24
 ' /krav/akseenhet	 Koordinaters enhet for hver akse skal være den samme enheten som er beskrevet i koordinatreferansesystembeskrivelsen. Se Tabell 6.1 Standardiserte koordinatsystemkoder.	25
 ' /krav/rollerekkefølge	 Alle assosiasjonsroller skal ha en tagged value sequenceNumber med verdi som angir rekkefølgen elementene skal komme i. Alle egenskaper uten tagged value sequenceNumber skal komme i den rekkefølge de er vist i modellen, og de skal komme før alle assosiasjonrollene.	25
-' /krav/objekttyperolle	Navn på assosiasjonsroller fra aggregeringer eller vanlige assosiasjoner til klasser med stereotype «FeatureType» skal realiseres direkte som XML-elementnavn som inneholder xlink til det refererte objektet, som enten er internt i datasettet (local) eller i et eksternt datasett (remote).	25
+' *--/krav/objekttyperolle	Navn på assosiasjonsroller fra aggregeringer eller vanlige assosiasjoner til klasser med stereotype «FeatureType» skal realiseres direkte som XML-elementnavn som inneholder xlink til det refererte objektet, som enten er internt i datasettet (local) eller i et eksternt datasett (remote).	25
 ' /krav/datatyperolle	Navn på assosiasjonsroller fra komposisjoner til klasser med stereotype «Union» eller «dataType» er modellelementnavn som skal realiseres direkte som XML-elementer inline i eierobjektet.	25
 ' /krav/datatype	Modellelementet skal realiseres direkte via navnet på egenskapen eller assosiasjonsrollen som peker til datatypeklassen.  Egenskaper i datatypen skal realiseres på samme måte som objektegenskaper. Assosiasjonsroller i datatypen skal realiseres på samme måte som vanlige roller.	28
 ' /krav/union	En klasse med stereotype «Union» beskriver et sett med mulige egenskaper. Kun en av egenskapene kan forekomme i hver instans. Modellelementet skal først realiseres direkte fra navnet på den egenskapen som bruker unionen og deretter klassenavnet til unionen og til slutt det valgte UML-modellelementnavnet i unionen.	29
@@ -108,7 +108,7 @@ sub OnProjectBrowserScript()
 					mess = mess + ""&Chr(13)&Chr(10)
 					mess = mess + "Velg loggnivå og start validering av pakke [" & thePackage.Name &"]."&Chr(13)&Chr(10)
 
-					box = Msgbox (mess, vbOKCancel, "realiserbarGMLformat50 versjon 0.7 - 2022-11-17")
+					box = Msgbox (mess, vbOKCancel, "realiserbarGMLformat50 versjon 0.8 - 2023-03-09")
 					select case box
 						case vbOK
 							dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
@@ -293,9 +293,9 @@ sub FindInvalidElementsInPackage(package)
 			if UCase(currentElement.Stereotype) = "FEATURETYPE"  Or UCase(currentElement.Stereotype) = "DATATYPE" Or UCase(currentElement.Stereotype) = "UNION" or currentElement.Type = "DataType" then
 				dim attributesCollection as EA.Collection 
 				set attributesCollection = currentElement.Attributes 
+				dim n 
 				 
 				if attributesCollection.Count > 0 then 
-					dim n 
 					for n = 0 to attributesCollection.Count - 1 					 
 						dim currentAttribute as EA.Attribute		 
 						set currentAttribute = attributesCollection.GetAt(n) 
@@ -308,7 +308,38 @@ sub FindInvalidElementsInPackage(package)
 
 					next
 				end if
-						'if debug then Session.Output("Debug: role to be tested: [«" &role.Stereotype& "» " &role.Name& "].")
+				
+				'if false then
+				' ***
+				dim conCollection as EA.Collection 
+				set conCollection = currentElement.Connectors
+				if conCollection.Count > 0 then 
+					for n = 0 to conCollection.Count - 1 		
+						dim currentConnector as EA.Connector	 
+						set currentConnector = conCollection.GetAt(n) 
+						if currentConnector.Type = "Generalization" or currentConnector.Type = "Realisation" or currentConnector.Type = "NoteLink" then
+						else
+							dim currentConnectorEnd as EA.ConnectorEnd
+							if currentConnector.ClientID = currentElement.ElementID and LCase(Repository.GetElementByID(currentConnector.SupplierID).Stereotype) = "featuretype" then
+								set currentConnectorEnd = currentConnector.SupplierEnd
+								if currentConnector.SupplierEnd.Role <> "" then
+									if debug then Session.Output("Debug: role to be tested: [«" &currentConnector.SupplierEnd.Stereotype& "» " &currentConnector.SupplierEnd.Role& "].")
+									call kravObjekttyperolle(currentElement,currentConnectorEnd)
+								end if
+							end if
+							if currentConnector.SupplierID = currentElement.ElementID and LCase(Repository.GetElementByID(currentConnector.ClientID).Stereotype) = "featuretype" then
+								set currentConnectorEnd = currentConnector.ClientEnd
+								if currentConnector.ClientEnd.Role <> "" then
+									if debug then Session.Output("Debug: role to be tested: [«" &currentConnector.ClientEnd.Stereotype& "» " &currentConnector.ClientEnd.Role& "].")
+									call kravObjekttyperolle(currentElement,currentConnectorEnd)
+								end if
+							end if
+						end if
+					next
+				end if
+				
+				'end if
+				' ***
 						'if debug then Session.Output("Debug: operation to be tested: [«" &operation.Stereotype& "» " &operation.Name& "].")
 						'if debug then Session.Output("Debug: constraint to be tested: [«" &constraint.Stereotype& "» " &constraint.Name& "].")
 			end if
@@ -318,6 +349,7 @@ sub FindInvalidElementsInPackage(package)
 			end if
 		end if
 	next
+
 
 
 	dim subP as EA.Package
@@ -508,6 +540,24 @@ sub kravKoderegistersti(attr)
 				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has no tagged value defaultCodeSpace that shall correspond to tagged value codeList in its type class.")
 				globalErrorCounter = globalErrorCounter + 1 
 			end if
+		end if
+	end if
+end sub
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Func Name: kravObjekttyperolle
+' Author: Kent Jonsrud
+' Date: 2023-03-09
+' Purpose: teste konsekvensen av
+' *--/krav/objekttyperolle	Navn på assosiasjonsroller fra aggregeringer eller vanlige assosiasjoner til klasser med stereotype «FeatureType» skal realiseres direkte som XML-elementnavn som inneholder xlink til det refererte objektet, som enten er internt i datasettet (local) eller i et eksternt datasett (remote).	25
+
+sub kravObjekttyperolle(currentElement,connectorEnd)
+
+	if getConnectorEndTaggedValue(connectorEnd,"inlineOrByReference") <> "byReference" then
+		if logLevel = "W" then
+			Session.Output("Warning: Class [«" &currentElement.Stereotype& "» " &currentElement.Name& "] tagged value inlineOrByReference not set to byReference for role: [«" &connectorEnd.Stereotype& "» " &connectorEnd.Role& "]. [/krav/objekttyperolle]")
+			globalWarningCounter = globalWarningCounter + 1
 		end if
 	end if
 end sub
@@ -1024,7 +1074,7 @@ sub get2firstCodes(codeListUrl,code1,code2)
 	code1 = ""
 	code2 = ""
 	' testing http get
-	if codeListUrl <> "" then
+	if mid(codeListUrl,1,4) = "http" then
 	'	Session.Output("<!-- DEBUG codeListUrl: " & codeListUrl & " -->")
 		Dim httpObject
 		Dim parseText, line, linepart, part, kodenavn, kodedef, ualias, kodelistenavn
@@ -1102,6 +1152,19 @@ function getPackageTaggedValue(package,taggedValueName)
 		next
 end function
 
+function getConnectorEndTaggedValue(connectorEnd,taggedValueName)
+	getConnectorEndTaggedValue = ""
+	if not connectorEnd is nothing and Len(taggedValueName) > 0 then
+		dim existingTaggedValue as EA.RoleTag 
+		dim i
+		for i = 0 to connectorEnd.TaggedValues.Count - 1
+			set existingTaggedValue = connectorEnd.TaggedValues.GetAt(i)
+			if existingTaggedValue.Tag = taggedValueName then
+				getConnectorEndTaggedValue = existingTaggedValue.Value
+			end if 
+		next
+	end if 
+end function 
 
 'global variables 
 dim globalLogLevelIsWarning 'boolean variable indicating if warning log level has been choosen or not
