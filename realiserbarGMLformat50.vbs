@@ -7,7 +7,8 @@ option explicit
 ' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
 ' Purpose: Validate model elements according to rules defined in the standard SOSI Regler for UML-modellering 5.0
 ' Formål: Validerer om modellen er realiserbar etter standarden SOSI Realisering i GML v.5.0 
-' Version: 0.8 - 2023-03-09 implementert test på /krav/objekttyperolle ved å sjekke om rollens tagged value inlineOrByReference har verdi byReference, TODO: sjekk om assosiasjonen er assoc-aggr-comp, sjekk om rollen peker til en FeatureType
+' Version: 0.9 - 2023-03-24 implementert test på /krav/rollerekkefølge ved å sjekke om rollens tagged value sequenceNumber har verdi
+' Version: 0.8 - 2023-03-09 implementert test på /krav/objekttyperolle ved å sjekke om rollens tagged value inlineOrByReference har verdi byReference
 ' Version: 0.7 - 2022-11-17 implementert bedre test rundt krav om lenke til ekstern kodeliste 
 ' Version: 0.6-2022-08-09 fjerna felle for intern EA-feil (isElement) da den ikke virker i EA16 release
 ' Version: alfa0.5.1-2022-04-22 rettet felle for intern EA-feil for å virke i nye EA16 beta
@@ -41,7 +42,7 @@ option explicit
 ' /krav/akserekkefølge	Rekkefølgen på aksene skal alltid være den akserekkefølgen som koordinatreferansesystembeskrivelsen angir. Se Tabell 6.1 Standardiserte koordinatsystemkoder.	24
 ' /krav/akseantall	 Antall akser skal alltid være lik det antallet som angitt i koordinatreferansesystembeskrivelsen. Se Tabell 6.1 Standardiserte koordinatsystemkoder.	24
 ' /krav/akseenhet	 Koordinaters enhet for hver akse skal være den samme enheten som er beskrevet i koordinatreferansesystembeskrivelsen. Se Tabell 6.1 Standardiserte koordinatsystemkoder.	25
-' /krav/rollerekkefølge	 Alle assosiasjonsroller skal ha en tagged value sequenceNumber med verdi som angir rekkefølgen elementene skal komme i. Alle egenskaper uten tagged value sequenceNumber skal komme i den rekkefølge de er vist i modellen, og de skal komme før alle assosiasjonrollene.	25
+' *--/krav/rollerekkefølge	 Alle assosiasjonsroller skal ha en tagged value sequenceNumber med verdi som angir rekkefølgen elementene skal komme i. Alle egenskaper uten tagged value sequenceNumber skal komme i den rekkefølge de er vist i modellen, og de skal komme før alle assosiasjonrollene.	25
 ' *--/krav/objekttyperolle	Navn på assosiasjonsroller fra aggregeringer eller vanlige assosiasjoner til klasser med stereotype «FeatureType» skal realiseres direkte som XML-elementnavn som inneholder xlink til det refererte objektet, som enten er internt i datasettet (local) eller i et eksternt datasett (remote).	25
 ' /krav/datatyperolle	Navn på assosiasjonsroller fra komposisjoner til klasser med stereotype «Union» eller «dataType» er modellelementnavn som skal realiseres direkte som XML-elementer inline i eierobjektet.	25
 ' /krav/datatype	Modellelementet skal realiseres direkte via navnet på egenskapen eller assosiasjonsrollen som peker til datatypeklassen.  Egenskaper i datatypen skal realiseres på samme måte som objektegenskaper. Assosiasjonsroller i datatypen skal realiseres på samme måte som vanlige roller.	28
@@ -108,7 +109,7 @@ sub OnProjectBrowserScript()
 					mess = mess + ""&Chr(13)&Chr(10)
 					mess = mess + "Velg loggnivå og start validering av pakke [" & thePackage.Name &"]."&Chr(13)&Chr(10)
 
-					box = Msgbox (mess, vbOKCancel, "realiserbarGMLformat50 versjon 0.8 - 2023-03-09")
+					box = Msgbox (mess, vbOKCancel, "realiserbarGMLformat50 versjon 0.9 - 2023-03-24")
 					select case box
 						case vbOK
 							dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
@@ -133,6 +134,9 @@ sub OnProjectBrowserScript()
 									case UCase(logLevelFromInputBox) = "W"	
 										globalLogLevelIsWarning = true
 										correctInput = true
+									case UCase(logLevelFromInputBox) = "I"	
+										globalLogLevelIsWarning = true
+										correctInput = true
 									case UCase(logLevelFromInputBox) = "D"	
 										globalLogLevelIsWarning = true
 										debug = true
@@ -150,7 +154,7 @@ sub OnProjectBrowserScript()
 
 							if not abort then
 								'give an initial feedback in system output 
-								Session.Output("realiserbarGMLformat50 versjon 0.7 - 2022-11-17 startet. "&Now())
+								Session.Output("realiserbarGMLformat50 versjon 0.9 - 2023-03-24 startet. "&Now())
 
 							  
                 'For /req/Uml/Profile:
@@ -325,6 +329,7 @@ sub FindInvalidElementsInPackage(package)
 								if currentConnector.SupplierEnd.Role <> "" then
 									if debug then Session.Output("Debug: role to be tested: [«" &currentConnector.SupplierEnd.Stereotype& "» " &currentConnector.SupplierEnd.Role& "].")
 									call kravObjekttyperolle(currentElement,currentConnectorEnd)
+									call kravRollerekkeflge(currentElement,currentConnectorEnd)
 								end if
 							end if
 							if currentConnector.SupplierID = currentElement.ElementID and LCase(Repository.GetElementByID(currentConnector.ClientID).Stereotype) = "featuretype" then
@@ -332,6 +337,7 @@ sub FindInvalidElementsInPackage(package)
 								if currentConnector.ClientEnd.Role <> "" then
 									if debug then Session.Output("Debug: role to be tested: [«" &currentConnector.ClientEnd.Stereotype& "» " &currentConnector.ClientEnd.Role& "].")
 									call kravObjekttyperolle(currentElement,currentConnectorEnd)
+									call kravRollerekkeflge(currentElement,currentConnectorEnd)
 								end if
 							end if
 						end if
@@ -558,6 +564,30 @@ sub kravObjekttyperolle(currentElement,connectorEnd)
 		if logLevel = "W" then
 			Session.Output("Warning: Class [«" &currentElement.Stereotype& "» " &currentElement.Name& "] tagged value inlineOrByReference not set to byReference for role: [«" &connectorEnd.Stereotype& "» " &connectorEnd.Role& "]. [/krav/objekttyperolle]")
 			globalWarningCounter = globalWarningCounter + 1
+		end if
+	end if
+end sub
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Func Name: kravRollerekkeflge
+' Author: Kent Jonsrud
+' Date: 2023-03-24
+' Purpose: teste konsekvensen av
+' *--/krav/rollerekkefølge	 Alle assosiasjonsroller skal ha en tagged value sequenceNumber med verdi som angir rekkefølgen elementene skal komme i. Alle egenskaper uten tagged value sequenceNumber skal komme i den rekkefølge de er vist i modellen, og de skal komme før alle assosiasjonrollene.	25
+' TBD?: teste unikhet på alle verdiene i alle roller ut fra samme klasse
+
+sub kravRollerekkeflge(currentElement,connectorEnd)
+
+	if getConnectorEndTaggedValue(connectorEnd,"sequenceNumber") = "" then
+		if logLevel = "W" then
+			Session.Output("Warning: Class [«" &currentElement.Stereotype& "» " &currentElement.Name& "] tagged value sequenceNumber not set for role: [«" &connectorEnd.Stereotype& "» " &connectorEnd.Role& "]. [/krav/objekttyperolle]")
+			globalWarningCounter = globalWarningCounter + 1
+		end if
+	else
+		if logLevel = "I" then
+			Session.Output("Info: Class [«" &currentElement.Stereotype& "» " &currentElement.Name& "] tagged value sequenceNumber set to ["&getConnectorEndTaggedValue(connectorEnd,"sequenceNumber")&"] for role: [«" &connectorEnd.Stereotype& "» " &connectorEnd.Role& "]. [/krav/objekttyperolle]")
 		end if
 	end if
 end sub
