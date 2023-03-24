@@ -5,6 +5,7 @@ Option Explicit
 ' Script Name: listAdocForSOSIformatbeskrivelse
 ' Purpose: Genererer SOSI-formatbeskrivelse i AsciiDoc syntaks
 '
+' Versjon 0.7 2023-02-24 Vise objekttyper for avgrensingslinjer; lagt til kolonne for SOSI-type 
 ' Version 0.6.1 2021-12-09 flere smårettinger
 ' Version 0.6 2021-12-09 smårettinger
 ' Version 0.5 2021-12-08 endret FeatureType til Objekttype og mappet fra isogeometrityper til sosigeometrityper
@@ -98,16 +99,19 @@ if element.Name <> "" then
 	Session.Output("==== Objekttype: "&element.Name&"")
 end if
 
+	call flateavgrensing( element)
+
 if element.AttributesEx.Count > 0 then
 	Session.Output(" ")
 	Session.Output("[discrete]")
 	Session.Output("===== Modellelementnavn og SOSI_navn") 
-	Session.Output("[cols=""20,20,20,10""]")
+	Session.Output("[cols=""20,20,20,10,10""]")
 	Session.Output("|===")
 	Session.Output("|*Navn:* ")
 	Session.Output("|*Type:* ")
 	Session.Output("|*SOSI_navn:* ")
 	Session.Output("|*Mult.:* ")
+	Session.Output("|*SOSI-type:* ")  
 	Session.Output(" ")
 
 	call listDatatype("", "..", element)	
@@ -122,6 +126,62 @@ end if
 End sub
 '-----------------ObjektOgDatatyper End-----------------
 
+sub flateavgrensing(element )
+	dim conn, datatype
+	dim objektnavn, skilletegn
+
+	skilletegn = "**Avgrenses av:** "
+	for each conn in element.Connectors
+		if conn.Type = "Association" then
+			objektnavn = ""
+			if element.ElementID = conn.ClientID then
+				if InStr(LCase(conn.SupplierEnd.Role),"avgrensesav") <> 0  then  '' and conn.SupplierEnd.Navigable = "Navigable" then
+					if conn.SupplierID <> 0 then
+						set datatype = Repository.GetElementByID(conn.SupplierID)
+						objektnavn = datatype.Name
+					end if
+				end if
+			elseif element.ElementID = conn.SupplierID then
+'				if InStr(LCase(conn.ClientEnd.Role),"avgrensesav") <> 0  then  '' and conn.ClientEnd.Navigable = "Navigable" then
+'					if conn.ClientID <> 0 then
+'						set datatype = Repository.GetElementByID(conn.ClientID)
+'						objektnavn = datatype.Name
+'					end if
+'				end if
+			end if
+			if objektnavn <> "" then 	
+				Session.Output(skilletegn & objektnavn&"")
+				skilletegn = ", "
+			end if
+		end if
+	next
+
+	skilletegn = "*Avgrenser:* "
+	for each conn in element.Connectors
+		objektnavn = ""
+		if conn.Type = "Association" then
+			if element.ElementID = conn.SupplierID then
+				if InStr(LCase(conn.SupplierEnd.Role),"avgrensesav") <> 0  then  '' and conn.ClientEnd.Navigable = "Navigable" then
+					if conn.ClientID <> 0 then
+						set datatype = Repository.GetElementByID(conn.ClientID)
+						objektnavn = datatype.Name
+					end if
+				end if
+			elseif element.ElementID = conn.ClientID then
+'				if InStr(LCase(conn.ClientEnd.Role),"avgrensesav") <> 0  then  '' and conn.SupplierEnd.Navigable = "Navigable" then
+'					if conn.SupplierID <> 0 then
+'						set datatype = Repository.GetElementByID(conn.SupplierID)
+'						objektnavn = datatype.Name
+'					end if
+'				end if			
+			end if
+			if objektnavn <> "" then 	
+				Session.Output(skilletegn & objektnavn&"")
+				skilletegn = ", "
+			end if
+		end if
+	next
+end sub
 
 
 '--------------------Start Sub-------------
@@ -156,21 +216,25 @@ if element.Attributes.Count > 0 then
 					Session.Output("|."&UCase(getTaggedValue(att,"SOSI_navn"))&"")
 				end if
 				Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+				Session.Output("|"&"")				
 			else
 				if getSosiGeometritype(att.Type) <> "" then
 					Session.Output("|"&egenskap&att.name&"")
 					Session.Output("|"&att.Type&"")			
 					Session.Output("|"&"."&getSosiGeometritype(att.Type)&"")
 					Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+					Session.Output("|"&"")				
 				else
 					Session.Output("|"&egenskap&att.name&"")
 					if att.ClassifierID <> 0 then
 						set datatype = Repository.GetElementByID(att.ClassifierID)
-						stereo = "«" & datatype.Stereotype & "» "
+						stereo = datatype.Stereotype                  				
+						if stereo <> "" then stereo = "«" & stereo & "» "         
 					end if
 					Session.Output("|"&stereo&att.Type&"")			
 					Session.Output("|"&punktum&getTaggedValue(att,"SOSI_navn")&"")
 					Session.Output("|["&att.LowerBound&".."&att.UpperBound&"]"&"")
+					Session.Output("|"&getTaggedValue(att,"SOSI_datatype")&getTaggedValue(att,"SOSI_lengde")&"")	
 				end if
 			end if
 			Session.Output(" ")	
@@ -191,11 +255,11 @@ end if
 ' skriv ut roller - sortert etter tagged value sequenceNumber TBD
 
 for each conn in element.Connectors
-		stereo = ""
-		if conn.Type = "Association" then
+	stereo = ""
+	if conn.Type = "Association" then
 		if element.ElementID = conn.ClientID then
 			if conn.SupplierEnd.Role <> "" and conn.SupplierEnd.Navigable = "Navigable" then
-				if InStr(LCase(conn.SupplierEnd.Role),"avgrens") = 0 then
+				if InStr(LCase(conn.SupplierEnd.Role),"avgrensesav") = 0 then
 	'			if getConnectorEndTaggedValue(conn.SupplierEnd,"xsdEncodingRule") <> "notEncoded" then
 					Session.Output("|"&conn.SupplierEnd.Role&"")
 					if conn.SupplierID <> 0 then
@@ -205,11 +269,12 @@ for each conn in element.Connectors
 					Session.Output("|"&stereo&datatype.Name&"")			
 					Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.SupplierEnd,"SOSI_navn")&"")
 					Session.Output("|["&conn.SupplierEnd.Cardinality&"]"&"")
+					Session.Output("| REF")			
 				end if
 			end if
 		else
 			if conn.ClientEnd.Role <> "" and conn.ClientEnd.Navigable = "Navigable" then
-				if InStr(LCase(conn.ClientEnd.Role),"avgrens") = 0 then
+				if InStr(LCase(conn.ClientEnd.Role),"avgrensesav") = 0 then
 					Session.Output("|"&conn.ClientEnd.Role&"")
 					if conn.ClientID <> 0 then
 						set datatype = Repository.GetElementByID(conn.ClientID)
@@ -218,6 +283,7 @@ for each conn in element.Connectors
 					Session.Output("|"&stereo&datatype.Name&"")			
 					Session.Output("|"&punktum&getConnectorEndTaggedValue(conn.ClientEnd,"SOSI_navn")&"")
 					Session.Output("|["&conn.ClientEnd.Cardinality&"]"&"")
+					Session.Output("| REF")				
 				end if
 			end if
 		end if
@@ -237,7 +303,6 @@ next
 end sub
 
 '--------------------End Sub-------------
-
 
 function getSosiGeometritype(gtype)
 		'fra Ralisering i SOSI-format versjon 5.0 tabell 8.2:
