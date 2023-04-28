@@ -6,6 +6,7 @@ option explicit
 ' Script Name: realiserbarSOSIformat50 
 ' Author: Kent Jonsrud - Section for standardization and technology development - Norwegian Mapping Authority
 
+' Version: 0.7 2022-11-25 test på om lengden på koder i kodelister overstiger verdien i tagged value SOSI_lengde
 ' Version: 0.6 2022-08-09 fjerna felle for intern EA-feil (isElement) da den ikke virker i EA16
 ' Version: 0.5 Date: 2021-11-17 SOSI_navn på egenskap skal samsvare med eventuellt SOSI_navn på typen
 ' Version: alfa0.4 Date: 2021-07-16 geometriegenskaper kan mangle tag SOSI_navn, men alle roller blir testet
@@ -14,6 +15,7 @@ option explicit
 
 ' Purpose: Validere om pakke er realiserbar etter SOSI Realisering i SOSIformat v.5.0 
 ' Purpose: Validate model elements according to rules defined in the standard SOSI Realisering i SOSIformat v.5.0 
+' --Model related rules:
 ' *Implemented rules: 
 ' KRAV
 ' /krav/konteiner	Datafiler som skal brukes til å utveksle geografisk informasjon på SOSI-format skal inneholde et standard filhode og et standard filsluttmerke. Det skal ikke være datainnhold etter filsluttmerket. Filhodet skal inneholde angivelse av tegnsett, formatversjon, koordinatsystem, horisontal datautstrekning og angivelse av datasettets beskrivelse.  I tillegg kan filhodet inneholde datasettets produsent, eier, prosesshistorie og lenke til andre datasettmetadata.	20
@@ -63,8 +65,8 @@ option explicit
 ' ---/krav/union	En klasse med stereotype «Union» beskriver et sett med mulige egenskaper. Kun en av egenskapene kan forekomme i hver instans. Modellelementet skal realiseres via et gruppeelement med navn som er tagged value SOSI_navn på den egenskapen som bruker unionen, og så med et element som inneholder kun SOSI_navn til det ene UML-elementnavnet som skal benyttes.	50
 ' /krav/enumerering	En klasse med stereotype «enumeration» beskriver et lukket sett med lovlige koder. Kun en av disse kodene kan forekomme i en instans. Modellelementet skal realiseres direkte via en tagged value SOSI_navn på egenskapen.	51
 ' /krav/kodeliste	En klasse med stereotype «CodeList» beskriver et åpent sett med lovlige koder. En av disse kodene kan forekomme i en instans, men andre lovlige koder kan også komme til seinere dersom kodelista er forvaltet i et register utenfor UML-modellen. Modellelementet skal realiseres direkte via en tagged value SOSI_navn på egenskapen.	51
-' --/krav/kodenavn	 Elementer i klasser med stereotype «CodeList» eller «enumeration» beskriver lovlige koder. Modellelementet skal realiseres slik at koden benyttes direkte i datasettet. (Krav om NCName på koder). Dersom koden har en initialverdi skal denne initialverdien benyttes i datasettet istedenfor koden. Dersom det på koden finnes en tagged value SOSI_verdi som inneholder en verdi skal denne verdien benyttes i SOSI-format uansett. Dette kravet gjelder dersom kodelista mangler tagged value asDictionary eller verdien i denne tagged value er false.	52
-' --/krav/koderegister	 Dersom kodelista er implementert i et register, angitt med tagged value asDictionary = true og med tagged value codeList med sti til registeret skal koden valideres mot verdier i det levende registeret. Registeret skal til enhver tid inneholde alle lovlige koder, og eventuelle initielle koder dokumentert i UML-modellen er da informative og skal ikke brukes til validering.	53
+' *--/krav/kodenavn	 Elementer i klasser med stereotype «CodeList» eller «enumeration» beskriver lovlige koder. Modellelementet skal realiseres slik at koden benyttes direkte i datasettet. (Krav om NCName på koder). Dersom koden har en initialverdi skal denne initialverdien benyttes i datasettet istedenfor koden. Dersom det på koden finnes en tagged value SOSI_verdi som inneholder en verdi skal denne verdien benyttes i SOSI-format uansett. Dette kravet gjelder dersom kodelista mangler tagged value asDictionary eller verdien i denne tagged value er false.	52
+' *--/krav/koderegister	 Dersom kodelista er implementert i et register, angitt med tagged value asDictionary = true og med tagged value codeList med sti til registeret skal koden valideres mot verdier i det levende registeret. Registeret skal til enhver tid inneholde alle lovlige koder, og eventuelle initielle koder dokumentert i UML-modellen er da informative og skal ikke brukes til validering.	53
 ' 9.2/krav/pilhøyde	Hvis pilhøyden i en bue er mindre enn 2*enhet i datasettet skal det i stedet for geomatritype BUEP brukes geomtritype KURVE.	57
 ' 9.3/krav/Representasjonspunkt	FLATE skal ha et punkt. Dette er et representasjonspunkt for flaten. Representasjonspunktet skal ligge inne på flaten. FLATE kan ikke ha mer enn et punkt	59
 ' 9.3/krav/Geometri	Flater (polygoner) i SOSI formatet skal ha delt geometri.	59
@@ -129,7 +131,7 @@ sub OnProjectBrowserScript()
 					mess = mess + ""&Chr(13)&Chr(10)
 					mess = mess + "Starter validering av pakke [" & thePackage.Name &"]."&Chr(13)&Chr(10)
 
-					box = Msgbox (mess, vbOKCancel, "realiserbarSOSIformat50 versjon 0.6-2022-08-09")
+					box = Msgbox (mess, vbOKCancel, "realiserbarSOSIformat50 versjon 0.7-2022-11-25")
 					select case box
 						case vbOK
 							dim logLevelFromInputBox, logLevelInputBoxText, correctInput, abort
@@ -170,7 +172,7 @@ sub OnProjectBrowserScript()
 
 							if not abort then
 								'give an initial feedback in system output 
-								Session.Output("realiserbarSOSIformat50 versjon 0.6-2022-08-09 startet. "&Now())
+								Session.Output("realiserbarSOSIformat50 versjon 0.7-2022-11-25 startet. "&Now())
 								'Check model for script breaking structures
 								if scriptBreakingStructuresInModel(thePackage) then
 									Session.Output("Kritisk feil: Kan ikke validere struktur og innhold før denne feilen er rettet.")
@@ -317,6 +319,8 @@ sub FindInvalidElementsInPackage(package)
 
 						call kravObjektegenskap(currentAttribute)
 						call kravObjektegenskapstype(currentAttribute)
+				'TBD	call kravKodenavn(currentAttribute)
+						call kravKoderegister(currentAttribute)
 
 					next
 				end if
@@ -335,6 +339,13 @@ sub FindInvalidElementsInPackage(package)
 						'if debug then Session.Output("Debug: constraint to be tested: [«" &constraint.Stereotype& "» " &constraint.Name& "].")
 			end if
 			if UCase(currentElement.Stereotype) = "CODELIST"  Or UCase(currentElement.Stereotype) = "ENUMERATION" or currentElement.Type = "Enumeration" then
+
+
+
+
+
+
+
 			end if
 		end if
 	next
@@ -463,10 +474,10 @@ sub kravObjektegenskap(attr)
 						Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" & attr.Name & "] tagged value SOSI_navn is not legal SOSI-name: [" &getTaggedValue(attr,"SOSI_navn")& "]. [/krav/objektegenskap]")
 						globalErrorCounter = globalErrorCounter + 1
 					end if
-					if getTaggedValue(attr,"SOSI_navn") <> getTaggedValue(datatype,"SOSI_navn") and getTaggedValue(datatype,"SOSI_navn") <> "" and globalLogLevelIsWarning then
-						Session.Output("Warning: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" & attr.Name & "] tagged value SOSI_navn [" &getTaggedValue(attr,"SOSI_navn")& "] is not same as SOSI-name on type: [" &getTaggedValue(datatype,"SOSI_navn")& "]. [/krav/objektegenskap]")
-						globalWarningCounter = globalWarningCounter + 1
-					end if
+			'		if getTaggedValue(attr,"SOSI_navn") <> getTaggedValue(datatype,"SOSI_navn") and getTaggedValue(datatype,"SOSI_navn") <> "" and globalLogLevelIsWarning then
+			'			Session.Output("Warning: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" & attr.Name & "] tagged value SOSI_navn [" &getTaggedValue(attr,"SOSI_navn")& "] is not same as SOSI-name on type: [" &getTaggedValue(datatype,"SOSI_navn")& "]. [/krav/objektegenskap]")
+			'			globalWarningCounter = globalWarningCounter + 1
+			'		end if
 				end if
 			end if
 '		else
@@ -519,6 +530,162 @@ sub kravObjektegenskapstype(attr)
 end sub
 '-------------------------------------------------------------END--------------------------------------------------------------------------------------------
 
+
+
+'------------------------------------------------------------START-------------------------------------------------------------------------------------------
+' Sub Name: kravKoderegister
+' Author: Kent Jonsrud
+' Date: 2022-11-25
+' Purpose: kodenavn eller eventuelt utvekslingsalias skal ikke inneholde skilletegn, og skal være innenfor verdien til tagged value SOSI_lengde på egenskapen
+'
+' --/krav/kodenavn	 Elementer i klasser med stereotype «CodeList» eller «enumeration» beskriver lovlige koder. Modellelementet skal realiseres slik at koden benyttes direkte i datasettet. (Krav om NCName på koder). Dersom koden har en initialverdi skal denne initialverdien benyttes i datasettet istedenfor koden. Dersom det på koden finnes en tagged value SOSI_verdi som inneholder en verdi skal denne verdien benyttes i SOSI-format uansett. Dette kravet gjelder dersom kodelista mangler tagged value asDictionary eller verdien i denne tagged value er false.	52
+' --/krav/koderegister	 Dersom kodelista er implementert i et register, angitt med tagged value asDictionary = true og med tagged value codeList med sti til registeret skal koden valideres mot verdier i det levende registeret. Registeret skal til enhver tid inneholde alle lovlige koder, og eventuelle initielle koder dokumentert i UML-modellen er da informative og skal ikke brukes til validering.	53
+
+sub kravKoderegister(attr)
+	dim sosilengde, lengdetagg, kodelistesti,code1, code2, codestatus, maxcodelength
+	if attr.ClassifierID <> 0 then
+		dim datatype as EA.Element
+		set datatype = Repository.GetElementByID(attr.ClassifierID)
+		if UCase(datatype.Stereotype) = "CODELIST"  Or UCase(datatype.Stereotype) = "ENUMERATION" or datatype.Type = "Enumeration" and getTaggedValue(datatype,"asDictionary") = "true" then
+			if debug then Session.Output("Debug: codelist to be tested: [" &attr.Type& "].")
+			lengdetagg = getTaggedValue(attr,"SOSI_lengde")
+			if isNumeric(lengdetagg) then
+				sosilengde = CInt(lengdetagg)
+			else
+				sosilengde = 0
+			end if
+			kodelistesti = getTaggedValue(attr,"defaultCodeSpace")
+			if kodelistesti <> "" then				
+				call getCodelistStatus(kodelistesti,code1,code2,codestatus,maxcodelength)
+				if codestatus = "ok" then
+					if maxcodelength > sosilengde and sosilengde <> 0 then
+						Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a tagged value SOSI_lengde ["&sosilengde&"], but the codelist class ["&attr.Type&"] has longer codes: ["&code2&"].")
+						globalErrorCounter = globalErrorCounter + 1	
+					end if
+				else
+					Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has codelist class ["&attr.Type&"] that contain illegal codes: ["&code1&"].")
+					globalErrorCounter = globalErrorCounter + 1			
+				end if
+			else
+				Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has no path in tagged value defaultCodeSpace, but the codelist class ["&attr.Type&"] is externally managed (asDictionary=true).")
+				globalErrorCounter = globalErrorCounter + 1			
+			end if
+
+
+
+
+		if datatype.Name <> attr.Type then
+			Session.Output("Error: Class [«"&Repository.GetElementByID(attr.ParentID).Stereotype&"» "& Repository.GetElementByID(attr.ParentID).Name &"] attribute [" &attr.Name& "] has a type name ["&attr.Type&"] that is not corresponding to its linked type name ["&datatype.Name&"].")
+			globalErrorCounter = globalErrorCounter + 1
+		end if
+		
+		
+		end if
+		
+		
+	end if
+end sub
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
+
+
+
+'-------------------------------------------------------------START--------------------------------------------------------------------------------------------
+' Sub Name: getCodelistStatus
+' Author: Kent Jonsrud
+' Date: 2022-11-25
+' Purpose: Reads and evaluates codes from an external code registry.
+
+sub getCodelistStatus(codeListUrl,code1,code2,codestatus,codelen)
+	Dim codelist
+	codelist = ""
+	code1 = ""
+	code2 = ""
+	codestatus = "missing"
+	codelen = 0
+	' testing http get
+	if codeListUrl <> "" then
+	'	Session.Output("<!-- DEBUG codeListUrl: " & codeListUrl & " -->")
+		Dim httpObject
+		Dim parseText, line, linepart, part, kodenavn, kodedef, ualias, kodelistenavn
+		Set httpObject = CreateObject("MSXML2.XMLHTTP")
+	'	httpObject.open "GET", "http://skjema.geonorge.no/SOSI/basistype/Integer.html", false
+		httpObject.open "GET", codeListUrl & ".gml", false
+		httpObject.send
+		if httpObject.status = 200 then
+	'		Session.Output("DEBUG gml:Dictionary: "&httpObject.responseText&"")
+	''		parseText = split(split(split(ResponseXML,SearchTag)(1),"</")(0),">")(1)
+			parseText = split(httpObject.responseText,"<",-1,1)
+			
+			codestatus = "ok"
+
+			kodelistenavn = ""
+			for each line in parseText
+		'		Session.Output("DEBUG line: "&line&"")
+				if mid(line,1,25) = "gml:identifier codeSpace=" then
+					linepart = split(line,">",-1,1)
+					for each part in linepart
+						ualias = part
+					next
+				end if
+				if mid(line,1,16) = "gml:description>" then
+				linepart = split(line,">",-1,1)
+					for each part in linepart
+						kodedef = part
+					next
+				end if		
+				if mid(line,1,9) = "gml:name>" then
+				linepart = split(line,">",-1,1)
+					for each part in linepart
+						kodenavn = part
+					next
+				end if				
+
+				if codelist = "" and mid(line,1,20) = "gml:dictionaryEntry>"then 
+					codelist = ualias
+				else
+
+					if mid(line,1,21) = "/gml:dictionaryEntry>" then
+		'				Session.Output("DEBUG ualias,kodenavn: ["&ualias&"] - ["&kodenavn&"]")
+				
+						if ualias <> "" then
+							if Len(ualias) > codelen then
+								codelen = Len(ualias)
+								code2 = ualias
+							end if
+							if instr(ualias," ") <> 0 then
+								codestatus = "not ok"
+								code1 = ualias
+							end if
+						else
+							if kodenavn <> "" then
+								if Len(kodenavn) > codelen then
+									codelen = Len(kodenavn)
+									code2 = kodenavn
+								end if
+								if instr(kodenavn," ") <> 0 then
+									codestatus = "not ok"
+									code1 = kodenavn
+								end if
+							else
+								'?
+							end if
+						end if
+					end if
+				end if
+				'ualias = ""
+				'if code2 <> "" then exit for	
+
+			next
+	'		Session.Output("|===")
+		else
+	'		Session.Output("Kodeliste kunne ikke hentes fra register: "&codeListUrl&"")	
+	'		Session.Output(" ")		
+			codestatus = ToChar(httpObject.status)
+			if debug then Session.Output("<!-- DEBUG feil ved lesing av kodeliste: ["&codeListUrl&"] status:["&httpObject.status&"]-->")
+		end if
+	end if
+end sub
+'-------------------------------------------------------------END--------------------------------------------------------------------------------------------
 
 
 ' -----------------------------------------------------------START-------------------------------------------------------------------------------------------
