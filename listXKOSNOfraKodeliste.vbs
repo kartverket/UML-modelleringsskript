@@ -5,6 +5,7 @@ option explicit
 ' script:			listXKOSNOfraKodeliste
 ' description:		Skriver en kodeliste til egne XKOSNO-filer under samme sti som prosjektfila ligger.
 ' author:			Kent Jonsrud, Kartverket
+' date:				2023-09-26	tatt ut spesialhandtering av utgåtte koder i et par kodelister
 ' date:				2022-10-21 lager samme innhold i to filer, både kode.html og kode uten filtype
 ' date:				2022-07-08 endret navn på skript fra listSKOSfraKodeliste og tilpasset XKOS-AP-NO versjon 1.0, endrer "&#230;" til "æ" etc.
 ' date  :			2021-11-11 feilretting av sti til filer (filene kommer noen ganger ut på stien til EA.exe)
@@ -61,7 +62,7 @@ sub listKoderForEnValgtKodeliste()
 			dim message
 '			message = "--------------------------------------------------------------------------------------" & vbCrLf & vbCrLf & _
 			message = "List class : [«" & theElement.Stereotype &"» "& theElement.Name & "]." & vbCrLf & vbCrLf
-			message = message & "Script listXKOSNOfraKodeliste versjon 2022-10-21 (Kent Jonsrud)" & vbCrLf & vbCrLf
+			message = message & "Script listXKOSNOfraKodeliste versjon 2023-09-26 (Kent Jonsrud)" & vbCrLf & vbCrLf
 			message = message & "Creates one SKOS/RDF/xml format file with all codes, "
 			message = message & "and one subfolder with one SKOS/RDF/xml format file for each code in the list." & vbCrLf
 			message = message & "Also creates a html-list(index.html), and one html-file(no extension) for each code in the list." & vbCrLf & vbCrLf
@@ -195,27 +196,27 @@ sub listCodelistCodes(el,namespace)
 	dim attr as EA.Attribute
 	for each attr in el.Attributes
 		'Repository.WriteOutput "Script", "Debug: attr.Name ["&attr.Name&"]",0
-		if el.Name = "Kommunenummer" or el.Name = "Fylkesnummer" then
-			Repository.WriteOutput "Script", Now & "  " & attr.Name & "." & attr.Notes, 0
-			if InStr(LCASE(attr.Notes),"utgått") then 
-			'	Repository.WriteOutput "Script", Now & " utgått: " & attr.Name & "." & attr.Notes, 0
-				call listSKOSfraKode(attr,el.Name,namespace)
-			else
-			if Int(attr.Name) > 2099 and Int(attr.Name) < 2400 then 
-			'	Repository.WriteOutput "Script", Now & " svalb.: " & attr.Name & "." & attr.Notes, 0
-				call listSKOSfraKode(attr,el.Name,namespace)
-			else
-			if Int(attr.Name) > 20 and Int(attr.Name) < 24 then 
-			'	Repository.WriteOutput "Script", Now & " Svalb.: " & attr.Name & "." & attr.Notes, 0
-				call listSKOSfraKode(attr,el.Name,namespace)
-			else
-				call listSKOSfraKode(attr,el.Name,namespace)
-			end if
-			end if
-			end if
-		else
+	'	if el.Name = "Kommunenummer" or el.Name = "Fylkesnummer" then
+	'		Repository.WriteOutput "Script", Now & "  " & attr.Name & "." & attr.Notes, 0
+	'		if InStr(LCASE(attr.Notes),"utgått") then 
+	'		'	Repository.WriteOutput "Script", Now & " utgått: " & attr.Name & "." & attr.Notes, 0
+	'			call listSKOSfraKode(attr,el.Name,namespace)
+	'		else
+	'		if Int(attr.Name) > 2099 and Int(attr.Name) < 2400 then 
+	'		'	Repository.WriteOutput "Script", Now & " svalb.: " & attr.Name & "." & attr.Notes, 0
+	'			call listSKOSfraKode(attr,el.Name,namespace)
+	'		else
+	'		if Int(attr.Name) > 20 and Int(attr.Name) < 24 then 
+	'		'	Repository.WriteOutput "Script", Now & " Svalb.: " & attr.Name & "." & attr.Notes, 0
+	'			call listSKOSfraKode(attr,el.Name,namespace)
+	'		else
+	'			call listSKOSfraKode(attr,el.Name,namespace)
+	'		end if
+	'		end if
+	'		end if
+	'	else
 			call listSKOSfraKode(attr,el.Name,namespace)
-		end if
+	'	end if
 	next
 	'Repository.WriteOutput "Script", "</rdf:RDF>",0
 	objFile.Write"</rdf:RDF>" & vbCrLf
