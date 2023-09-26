@@ -5,6 +5,7 @@ option explicit
 ' skriptnavn:       listGMLDICTfraKodeliste
 ' description:		Skriver kodeliste til gml:Dictionary.xml fil. på samme sti som .eap-fila ligger.
 ' author:			Kent
+' date:				2023-09-26	tatt ut spesialhandtering av utgåtte koder i et par kodelister
 ' date  :			2022-08-11 skriver alltid ut på modellfilas fulle sti 
 ' date  :			2020-11-19 utvalgte tagged values ut i name-felt
 ' date  :			2017-06-29, 07-07,09-08,11-09,12-05, 2018-02-20, 2018-09-19
@@ -31,7 +32,7 @@ sub listKoderForEnValgtKodeliste()
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
 					dim message
 			dim box
-			box = Msgbox ("List class : [«" & theElement.Stereotype &"» "& theElement.Name & "]. to gml:Dictionary.xml format."& vbCrLf & "Creates one file with all codes in the same folder as the .eap-file.",1)
+			box = Msgbox ("Script listGMLDICTfraKodeliste version 2023-09-26 - List class : [«" & theElement.Stereotype &"» "& theElement.Name & "]. to gml:Dictionary.xml format."& vbCrLf & "Creates one file with all codes in the same folder as the .eap-file.",1)
 			select case box
 			case vbOK
 		 		'Session.Output("Debug: ------------ Start class: [«" &theElement.Stereotype& "» " &theElement.Name& "] of type. [" &theElement.Type& "]. ")
@@ -104,27 +105,27 @@ sub listCodelistCodes(el,namespace)
 	dim attr as EA.Attribute
 	for each attr in el.Attributes
 		'Repository.WriteOutput "Script", Now & " " & el.Name & "." & attr.Name, 0
-		if el.Name = "Kommunenummer" or el.Name = "Fylkesnummer" then
-			Repository.WriteOutput "Script", Now & "  " & attr.Name & "." & attr.Notes, 0
-			if InStr(LCASE(attr.Notes),"utgått") then 
-			'	Repository.WriteOutput "Script", Now & " utgått: " & attr.Name & "." & attr.Notes, 0
-				call listDICTfraKode(attr,el.Name,namespace)
-			else
-			if Int(attr.Name) > 2099 and Int(attr.Name) < 2400 then 
-			'	Repository.WriteOutput "Script", Now & " svalb.: " & attr.Name & "." & attr.Notes, 0
-				call listDICTfraKode(attr,el.Name,namespace)
-			else
-			if Int(attr.Name) > 20 and Int(attr.Name) < 24 then 
-			'	Repository.WriteOutput "Script", Now & " Svalb.: " & attr.Name & "." & attr.Notes, 0
-				call listDICTfraKode(attr,el.Name,namespace)
-			else
-				call listDICTfraKode(attr,el.Name,namespace)
-			end if
-			end if
-			end if
-		else
+	'	if el.Name = "Kommunenummer" or el.Name = "Fylkesnummer" then
+	'		Repository.WriteOutput "Script", Now & "  " & attr.Name & "." & attr.Notes, 0
+	'		if InStr(LCASE(attr.Notes),"utgått") then 
+	'		'	Repository.WriteOutput "Script", Now & " utgått: " & attr.Name & "." & attr.Notes, 0
+	'			call listDICTfraKode(attr,el.Name,namespace)
+	'		else
+	'		if Int(attr.Name) > 2099 and Int(attr.Name) < 2400 then 
+	'		'	Repository.WriteOutput "Script", Now & " svalb.: " & attr.Name & "." & attr.Notes, 0
+	'			call listDICTfraKode(attr,el.Name,namespace)
+	'		else
+	'		if Int(attr.Name) > 20 and Int(attr.Name) < 24 then 
+	'		'	Repository.WriteOutput "Script", Now & " Svalb.: " & attr.Name & "." & attr.Notes, 0
+	'			call listDICTfraKode(attr,el.Name,namespace)
+	'		else
+	'			call listDICTfraKode(attr,el.Name,namespace)
+	'		end if
+	'		end if
+	'		end if
+	'	else
 			call listDICTfraKode(attr,el.Name,namespace)
-		end if
+	'	end if
 	next
 	objFile.Write"</Dictionary>" & vbCrLf
 	objFile.Close
