@@ -6,9 +6,14 @@ option explicit
 ' purpose:		Start with a empty CodeList class, read a CSV-file and add the codes to the class
 ' formål:		Les inn koder fra en CSV-fil til en tom kodelisteklasse
 ' author:		Kent
+' version:		2023-09-26	automatisk sette (Utgått) når gyldigTil er satt, ta vare på samisk i utf8 fra csv
+'							datoformat til iso8601-format, legge in ID på hver kode
 ' version:		2019-05-23
 '
 '
+'				TBD: utvekslingsalias til tagged value ?
+'				TBD:
+
 		DIM sosFSO
 		DIM sosFolder
 		DIM defFile
@@ -36,7 +41,7 @@ sub readCodeListCSV()
 			'Repository.WriteOutput "Script", Now & " " & theElement.Stereotype & " " & theElement.Name, 0
 			dim message
 			dim box
-			box = Msgbox ("Skript readCodeListCSV" & vbCrLf & vbCrLf & "Skriptversjon 2019-05-23" & vbCrLf & "Leser koder fra en fil inn i kodelisteklassen : [" & theElement.Name & "].",1)
+			box = Msgbox ("Skript readCodeListCSV" & vbCrLf & vbCrLf & "Skriptversjon 2023-09-26" & vbCrLf & "Leser koder fra en semikolonseparert tabellfil inn i kodelisteklassen : [" & theElement.Name & "].",1)
 			select case box
 			case vbOK
 				dim kortnavn
@@ -46,7 +51,7 @@ sub readCodeListCSV()
 				Repository.ClearOutput "Error"
 				
 				'get file name
-				kortnavn = "C:\Kent\k\3\kommunenummer-alle.csv"
+				kortnavn = "C:\Kent\b\kommunenummer2024.csv"
 				kortnavn = InputBox("Angi CSV-filas navn.", "filnavn", kortnavn)
 				Dim fso
 				Dim file
@@ -62,63 +67,76 @@ sub readCodeListCSV()
 					'Repository.WriteOutput "Script", Now & "line [" & line & "]" & vbCrLf ,0
 					arr = Split(line, ";")
 					'Navn;Kodeverdi;Eier; Status;Oppdatert;Versjons ID;Beskrivelse;Gyldig fra;Gylig til; ID
-					'Repository.WriteOutput "Script", "[" & arr(0) & "]" &"[" & arr(1) & "]" &"[" & arr(2) & "]" &"[" & arr(3) & "]" &"[" & arr(4) & "]" &"[" & arr(5) & "]" & vbCrLf ,0
-					'Repository.WriteOutput "Script", "[" & arr(6) & "]" &"[" & arr(7) & "]" &"[" & arr(8) & "]" &"[" & arr(9) & "]" & vbCrLf ,0
+					'Repository.WriteOutput "Script", "0-5[" & arr(0) & "]" &"[" & arr(1) & "]" &"[" & arr(2) & "]" &"[" & arr(3) & "]" &"[" & arr(4) & "]" &"[" & arr(5) & "]" & vbCrLf ,0
+					'Repository.WriteOutput "Script", "6-9[" & arr(6) & "]" &"[" & arr(7) & "]" &"[" & arr(8) & "]" &"[" & arr(9) & "]" & vbCrLf ,0
 					'add code as attribute
+	'	if false then
 					Dim newCode as EA.Attribute
 					Dim newTag as EA.AttributeTag
-					set newCode = theElement.attributes.AddNew(arr(0),"Attribute")
+					set newCode = theElement.attributes.AddNew(readutf8(arr(0)),"Attribute")
 					theElement.attributes.Refresh()
 					
 					'add name as description, and (Utgått) if code starts with 01,02,06 etc.
 					'newCode.Notes = arr(6)
 					txt = readutf8(arr(6))
-					newCode.Notes = txt
+	'				newCode.Notes = txt
 					newCode.Type = ""
+					' ??
+					newCode.Default = arr(1)
 					newCode.Update()
-					Dim n
-					n = Mid(arr(0),1,2)
-					if n = "01" or n = "02" or n = "06" or n = "04" or n = "05" or n = "07" or n = "08" or n = "09" or n = "10" or n = "12" or n = "14" or n = "19" or n = "20" then
-						if arr(3) = "UtgÃ¥tt" then
-							newCode.Notes = newCode.Notes + " (Utgått)"
-							Repository.WriteOutput "Script", "Allerede Utgått: [" & arr(0) & "] [" & arr(3) & "] [" & arr(6) & "]" &"[" & newCode.Notes & "]" & vbCrLf ,0
-						else
-							newCode.Notes = newCode.Notes & " (Utgått 2020-01-01)"
-							Repository.WriteOutput "Script", "Utgått 2020-01-01: ["  & arr(0) & "] ["& arr(6) & "]" &"[" & newCode.Notes & "]" & vbCrLf ,0
-						end if
+	'	end if			
+	'				txt = readutf8(arr(6))
+					if arr(8) <> "" then
+						txt = txt & ", kode " & arr(1) & ", (utgått " & iso8601date(arr(8)) & ")"
 					else
-						'overlevende fylker: 11,15,18 og nye fylker og allerede sammenslåtte 16, 17
-						if arr(3) = "UtgÃ¥tt" then
-							newCode.Notes = newCode.Notes + " (Utgått)"
-							Repository.WriteOutput "Script", "Allerede Utgått: [" & arr(0) & "] [" & arr(3) & "] [" & arr(6) & "]" &"[" & newCode.Notes & "]" & vbCrLf ,0
+						if arr(3) = "Tilbaketrukket" then
+							txt = txt & ", kode " & arr(1) & ", (tilbaketrukket) "
 						else
-							Repository.WriteOutput "Script", "gyldig: [" & n & "]" & "[" & newCode.Name & "]" &"[" & newCode.Notes & "]" & vbCrLf ,0
-						end if
+							txt = txt & ", kode " & arr(1)
+						end if		
 					end if
-					'add tagged values gyldigFra if set, and gyldigTil if set
+					Repository.WriteOutput "Script", "name[" & readutf8(arr(0)) & "]" & "  description[" & txt & "]" & "  [" & iso8601date(arr(7)) & "]" & "  [" & iso8601date(arr(8)) & "]" & vbCrLf ,0
+					
+	'	if false then
+					newCode.Notes = txt
+					'add tagged values oppdateringsdato, gyldigFra if set, and gyldigTil if set
+					if arr(4) <> "" then
+						Set newTag = newCode.TaggedValues.AddNew("oppdateringsdato","AttributeTag")
+	'					newTag.Value = arr(4)
+						newTag.Value = iso8601date(arr(4))
+						newTag.Update()
+						'newCode.Refresh()
+					end if
 					if arr(7) <> "" then
 						Set newTag = newCode.TaggedValues.AddNew("gyldigFra","AttributeTag")
-						newTag.Value = arr(7)
+						newTag.Value = iso8601date(arr(7))
 						newTag.Update()
 						'newCode.Refresh()
 					end if
 					if arr(8) <> "" then
 						Set newTag = newCode.TaggedValues.AddNew("gyldigTil","AttributeTag")
-						newTag.Value = arr(8)
+						newTag.Value = iso8601date(arr(8))
 						newTag.Update()
 						'newCode.Refresh()
 					end if
-					if arr(4) <> "" then
-						Set newTag = newCode.TaggedValues.AddNew("oppdateringsdato","AttributeTag")
-						newTag.Value = arr(4)
+					if arr(9) <> "" then
+						Set newTag = newCode.TaggedValues.AddNew("IRI","AttributeTag")
+	'					newTag.Value = arr(9)
+						newTag.Value = "http://skjema.geonorge.no/SOSI/kodeliste/AdmEnheter/2024/Kommunenummer/" & arr(1)
 						newTag.Update()
 						'newCode.Refresh()
 					end if
+		'			if arr(1) <> "" then
+		'				Set newTag = newCode.TaggedValues.AddNew("utvekslingsalias","AttributeTag")
+		'				newTag.Value = arr(1)
+		'				newTag.Update()
+		'				'newCode.Refresh()
+		'			end if
 					'
 					'
 					newCode.Update()
 					theElement.attributes.Refresh()
-					
+	'	end if			
 				Loop				
 				file.Close	
 				
@@ -144,6 +162,13 @@ sub readCodeListCSV()
 end sub
 
 
+function iso8601date(str)
+	iso8601date = ""
+	if Len(str) >= 10 then
+		iso8601date = Mid(str,7,4) & "-" & Mid(str,4,2) & "-" & Mid(str,1,2)
+	end if
+end function
+
 
 function readutf8(str)
 	' make string utf-8
@@ -155,13 +180,16 @@ function readutf8(str)
 	
 	'txt = Trim(str)
 	txt = str
-		c3 = 195
-		c4 = 196
-		c5 = 197
-		c6 = 198
-		c7 = 199
-		ca = 202
-		e2 = 226
+		c3 = 195 ' vanligste startbyte for utf8
+			c4 = 196
+			c5 = 197
+			c6 = 198
+			c7 = 199
+			ca = 202
+			e2 = 226
+'		c3 = 195 b6 = 182 ö
+'		c3 = 195 a1 = 161 á
+'		c5 = 197 8b = 139 ŋ
 		
 	' loop gjennom alle tegn
 	res = ""
@@ -206,6 +234,9 @@ function readutf8(str)
 					Case 161
 						res=res+"á"
 						
+					Case 182
+						res=res+"ö"
+
 					Case else
 						utegn = int(AscW(tegn)) & 511
 						vtegn = utegn * 64
@@ -235,8 +266,9 @@ function readutf8(str)
 						
 					Case 139
 						res=res+"ŋ"
-					Case 8249
-						res=res+"ŋ"
+						
+		'			Case 8249
+		'				res=res+"ŋ"
 						
 					Case else
 						utegn = int(AscW(tegn)) & 511
