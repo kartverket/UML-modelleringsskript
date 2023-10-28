@@ -4,11 +4,14 @@ option explicit
 
 ' script:		makeAbstractSchema
 ' purpose:		switch known stereotypes, from FeatureType to GI_Class etc.
-' formål:		endre kjente stereotyper for revisjon av sosi fagområde
+' formål:		endre kjente stereotyper for revisjon av sosi fagområder
 ' author:		Kent
-' version:		2023-10-27	
-'				TBD: roles
-'				TBD: enumerations
+' version:		2023-10-27	classes and attributes handled, coldelists with codes become GI_Enumerations
+' version:		2023-10-28	roles with role names handled
+'				TBD: complete enumerations (<memo>)
+'				TBD: remove old stereotype from package and class! (only possible with sql?)
+'				TBD: tagged values on GI_Property and GI_Enum not visible under Properties tab, just stereotype name (however scripts will work)
+'				TBD: fix æøå in Notes also at this stage?
 
 		DIM debug,txt
 		debug = true
@@ -46,6 +49,7 @@ sub makeAbstract()
 							"Please select this and try again." )			
 					end if
 				end if
+				Repository.WriteOutput "Script", Now & " End of processing.",0
 
 			case VBcancel
 		end select
@@ -60,15 +64,19 @@ end sub
 sub makeAbstractSchema(pkg)
 	dim elements as EA.Collection
 	dim i
-	Repository.WriteOutput "Script", Now & " Stereotypes will be changed for Package : " & pkg.Name & ".",0
+	if debug then Repository.WriteOutput "Script", Now & " Stereotypes will be changed for Package : [«" & pkg.element.Stereotype & "» " & pkg.Name & "].",0 end if
+'	Repository.WriteOutput "Script", Now & " Stereotype LCase : " & LCase(pkg.element.Stereotype) & ".",0
 
 	if LCase(pkg.element.Stereotype) = "applicationschema" then
 	'	theElement.GetStereotypeList()
-		Repository.WriteOutput "Script", "FQ  Stereotype [" & pkg.element.FQStereotype & "]" & vbCrLf ,0
+'		Repository.WriteOutput "Script", "FQ  Stereotype [" & pkg.element.FQStereotype & "]" & vbCrLf ,0
+	'?	Repository.WriteOutput "Script", "Has Stereotype [" & pkg.element.HasStereotype() & "]" & vbCrLf ,0
+'?		pkg.element.Stereotype = ""
+	'?	pkg.element.Stereotype.Remove()
 		pkg.element.Stereotype = "AbstractSchema"
 		pkg.element.Update()
 		pkg.element.Refresh()
-		Repository.WriteOutput "Script", Now & " Stereotype changed for Package : " & pkg.Name & ".",0
+		Repository.WriteOutput "Script", " Stereotype changed for Package : [«" & pkg.element.Stereotype & "» " & pkg.Name & ".",0
 	end if
 	
  	set elements = pkg.Elements
@@ -77,8 +85,10 @@ sub makeAbstractSchema(pkg)
 		set element = elements.GetAt( i ) 	
 		if element.Type = "Class" then
 			makeAbstractClass(element)
+			element.Refresh()
 		end if
 	next
+	
 	
 	dim subP as EA.Package
 	
@@ -98,7 +108,7 @@ sub makeAbstractClass(theElement)
 	Dim newATag as EA.AttributeTag
 	Dim newCTag as EA.RoleTag
 
-	Repository.WriteOutput "Script", Now & " Stereotypes will be changed for Class : " & theElement.Name & ".",0
+	if debug then Repository.WriteOutput "Script", " Stereotypes will be changed for Class : [«" & theElement.Stereotype & "» " & theElement.Name & "].",0 end if
 			
 	'			Repository.WriteOutput "Script", "Old Stereotype [" & theElement.Stereotype & "]" & vbCrLf ,0
 	'			Repository.WriteOutput "Script", "FQ  Stereotype [" & theElement.FQStereotype & "]" & vbCrLf ,0
@@ -107,7 +117,7 @@ sub makeAbstractClass(theElement)
 				
 	if LCase(theElement.Stereotype) = "featuretype" then
 	'	theElement.GetStereotypeList()
-		Repository.WriteOutput "Script", "FQ featuretype Stereotype [" & theElement.FQStereotype & "]" & vbCrLf ,0
+'		Repository.WriteOutput "Script", "FQ featuretype Stereotype [" & theElement.FQStereotype & "]" & vbCrLf ,0
 		theElement.Stereotype = "GI_Class"
 		for each attr in theElement.Attributes
 			makeAbstractAttribute(attr)
@@ -117,7 +127,7 @@ sub makeAbstractClass(theElement)
 	end if
 	if LCase(theElement.Stereotype) = "datatype" then
 	'	theElement.GetStereotypeList()
-		Repository.WriteOutput "Script", "FQ datatype Stereotype [" & theElement.FQStereotype & "]" & vbCrLf ,0
+'		Repository.WriteOutput "Script", "FQ datatype Stereotype [" & theElement.FQStereotype & "]" & vbCrLf ,0
 		theElement.Stereotype = "GI_DataType"
 		for each attr in theElement.Attributes
 			makeAbstractAttribute(attr)
@@ -127,19 +137,53 @@ sub makeAbstractClass(theElement)
 	end if
 	if LCase(theElement.Stereotype) = "codelist" then
 	'	theElement.GetStereotypeList()
-		Repository.WriteOutput "Script", "FQ codelist Stereotype [" & theElement.FQStereotype & "]" & vbCrLf ,0
-		theElement.Stereotype = "GI_CodeSet"
+'		Repository.WriteOutput "Script", "FQ codelist Stereotype [" & theElement.FQStereotype & "]" & vbCrLf ,0
 		if theElement.Attributes.Count() > 0 then
-			Repository.WriteOutput "Script", "Class with stereotype GI_CodeSet not empty! [" & theElement.Attributes.Count() & "]" & vbCrLf ,0
+			theElement.Stereotype = "enumeration"
+		else
+			theElement.Stereotype = "GI_CodeSet"
+		end if
+		if theElement.Attributes.Count() > 0 then
+			Repository.WriteOutput "Script", "Warning: Class with codes not empty! ["  & theElement.Name & " has "& theElement.Attributes.Count() & " codes]" & vbCrLf ,0
 			for each attr in theElement.Attributes
-	'			makeAbstractAttribute(attr)
+				makeAbstractAttribute(attr)
 			next
 		end if
-	'	theElement.Update()
-	'	theElement.Refresh()
+		theElement.Update()
+		theElement.Refresh()
 	end if
-	Repository.WriteOutput "Script", "New Stereotype [" & theElement.Stereotype & "]" & vbCrLf ,0			
-	Repository.WriteOutput "Script", Now & " Stereotype changed for Class : " & theElement.Name & ".",0
+'	Repository.WriteOutput "Script", "New Stereotype [" & theElement.Stereotype & "]" & vbCrLf ,0			
+	Repository.WriteOutput "Script", " Stereotype changed for Class : [«" & theElement.Stereotype & "» " & theElement.Name & "].",0
+
+
+
+
+				
+	for each conn in theElement.Connectors
+		'''Repository.WriteOutput "Script", "Connector found [" & theElement.Name & "]"  & " Connector.Name [" & conn.Name & "]" & " Connector.Type [" & conn.Type & "]" & vbCrLf ,0
+		if conn.Type = "Generalization" or conn.Type = "Realisation" or conn.Type = "NoteLink" then
+		else
+		'	find roles referring to the other class
+			if conn.ClientID = theElement.ElementID then
+				if debug then Repository.WriteOutput "Script", "Connector to supplier [" & theElement.Name & "]"  & " conn.SupplierEnd.Role [" & conn.SupplierEnd.Role & "] to Class [" & Repository.GetElementByID(conn.SupplierID).Name & "]" & vbCrLf ,0 end if
+				set connend = conn.SupplierEnd
+			else
+				if debug then Repository.WriteOutput "Script", "Connector to client [" & theElement.Name & "]"  & " conn.ClientEnd.Role [" & conn.ClientEnd.Role & "]" & " to Class [" & Repository.GetElementByID(conn.ClientID).Name & "]" & vbCrLf ,0 end if
+				set connend = conn.ClientEnd
+			end if
+
+			if debug then Repository.WriteOutput "Script", "Class [" & theElement.Name & "]"  & " role.Name [" & connend.Role & "]"  & " role.Stereotype [" & connend.Stereotype & "]" & " role.StereotypeEx [" & connend.StereotypeEx & "]" & vbCrLf ,0  end if
+			if connend.Role <> "" then
+				connend.Stereotype = "GI_Property"
+				connend.Update()
+			end if
+		end if
+	next
+	theElement.Update()
+	theElement.Refresh()
+			
+			
+
 
 end sub
 
@@ -161,19 +205,28 @@ sub makeAbstractAttribute(attr)
 				
 	if LCase(attr.Stereotype) = "egenskap" then
 	'	theElement.GetStereotypeList()
-		Repository.WriteOutput "Script", "FQ egenskap Stereotype [" & attr.FQStereotype & "]" & vbCrLf ,0
+'		Repository.WriteOutput "Script", "FQ egenskap Stereotype [" & attr.FQStereotype & "]" & vbCrLf ,0
 		attr.Stereotype = "GI_Property"
 		attr.Update()
 	end if
-	if LCase(attr.Stereotype) = "" then
+	if LCase(attr.Stereotype) = "enum" or LCase(attr.Type) = "<undefined>" or LCase(attr.Type) = "" then
 	'	theElement.GetStereotypeList()
-		Repository.WriteOutput "Script", "FQ  Stereotype [" & attr.FQStereotype & "]" & vbCrLf ,0
+'		Repository.WriteOutput "Script", "FQ enum Stereotype [" & attr.FQStereotype & "]" & vbCrLf ,0
+		attr.Stereotype = "GI_EnumerationLiteral"
+		attr.Update()
+	end if
+	if LCase(attr.Stereotype) = "" and LCase(attr.Type) <> "" then
+	'	theElement.GetStereotypeList()
+'		Repository.WriteOutput "Script", "FQ  Stereotype [" & attr.FQStereotype & "]" & vbCrLf ,0
 		attr.Stereotype = "GI_Property"
 		attr.Update()
 	end if
 
-	Repository.WriteOutput "Script", "New Stereotype [" & attr.Stereotype & "]" & vbCrLf ,0			
-	Repository.WriteOutput "Script", Now & " Stereotype changed for Atribute : " & attr.Name & ".",0
+'	Repository.WriteOutput "Script", "New Stereotype [" & attr.Stereotype & "]" & vbCrLf ,0			
+	if LCase(attr.Stereotype) = "enum" or LCase(attr.Stereotype) = "GI_EnumerationLiteral" or LCase(attr.Type) = "<undefined>" or LCase(attr.Type) = "" then
+	else
+		Repository.WriteOutput "Script", " Stereotype changed for Atribute : [«" & attr.Stereotype & "» " & attr.Name & "].",0
+	end if
 
 end sub
 
