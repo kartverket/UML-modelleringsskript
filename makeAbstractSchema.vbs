@@ -6,7 +6,7 @@ option explicit
 ' purpose:		switch known stereotypes, from FeatureType to GI_Class etc.
 ' formål:		endre kjente stereotyper for revisjon av sosi fagområder
 ' author:		Kent
-' version:		2023-10-27	classes and attributes handled, coldelists with codes become GI_Enumerations
+' version:		2023-10-27	classes and attributes handled, codelists with codes become GI_Enumerations
 ' version:		2023-10-28	roles with role names handled
 '				TBD: complete enumerations (<memo>)
 '				TBD: remove old stereotype from package and class! (only possible with sql?)
@@ -14,7 +14,7 @@ option explicit
 '				TBD: fix æøå in Notes also at this stage?
 
 		DIM debug,txt
-		debug = true
+		debug = false
 
 sub makeAbstract()
 	Repository.EnsureOutputVisible "Script"
@@ -176,6 +176,7 @@ sub makeAbstractClass(theElement)
 			if connend.Role <> "" then
 				connend.Stereotype = "GI_Property"
 				connend.Update()
+				conn.Update()
 			end if
 		end if
 	next
