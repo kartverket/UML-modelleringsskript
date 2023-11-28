@@ -5,7 +5,8 @@ option explicit
 ' script:			listXKOSNOfraKodeliste
 ' description:		Skriver en kodeliste til egne XKOSNO-filer under samme sti som prosjektfila ligger.
 ' author:			Kent Jonsrud, Kartverket
-' date:				2023-09-26	tatt ut spesialhandtering av utgåtte koder i et par kodelister
+' date:				2023-11-28 alle verdier i tagger ut på xkos-filene, og mer metadata ut på filene
+' date:				2023-09-26 tatt ut spesialhandtering av utgåtte koder i et par kodelister
 ' date:				2022-10-21 lager samme innhold i to filer, både kode.html og kode uten filtype
 ' date:				2022-07-08 endret navn på skript fra listSKOSfraKodeliste og tilpasset XKOS-AP-NO versjon 1.0, endrer "&#230;" til "æ" etc.
 ' date  :			2021-11-11 feilretting av sti til filer (filene kommer noen ganger ut på stien til EA.exe)
@@ -21,6 +22,7 @@ option explicit
 ' TBD:				parse --Definition-- fra Notes og Alias og lage engelsk definisjon og preflabel på kodelista (linje 180)
 ' TBD:				loop gjennom multipple designations etc.
 ' TBD:				sjekk at tagged values ikke har 
+' TBD:				lage .ttl-filer for alle elementene i tillegg?
 '
 '	globale variabler
 	DIM objFSO
@@ -48,6 +50,7 @@ sub listKoderForEnValgtKodeliste()
 	Repository.ClearOutput "Script"
 	Repository.CreateOutputTab "Error"
 	Repository.ClearOutput "Error"
+	Repository.WriteOutput "Script", Now & " sub listKoderForEnValgtKodeliste() ", 0
 
 	'Get the currently selected CodeList in the tree to work on
 
@@ -62,7 +65,7 @@ sub listKoderForEnValgtKodeliste()
 			dim message
 '			message = "--------------------------------------------------------------------------------------" & vbCrLf & vbCrLf & _
 			message = "List class : [«" & theElement.Stereotype &"» "& theElement.Name & "]." & vbCrLf & vbCrLf
-			message = message & "Script listXKOSNOfraKodeliste versjon 2023-09-26 (Kent Jonsrud)" & vbCrLf & vbCrLf
+			message = message & "Script listXKOSNOfraKodeliste versjon 2023-11-24 (Kent Jonsrud)" & vbCrLf & vbCrLf
 			message = message & "Creates one SKOS/RDF/xml format file with all codes, "
 			message = message & "and one subfolder with one SKOS/RDF/xml format file for each code in the list." & vbCrLf
 			message = message & "Also creates a html-list(index.html), and one html-file(no extension) for each code in the list." & vbCrLf & vbCrLf
@@ -144,6 +147,7 @@ sub listCodelistCodes(el,namespace)
     objFile.Write"  xmlns:xkos=""http://rdf-vocabulary.ddialliance.org/xkos#""" & vbCrLf
     objFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
 '	objFile.Write"  xmlns:rdfs=""http://www.w3.org/2000/01/rdf-schema#""" & vbCrLf
+'	objFile.Write"  xmlns:schema=""http://schema.org/""" & vbCrLf
 	objFile.Write"  xmlns:dct=""http://purl.org/dc/terms/""" & vbCrLf
 	objFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
 '	objFile.Write"  xmlns:xsd=""http://www.w3.org/2001/XMLSchema#""" & vbCrLf
@@ -187,9 +191,11 @@ sub listCodelistCodes(el,namespace)
     'objFile.Write"    <skos:definition xml:lang=""en"">"&getTaggedValue(el,"definition")&"</skos:definition>" & vbCrLf
 	'XKOSNO:
     objFile.Write"    <xkos:numberOfLevels>1</xkos:numberOfLevels>" & vbCrLf
+    objFile.Write"    <dct:language>no</dct:language>" & vbCrLf
 	objFile.Write"    <dct:identifier>"& utf8(namespace) & "/" & utf8(el.Name) &"</dct:identifier>" & vbCrLf
 	objFile.Write"    <dct:title xml:lang=""no"">SOSI kodeliste "&utf8(presentasjonsnavn) & "(" & utf8(el.Name)&")</dct:title>" & vbCrLf
 	objFile.Write"    <dct:publisher xml:lang=""no"">Kartverket</dct:publisher>" & vbCrLf
+	objFile.Write"    <dct:issued>" & getCurrentDateTime & "</dct:issued>" & vbCrLf
     objFile.Write"  </skos:ConceptScheme>" & vbCrLf
 
 
@@ -226,6 +232,7 @@ sub listCodelistCodes(el,namespace)
 	idxFile.Write"  </tr>" & vbCrLf
 	idxFile.Write"  </tbody>" & vbCrLf
 	idxFile.Write"  </table>" & vbCrLf
+	idxFile.Write"  <p>Automatisk generert fra UML-modell med skriptet <a href=""https://github.com/kartverket/UML-modelleringsskript/blob/master/listXKOSNOfraKodeliste.vbs"">listXKOSNOfraKodeliste</a> " & getCurrentDateTime() & "</p>" & vbCrLf
 	idxFile.Write"  </body>" & vbCrLf
 	idxFile.Write"</html>" & vbCrLf
 	idxFile.Close
@@ -304,7 +311,10 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 	'  får ut 16-bits unicode ved å sette True som siste flagg i kallet over. Må derfor lage utf8 selv.
 	objCodeFile.Write"<?xml version=""1.0"" encoding=""UTF-8""?>" & vbCrLf
 	objCodeFile.Write"<rdf:RDF" & vbCrLf
+    objCodeFile.Write"  xmlns:xkos=""http://rdf-vocabulary.ddialliance.org/xkos#""" & vbCrLf
     objCodeFile.Write"  xmlns:skos=""http://www.w3.org/2004/02/skos/core#""" & vbCrLf
+	objCodeFile.Write"  xmlns:dct=""http://purl.org/dc/terms/""" & vbCrLf
+	objCodeFile.Write"  xmlns:schema=""http://schema.org/""" & vbCrLf
 	objCodeFile.Write"  xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#""" & vbCrLf
 	objCodeFile.Write"  xml:base="""&utf8(namespace)&"/"&utf8(codelist)&"/"&""">" & vbCrLf
 
@@ -313,6 +323,7 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 
 	objCodeFile.Write"    <skos:prefLabel xml:lang=""no"">"&utf8(presentasjonsnavn)&"</skos:prefLabel>" & vbCrLf
     objCodeFile.Write"    <skos:definition xml:lang=""no"">"&utf8(getCleanDefinitionText(attr))&"</skos:definition>" & vbCrLf
+    objCodeFile.Write"    <xkos:coreContentNote xml:lang=""no"">"&utf8(getCleanDefinitionText(attr))&"</xkos:coreContentNote>" & vbCrLf
 	if codelist = "Kommunenummer" then
 		fy = Mid(uricode,1,2)
 		objCodeFile.Write"    <skos:broader rdf:resource="""&utf8(namespace)&"/Fylkesnummer/"&fy&"""/>" & vbCrLf
@@ -339,12 +350,43 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 			end if
 		end if
 	end if
+	objCodeFile.Write"    <dct:identifier>" & utf8(namespace) & "/" & utf8(codelist) & "/" & uricode & "</dct:identifier>" & vbCrLf
+
 	if getTaggedValue(attr,"designation") <> "" then
 		objCodeFile.Write"    <skos:prefLabel xml:lang=""en"">" & Mid(utf8(getTaggedValue(attr,"designation")),2,Len(getTaggedValue(attr,"designation"))-5) & "</skos:prefLabel>" & vbCrLf
 	end if
 	if getTaggedValue(attr,"definition") <> "" then
 		objCodeFile.Write"    <skos:definition xml:lang=""en"">" & Mid(utf8(getTaggedValue(attr,"definition")),2,Len(getTaggedValue(attr,"definition"))-5) & "</skos:definition>>" & vbCrLf
 	end if
+	if getTaggedValue(attr,"oppdateringsdato") <> "" then
+		objCodeFile.Write"    <dct:modified>" & utf8(getTaggedValue(attr,"oppdateringsdato")) & "</dct:modified>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"gyldigFra") <> "" then
+		objCodeFile.Write"    <schema:validFrom>" & utf8(getTaggedValue(attr,"gyldigFra")) & "</schema:validFrom>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"gyldigTil") <> "" then
+		objCodeFile.Write"    <schema:validThrough>" & utf8(getTaggedValue(attr,"gyldigTil")) & "</schema:validThrough>" & vbCrLf
+	end if
+'	if getTaggedValue(attr,"erstatningFor") <> "" then
+'		objCodeFile.Write"    <p>erstatning for = " & utf8(getTaggedValue(attr,"erstatningFor")) & "</p>" & vbCrLf
+'	end if
+	if getTaggedValue(attr,"utvekslingsalias") <> "" then
+		objCodeFile.Write"    <skos:notation>" & utf8(getTaggedValue(attr,"utvekslingsalias")) & "</skos:notation>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"SOSI_verdi") <> "" and getTaggedValue(attr,"utvekslingsalias") <> getTaggedValue(attr,"SOSI_verdi") then
+		objCodeFile.Write"    <skos:notation>" & utf8(getTaggedValue(attr,"SOSI_verdi")) & "</skos:notation>" & vbCrLf
+	end if
+	if getTaggedValue(attr,"SOSI_elementstatus") <> "" then
+		objCodeFile.Write"    <xkos:additionalContentNote>" & utf8(getTaggedValue(attr,"SOSI_elementstatus")) & "</xkos:additionalContentNote>" & vbCrLf
+	end if
+'	if getTaggedValue(attr,"SOSI_bildeAvModellelement") <> "" then
+'		objCodeFile.Write"    <p>SOSI_bildeAvModellelement = " & utf8(getTaggedValue(attr,"SOSI_bildeAvModellelement")) & "</p>" & vbCrLf
+'	end if
+'	if getTaggedValue(attr,"ccccccccccc") <> "" then
+'		objCodeFile.Write"    <p>ccccccccccc = " & utf8(getTaggedValue(attr,"ccccccccccc")) & "</p>" & vbCrLf
+'	end if
+	
+	
 	objCodeFile.Write"  </skos:Concept>" & vbCrLf
 	objCodeFile.Write"</rdf:RDF>" & vbCrLf
 
@@ -411,7 +453,7 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 '	htmFile.Write"    <p>lenke til SKOS-fil: <a href=" & utf8(namespace) & "/" & utf8(uricode) & ".rdf>" & utf8(uricode) & ".rdf</a></p>" & vbCrLf
 	htmFile.Write"    <p>lenke til SKOS-fil: <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & ".rdf>" & utf8(uricode) & ".rdf</a></p>" & vbCrLf
 
-	htmFile.Write"    <p>Generert med skriptet listXKOSfraKodeliste " & getCurrentDateTime() & "</p>" & vbCrLf
+	htmFile.Write"    <p>Automatisk generert fra UML-modell med skriptet <a href=""https://github.com/kartverket/UML-modelleringsskript/blob/master/listXKOSNOfraKodeliste.vbs"">listXKOSNOfraKodeliste</a> " & getCurrentDateTime() & "</p>" & vbCrLf
 
 	htmFile.Write"  </body>" & vbCrLf
 	htmFile.Write"</html>" & vbCrLf
@@ -420,7 +462,7 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 
     Set htmFSO= Nothing
 
-' now with file extension .html:
+' now same with file extension .html:
 
 	Set htmlFile = objFSO.CreateTextFile(outHtmlFile,True,False)
 	htmlFile.Write"<!DOCTYPE html>" & vbCrLf
@@ -474,7 +516,7 @@ Sub listSKOSfraKode(attr, codelist, namespace)
 '	htmlFile.Write"    <p>lenke til SKOS-fil: <a href=" & utf8(namespace) & "/" & utf8(uricode) & ".rdf>" & utf8(uricode) & ".rdf</a></p>" & vbCrLf
 	htmlFile.Write"    <p>lenke til SKOS-fil: <a href=" & utf8(namespace) & "/" & utf8(codelist) & "/" & utf8(uricode) & ".rdf>" & utf8(uricode) & ".rdf</a></p>" & vbCrLf
 
-	htmlFile.Write"    <p>Generert med skriptet listXKOSfraKodeliste " & getCurrentDateTime() & "</p>" & vbCrLf
+	htmlFile.Write"    <p>Automatisk generert fra UML-modell med skriptet <a href=""https://github.com/kartverket/UML-modelleringsskript/blob/master/listXKOSNOfraKodeliste.vbs"">listXKOSNOfraKodeliste</a> " & getCurrentDateTime() & "</p>" & vbCrLf
 
 	htmlFile.Write"  </body>" & vbCrLf
 	htmlFile.Write"</html>" & vbCrLf
