@@ -1,16 +1,13 @@
 Option Explicit
 
 !INC Local Scripts.EAConstants-VBScript
-'' !INC adocHjelpefunksjoner
-'' !INC dokumentHjelpefunksjoner
-
 
 ' Script Name: listAdocFraModell
 ' Author: Tore Johnsen, Åsmund Tjora
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
-' 
+' Versjon: 0.34 Dato: 2024-01-15 Jostein Amlien: Globale styreparamtre, åpn diagrammer, realiserigner til kodeliste, roller sortert på sequenceNo, refaktorering med vekt på tabeller og tagger
 ' Versjon: 0.33-1 Dato: 2024-01-05 Jostein Amlien: Omgruppert fila slik at rutinene er gruppert i moduler, med overskrifter. Ingen endring av koden.
 ' Versjon: 0.33 Dato: 2023-03-01 Jostein Amlien: Ny funksjonalitet: pakkeavhengigheter, eksterne modellelementer, assosisasjoner og aggregeringer, basisTyper. Rydding i kode.
 ' Versjon: 0.32 Dato: 2023-01-31 Jostein Amlien: Refaktorering. Sjekk av sosiBasisTyper og definisjonstekster. Prefiks av bokmerke, pakkeoverskrifter, filtrere tagger. 
@@ -68,16 +65,32 @@ Option Explicit
 '		Definisjon: Mulighet for å koble matrikkelenhet til objekt i SSR for å oppdatere bruksnavn i matrikkelen.
 ' TBD: opprydding !!!
 '
+''  ----------------------------------------------------------------------------
+''  --------	Globale parametre
+
+dim debugModell : debugModell = false
+dim genererDiagrammer : genererDiagrammer = true
+
+Dim projectclass As EA.Project 
+set projectclass = Repository.GetProjectInterface()
+
+dim ignorerSosiformatTagger
+
+Dim rotPakke As EA.Package
 DIM rootId
 DIM prefiksBokmerke
-Dim imgfolder, imgparent
-Dim imgFSO
+dim utkatalog	'' full path til hovedkatalogen for det genererte dokumentet 
+dim imgfolder 	'' underkatalog med bildefiler for diagrammer
+
+dim detaljnivaa, nedersteOverskiftsnivaa
+dim toppnivaa, oversteOverskiftsnivaa
+dim standardTabellFormat
 
 ''  ----------------------------------------------------------------------------
 
 '
 ' Project Browser Script main function
-Sub OnProjectBrowserScript()
+Sub OnProjectBrowserScript
 
 	Dim treeSelectedType
 	treeSelectedType = Repository.GetTreeSelectedItemType()
@@ -89,128 +102,139 @@ Sub OnProjectBrowserScript()
 			Repository.ClearOutput "Script"
 			
 			' Code for when a package is selected
-			Dim thePackage As EA.Package
-			set thePackage = Repository.GetTreeSelectedObject()
-			rootId = thePackage.PackageId
 			
-			imgfolder = "diagrammer"
-			Set imgFSO=CreateObject("Scripting.FileSystemObject")
-			imgparent = imgFSO.GetParentFolderName(Repository.ConnectionString())  & "\" & imgfolder
-			if not imgFSO.FolderExists(imgparent) then
-				imgFSO.CreateFolder imgparent
-			end if
-			
-'''			imgparent = ""   ''' brukes ved ny kjøring der alle diagrammer allerede er produseret
-			
-'''			prefiksBokmerke = "XY"   ''' kan brukes for å reduserte flertydige bokmerker der dokumentet skal inngå i et samledokuemet 
-'''
-			Session.Output("// Start of UML-model")
-			Dim topplevel  			
-'''			topplevel = 1    '''  foreslått endring 
-			topplevel = 2
-			
-			Call ListPakke( topplevel, thePackage)
-			Session.Output("// End of UML-model")
+			Session.Output "// Start of UML-model"
+
+			InitierGlobaleParametre
+			Call ListPakke( toppnivaa, rotPakke)
+
+			Session.Output "// End of UML-model"
 		Case Else
 			' Error message
 			Session.Prompt "This script does not support items of this type.", promptOK
 
 	End Select
-	Set imgFSO = Nothing
+
 End Sub
+
+''  ----------------------------------------------------------------------------
+
+sub InitierGlobaleParametre
+	''	parametre bør helst hentes fra en konfigurasjonsfil eller fra modellen
+	
+	''	--	Definer hvor mye info som skal skrives ut i rapporten
+	debugModell = true  '' and false
+
+	ignorerSosiformatTagger = false 
+	standardTabellFormat = "20,80"
+	
+	''	--	Styr antall overskriftsnivåer
+	toppnivaa = 1   '' endra fra 2
+	detaljnivaa = 5	'' mest detaljerte overskriftsnivvå
+	nedersteOverskiftsnivaa = 5
+	oversteOverskiftsnivaa = 1
+		dim topplevel
+'''		topplevel = 1    '''  foreslått endring
+		topplevel = 2
+
+	''	--	Ta vare på hvilken pakke som blir dokumentert
+	set rotPakke = Repository.GetTreeSelectedObject()
+	rootId = rotPakke.PackageId
+	
+	'' La navneromsforkortelsen til skjemaet styre prefiks
+	dim xmlns
+	xmlns = taggedValueFraElement(rotPakke.Element,"xmlns")
+
+	imgfolder = xmlns + "Diagrammer\"	
+
+	Dim imgFSO : Set imgFSO = CreateObject("Scripting.FileSystemObject")
+	utkatalog = imgFSO.GetParentFolderName(Repository.ConnectionString()) & "\"
+	
+	Dim imgparent  	'' full path til underkatalog med bildefiler
+	imgparent = utkatalog  & imgfolder
+	if not imgFSO.FolderExists(imgparent) then imgFSO.CreateFolder imgparent
+
+ 	prefiksBokmerke = xmlns
+
+end sub
 
 ''  ----------------------------------------------------------------------------
 
 Sub ListPakke(pakkelevel, thePackage)
 
+
 	dim pakkeElement
 	set pakkeElement = thePackage.Element
 	
+	dim xmlns : xmlns = taggedValueFraElement(pakkeElement,"xmlns")
+	if prefiksBokmerke = "" and xmlns <> "" then prefiksBokmerke = xmlns
+	
 '----------------- Overskrift og beskrivelse -----------------
 
-	dim overskrift, prefiks
+	dim overskrift, pakketype
 
 If false then   ''''''''' Erstatta av linjene under
 	if pakkeElement.Stereotype = "" then
 
-		Call settInnSideskift                 ''' Hvorfor det ?
-		call settInnSkillelinje
+		SettInnTekst sideskift()              ''' Hvorfor det ?
+		SettInnTekst skillelinje()
 
 		if pakkelevel >= 4 then
-			prefiks = "Underpakke: " 
+			pakketype = "Underpakke: " 
 		else
-			prefiks = "Pakke: " 
+			pakketype = "Pakke: " 
 		end if
 	else
-		prefiks = "Pakke: " 
+		pakketype = "Pakke: " 
 	end if
 
-	overskrift = prefiks + stereotypeNavn( pakkeElement)
+	overskrift = pakketype + stereotypeNavn( pakkeElement)
 else	 ''''''''''''  erstatter linjene over
 	
-	call settInnSkillelinje	
+''	SettInnTekst skillelinje()
+	if  thePackage.packageId <> rootId then SettInnTekst sideskift()
 
 	if pakkeElement.Stereotype <> "" then
-		overskrift = stereotypeNavn( pakkeElement)
+		overskrift = stereotypeNavn( pakkeElement)   
 	else
 		overskrift = "Pakke: " + pathTilInternPakke(thePackage.PackageID)
-''		overskrift = "Pakke: " + pathTilInternPakke(thePackage.ParentID) + "::" + thePackage.Name
-
 	end if
 
 end if
 
-	call skrivTekst( adocOverskrift( pakkelevel, overskrift ) )
+	SettInnTekst nummerertOverskrift( pakkelevel, overskrift ) 
 	
-	call skrivTekst( adocDefinisjonsAvsnitt( pakkeElement) )
- 
-	call skrivProfilParameterTabell( pakkelevel+1, pakkeElement)   '' øker med ett nivå 
+	SettInnTekst bold("Definisjon:") & " " & definisjon(pakkeElement)
 
-  
-	call Pakkeavhengigheter( pakkeElement, adocUnderOverskrift( pakkelevel+1, "Avhengigheter") )   
+''  ----------------------------------------------------------------------------
 
+	dim tittel 
+	tittel = "Profilparametre i tagged values"
+	tittel = unummerertOverskrift(pakkelevel +1, tittel)
+	call SettInnSomTabell( pakkeTagger( pakkeElement), "", tittel)
+
+	tittel = unummerertOverskrift(pakkelevel +1, "Avhengigheter")
+	call SettInnSomTabell( pakkeavhengigheter( pakkeElement), "", tittel)
+	
 '----------------- Bilder og diagram-----------------
 
-	call bildeAvModellelement( pakkeElement)	
+	SettInnBilde bildeAvPakke(pakkeElement)
 
-
-	Dim projectclass As EA.Project
-	set projectclass = Repository.GetProjectInterface()
 	
-	dim diagramfil
 	Dim diag As EA.Diagram
-	dim alternativbildetekst
-	
 	For Each diag In thePackage.Diagrams
-		if imgparent = "" then 
-			'' bruk eksisterende diagrammer, ikke lag nye
-		else
-			Call projectclass.PutDiagramImageToFile(diag.DiagramGUID, imgparent & "\" & diag.Name & ".png", 1)
-			Repository.CloseDiagram(diag.DiagramID)
-		end if
-		
-		if diag.Notes <> "" then
-			alternativbildetekst = getCleanDefinition(diag.Notes)  '' Gjenstår: fjerne avsnitt i teksten
-		else
-			alternativbildetekst = "Diagram med navn " & diag.Name & " som viser UML-klasser beskrevet i teksten nedenfor."
-		end if
-		
-		diagramFil = imgfolder & "\" & diag.Name & ".png"
-
-		call settInnBilde(diag.Name, diagramFil, alternativbildetekst)
-	Next
+			
+		SettInnBilde bildeAvDiagram(diag)
+	
+	next
 
 '-----------------Elementer----------------- 
 
 	Dim element As EA.Element 
 	For each element in thePackage.Elements
-		If isFeatureOrDataType(element)  Then	
-			Call ObjektOgDatatyper(pakkelevel+1, element, thePackage)
-			
-		Elseif isCodelist(element) Then
-			Call Kodelister(pakkelevel+1, element, thePackage)
-			
-		End if
+	
+		call beskrivElement(pakkelevel+1, element, thePackage)		
+
 	Next
 
 '----------------- Underpakker ----------------- 
@@ -224,7 +248,8 @@ end if
 	nestelevel = pakkelevel + 1
 	if pakkelevel = 4 then nestelevel = 4
 
-'	ALT 3 TBD Nøsting helt ned med utskrift av Pakke::Klasse (Pakke/Pakke2::Klasse TBD)
+'	ALT 3 TBD Nøsting helt ned 
+'	med utskrift av Pakke::Klasse (Pakke/Pakke2::Klasse TBD)
 ' 	nestelevel = pakkelevel + 1
 
 '	ALT 4  Alle undeliggende pakker skrives ut på nivå 3
@@ -239,179 +264,117 @@ end sub
 
 ''  ----------------------------------------------------------------------------
 
-sub Pakkeavhengigheter( element, tabellOverskrift)
+function pakkeavhengigheter( pakkeelement )
 
-	Dim con As EA.Connector
-	dim target As EA.Element	
-
-	dim realCelle    : realCelle = adocTabellCelle("") 		'' Tabellcelle for hvor elementet er realisert fra
-	dim depSuppCelle : depSuppCelle = adocTabellCelle("") 	'' Tabellcelle for avhengigheter  
-	
-	DIM pakkeReferanse, elementReferanse, targetReferanse
-	For Each con In element.Connectors
-		'' En connector peker fra client til supplier, fx:
-			'' Client er realisert fra eller avhengig av Supplier
-			
-		'' La Target være i andre enden av connector sett fra element
-		if element.ElementID = con.ClientID then
-			set target = Repository.GetElementByID(con.SupplierID)
-		elseif element.ElementID = con.SupplierID Then 
-			set target = Repository.GetElementByID(con.ClientID)
-		end if
-		'''  ASSERT target.Type = "Package" AND element.Type = "Package"
-		
-		pakkeReferanse = pathTilEksternPakke(target.PackageID) 
-		elementReferanse = adocUnderstrek(stereotypeNavn(target))
-		targetReferanse = pakkeReferanse + "::" + elementReferanse	
-
-		if element.ElementID = con.ClientID then
-			'' Elementet peker på target
-			if con.Type = "Dependency" then
-				call utvidTabellCelle( depSuppCelle, targetReferanse )	
-			elseif con.Type = "Realisation" then
-				call utvidTabellCelle( realCelle, targetReferanse )	
-			end if
-		elseif element.ElementID = con.SupplierID then
-			'' Elementet pekes på av target
-			'' Det er ikke krav om å dokumentere dette 
-			targetReferanse = ""
-		end if		
-	Next
-	
-	dim tabell 
-	tabell = adocTabellstart("20,80", tabellOverskrift)
-
-	if isArray( realCelle) then
-		call utvidTabell( tabell, merge( adocTabellCelle("Realisert fra:"), realCelle) )
-	end if
-	if isArray( depSuppCelle) then   
-		call utvidTabell( tabell, merge( adocTabellCelle("Avhengig av:"), depSuppCelle) )
+	dim pakker, realisertFra, avhengigAv
+	pakker = elementAvhengigAv( pakkeelement, "Dependency")
+	if isArray(pakker) then 
+		pakker = genererPakkeNavnListe(pakker)
+		avhengigAv = array("Avhengig av", pakker)
 	end if
 
-	if isArray( realCelle) or isArray( depSuppCelle) then call skrivTabell( tabell)
+	pakker = elementAvhengigAv( pakkeelement, "Realisation")
+	if isArray(pakker) then 
+		pakker = genererPakkeNavnListe(pakker)
+		realisertFra = array("Realisert fra", pakker)
+	end if
 	
-End sub   
-
+	pakkeavhengigheter = array( realisertFra, avhengigAv)
+	
+End function   
 
 ''  ----------------------------------------------------------------------------
 
-'-----------------ObjektOgDatatyper med ArvOgRealisering -----------------
+sub BeskrivElement(elementLevel, element, pakke)
 
-Sub ObjektOgDatatyper(elementLevel, element, pakke)
+	if not (isFeatureOrDataType(element) or isCodelist(element) ) then EXIT sub
+	
+	SettInnTekst elementOverskrift(elementLevel, element, pakke) 
 
-	call skrivTekst( elementOverskrift(elementLevel, element, pakke) )
-	call skrivTekst( adocDefinisjonsAvsnitt( element) )
-	call skrivProfilParameterTabell( elementLevel, element) 
-	
-	call bildeAvModellelement( element)
+	SettInnTekst bold("Definisjon:") & " " & definisjon(element)
 
-	call skrivUnderOverskrift(elementLevel, "Egenskaper")
-'''	if element.Attributes.Count = 0 then
-'''		skrivTekst("Inneholder ingen egenskaper")
-'''	end if
-	Dim att As EA.Attribute
-	for each att in element.Attributes
-		call skrivTabell( attributtbeskrivelse(att) )
-	next
+	dim undernivaa : undernivaa = elementLevel +1
 
-	call Relasjoner( element, adocUnderOverskrift(elementLevel, "Roller") )
-	
-	call Operasjoner( element, adocUnderOverskrift(elementLevel, "Operasjoner") )
-	
-	call Restriksjoner( element, adocUnderOverskrift(elementLevel, "Restriksjoner") )
-	
-	call ArvOgRealiseringer( element, adocUnderOverskrift( elementLevel, "Arv og realiseringer") )
-'	call ArvOgRealiseringer( element, adocUnderOverskrift( elementLevel, "Avhengigheter") )
+	dim underTittel
+	underTittel = "Profilparametre i tagged values"
+	underTittel = unummerertOverskrift( undernivaa, underTittel)
+	call SettInnSomTabell( elementTagger( element), "", underTittel)
+
+	If isFeatureOrDataType(element)  Then	
+		SettInnBilde bildeAvObjekttype(element)
+
+		underTittel = unummerertOverskrift( underNivaa, "Egenskaper")
+		call Egenskaper(element, underTittel)
+
+		underTittel = unummerertOverskrift( underNivaa, "Roller") 
+		call Relasjoner( element, underTittel)
+		
+		underTittel = unummerertOverskrift( underNivaa, "Operasjoner")
+		call Operasjoner( element, underTittel)  ''
+		
+		underTittel = unummerertOverskrift( underNivaa, "Restriksjoner")
+		call Restriksjoner( element, underTittel)  ''
+
+	Elseif isCodelist(element) Then
+		SettInnBilde bildeAvKodeliste(element)
+		
+		underTittel = unummerertOverskrift( undernivaa, "Koder")
+		Call Kodeliste( element, underTittel)
+ 
+	End if
+
+	underTittel = unummerertOverskrift( undernivaa, "Arv og realiseringer")
+	call SettInnSomTabell( arvOgRealiseringer( element), "", underTittel)
 
 end sub
 
 ''  ----------------------------------------------------------------------------
 
-sub ArvOgRealiseringer( element, tabellOverskrift)
-	 
-	Dim con As EA.Connector
-	dim target As EA.Element
+'-----------------ObjektOgDatatyper med ArvOgRealisering -----------------
+
+Sub Egenskaper(element, tittel)
+
+	if element.Attributes.Count = 0 then EXIT SUB
+
+	SettInnTekst tittel
+	dim tabellFormat : tabellFormat = "20,80"	
+	Dim att As EA.Attribute
+	for each att in element.Attributes
 	
-	dim superCelle : superCelle = adocTabellCelle("")		'' Tabellcelle for elementets supertype(r) 
- 	dim subCelle   : subCelle = adocTabellCelle("") 			'' Tabellcelle for elementets subtyper
-	dim realCelle  : realCelle = adocTabellCelle("") 		'' Tabellcelle for hvor elementet er realisert fra
+		call SettInnSomTabell(  attributtbeskrivelse(att), tabellFormat, "")	
 
-	DIM pakkeReferanse, elementReferanse, targetReferanse
-
-	For Each con In element.Connectors
-		'' En connector peker fra client til supplier, fx:
-			'' client er realisert fra supplier
-			'' client er en subtype av supplier
-
-		dim targetID		
-		'' La target være i andre enden av connector sett fra element
-		if element.ElementID = con.ClientID then
-			targetID = con.SupplierID
-		elseif element.ElementID = con.SupplierID Then 
-			targetID = con.ClientID
-		else
-			EXIT SUB
-		end if
-		set target = Repository.GetElementByID(targetID)
-		
-		If con.Type = "Generalization" then 
-			''	Hovedregelen for generalisering er at target er intern 
-			''  TBD: Ta høyde for at supertypen er ekstern
-			elementReferanse = targetLink(target)
-			if targetID = con.SupplierID then
-				'' vis supertyper med pakkereferanse			
-'				pakkeReferanse = pathTilInternPakke(target.PackageID) 
-'				targetReferanse = pakkeReferanse + "::" + elementReferanse
-'				call utvidTabellCelle( superCelle, targetReferanse )	
-				call utvidTabellCelle( superCelle, pathTilInterntElement(target) )	
-			else
-				'' vis subtyper uten pakkereferanse
-				'' Forutsett at subtypen er i ei pakke under samme skjema
-				call utvidTabellCelle( subCelle, elementReferanse)
-			end if
-		elseIf con.Type = "Realisation" then
-			''	Hovedregelen for realisering er at target er ekstern 
-			if targetID = con.SupplierID then
-				'' Vis hvor elementet er realisert fra
-				pakkeReferanse = pathTilEksternPakke(target.PackageID) 
-				elementReferanse = adocUnderstrek(stereotypeNavn(target))
-				targetReferanse = pakkeReferanse + "::" + elementReferanse
-				call utvidTabellCelle( realCelle, targetReferanse)	
-			else 
-				'' Ikke påkrevd å vise hvor et elementet er blitt realisert
-			end if
-		elseif false then
-			'' Andre avhengigheter 
-			elementReferanse = target.Type + " " + pathTilEksternPakke(target.PackageID)  
-			targetReferanse = elementReferanse + "::" + adocUnderstrek(stereotypeNavn(target))
-			
-			dim connCelle  : connCelle = adocTabellCelle("")	
-			if targetID = con.SupplierID  Then	'' element er avhengig av supplier
-				call utvidTabellCelle( connCelle, "Til " & targetReferanse)
-			elseif targetID = con.SupplierID then '' element er avhengig av client 
-				call utvidTabellCelle( connCelle, "Fra " & targetReferanse)
-			end if		
-		end if
-
-	Next
+	next
 	
-	dim tabell : tabell = adocTabellstart("20,80", tabellOverskrift)
+end sub 
 
-	if isArray( superCelle) then
-		call utvidTabell( tabell, merge( adocTabellCelle("Supertype:"), superCelle))
-	end if
-	if isArray( subCelle) then
-		call utvidTabell( tabell, merge( adocTabellCelle("Subtyper:"), subCelle))
-	end if
-	if isArray( realCelle) then
-		call utvidTabell( tabell, merge( adocTabellCelle("Realisert fra:"), realCelle))
+''  ----------------------------------------------------------------------------
+
+function arvOgRealiseringer( element)
+	dim elementListe 
+	dim supertype, subtyper, realisertFra
+	
+
+	elementListe = elementAvhengigAv( element, "Generalization")
+	if isArray(elementListe) then 
+		elementListe = genererInternPathListe(elementListe)
+		supertype = array("Supertype:", elementListe)
 	end if
 
-	if isArray( superCelle) or isArray( subCelle) or isArray( realCelle) then 
-		call skrivTabell( tabell)
+	elementListe = elementGirForingerFor( element, "Generalization")
+	if isArray(elementListe) then  
+		elementListe = genererElementNavnListe(elementListe)  '
+		subtyper = array("Subtyper:", elementListe)
 	end if
-End sub   
 
+	elementListe = elementAvhengigAv( element, "Realisation")
+	if isArray(elementListe) then   
+		elementListe = genererPakkeNavnListe(elementListe)
+		realisertFra = array("Realisert fra:", elementListe)
+	end if
+
+	arvOgRealiseringer = array( supertype, subtyper, realisertFra)
+	
+end function
 
 '-----------------ObjektOgDatatyper / ArvOgRealiseringer   End-----------------
 
@@ -420,136 +383,118 @@ End sub
 ' 					Kodelister  		
 ''  ----------------------------------------------------------------------------
 
-Sub Kodelister(elementLevel, element, pakke)
-
-	call skrivTekst( elementOverskrift(elementLevel, element, pakke)  )
-	call skrivTekst( adocDefinisjonsAvsnitt( element) )
-	call skrivProfilParameterTabell( elementLevel, element) 
-
-	call bildeAvModellelement( element )
+Sub Kodeliste(element, tittel)
 
 	if element.Attributes.Count > 0 then  
-		dim tabelloverskrift
-		tabelloverskrift = adocUnderOverskrift(elementLevel, "Koder i modellen") 			 ''*****************''
-	
-		CALL skrivTabell( modellkoder(element, tabelloverskrift ) )
-	else
-	''' Da må kodelista være ekstern ....
+
+		dim koder : koder = modellkoder(element)
+
+		dim hode : hode = koder(0)
+		dim tabellFormat : tabellFormat = "20,80"	
+		if UBound(hode) = 2 then tabellFormat = "30,60,10"
+			
+		call SettInnSomTabell( koder, tabellFormat, tittel) 
 	end if
-	
+
 end sub
 
 ''  ----------------------------------------------------------------------------
 
-function modellkoder(element, tabellOverskrift)
+function modellkoder(element)
 
-	Dim att As EA.Attribute	
-	dim utvekslingsalias 
-	dim tabell, tabellRad
+	dim hode : hode = kodeTabellHode(element)
+		
+	dim treKolonner : treKolonner = ( Ubound(hode) = 2)
 	
-	utvekslingsalias = false
+	dim liste() : redim liste(element.Attributes.Count)
+	liste(0) = hode
+
+	dim i :	i = 1
+	
+	Dim att As EA.Attribute	
+	dim def, kode
 	for each att in element.Attributes
-		if att.Default <> "" then
-			utvekslingsalias = true
+		
+		def = definisjon(att)
+		def = def + bildeAvAttributt(att, "kodelistekode")
+
+		if treKolonner then 
+			kode = array( att.Name, def, att.Default) 
+		else
+			kode = array( att.Name, def )   
+		end if
+		
+		liste(i) = kode
+		i = i +1
+	next
+	
+	modellkoder = liste
+	
+End function
+
+''  ----------------------------------------------------------------------------
+
+function kodeTabellHode(element)
+
+	dim hode : hode = array( "Kodenavn:", "Definisjon:")
+
+	dim att
+	for each att in element.Attributes
+		if att.Default <> "" then 
+			hode = array( "Kodenavn:", "Definisjon:", "Kodeverdi:")
 			exit for
 		end if
 	next
-
-	if utvekslingsalias then
-		tabell = adocTabellstart("25,60,15", tabellOverskrift)
-		tabellRad = adocTabellHode3( "Kodenavn:", "Definisjon:", "Utvekslingsalias:" ) 
-	else
-		tabell = adocTabellstart("20,80", tabellOverskrift)
-		tabellRad = adocTabellHode( "Navn:", "Definisjon:" ) 		
-	end if
-	call utvidTabell( tabell, tabellRad )		
-
-	for each att in element.Attributes
-		tabellRad = adocTabellRad( att.Name, getCleanDefinition(att.Notes) )   
-'''		IF att.Notes = "" THEN tabellRad = adocTabellRad( att.Name, adocBold("ADVARSEL: KODEDEFINISJON MANGLER"))  '''
-		if utvekslingsalias then call utvidTabellRad( tabellRad, adocTabellCelle(att.Default) )
-		call utvidTabellRad( tabellRad, bildeAvAttributt(att, "kodelistekode")  )
-		
-		call utvidTabell( tabell, tabellrad )
-	next
 	
-	modellkoder = tabell
+	dim i
+	for i = 0 to UBound(hode)
+		hode(i) = bold(hode(i))
+	next
+
+	kodeTabellHode = hode
+
 End function
 
 '-----------------CodeList End-----------------
 
 ''  ----------------------------------------------------------------------------
 
-sub skrivProfilParameterTabell( elementLevel, element) 
-	dim overskrift, tabell, listTags, tag
-
-	overskrift = adocUnderOverskrift(elementLevel, "Profilparametre i tagged values")
-	tabell = adocTabellstart("20,80", overskrift)
-	listTags = false
-	for each tag in element.TaggedValues
-		if tag.Value = "" then	
-		elseif tag.Name = "persistence" or tag.Name = "SOSI_melding" then  	''  hopp over disse
-''		elseif tag.Name = "SOSI_navn" then  	''  hopp over denne også
-		elseif tag.Name = "byValuePropertyType" OR  tag.Name = "isCollection" OR  tag.Name = "noPropertyType" then ''hopp over
-		elseif tag.Name = "asDictionary" AND tag.Value = "false" then ''hopp over
-		elseif LCase(tag.Name) = "sosi_bildeavmodellelement" then 			''  tas separat
-		else
-			call utvidTabell( tabell, adocTabellRad( tag.Name, tag.Value) )
-			listTags = true
-		end if
-	next
-
-	if listTags then 
-		call skrivTabell( tabell )
-	end if
-	
-end sub
-
-''  ----------------------------------------------------------------------------
-
 function attributtbeskrivelse( att)
 
-	dim tabell, tabellRad, tabellCelle
-	tabell = adocTabellstart("20,80", "")
+	dim navn, def, mult, init, visib, typ
+	dim tagger, taggListe
+	dim attributt
 	
-	call utvidTabell( tabell, adocTabellHode( "Navn:", att.Name ) )
+	navn = array(bold("Navn:"), bold(att.Name) ) 
 
-	dim definisjon
-	definisjon = getCleanDefinition(att.Notes)
-'''	If definisjon = "" Then definisjon = adocBold("ADVARSEL: EGENSKAPSDEFINISJON MANGLER")   '''
-	tabellRad = adocTabellRad( "Definisjon:", definisjon) 
-	call utvidTabell( tabell, tabellRad )
+	def = array("Definisjon:", definisjon(att) )
 
-	call utvidTabell( tabell, adocTabellRad( "Multiplisitet:", bounds(att) ) )
-	
+	mult = array("Multiplisitet:", bounds(att))
+
 	if att.Default <> "" then
-		call utvidTabell( tabell, adocTabellRad( "Initialverdi:", att.Default ) )
+		init = array("Initialverdi:", att.Default )
 	end if
 
 	if not att.Visibility = "Public" then
-		call utvidTabell( tabell, adocTabellRad( "Visibilitet:", att.Visibility ) )
+		visib = array( "Visibilitet:", att.Visibility )
 	end if
+		
+	typ = array( "Type:", attributtype(att)	) 
 	
+	tagger = egenskapsTagger( att)
+	
+	taggListe = listeFraTabell(tagger, ": ")
 
-	call utvidTabell( tabell, adocTabellRad( "Type:", attributtype(att)	) )
+''	taggListe = array( "Profilparametre i tagged values:", taggListe )
+	taggListe = array( "Tagged values:", taggListe )
 
+'	attributt = array ( navn, def, mult, init, visib, typ)
+	attributt = array ( navn, def, mult, init, visib, typ, taggListe)
+	
+	attributtbeskrivelse = attributt
+	
+	attributtbeskrivelse = merge(attributt, tagger)
 
-	tabellCelle = adocTabellCelle( "")
-	dim tag as EA.TaggedValue
-	for each tag in att.TaggedValues
-		if tag.Value = "" then												'' 	hopp over tomme tagger
-		elseif tag.Name = "persistence" or tag.Name = "SOSI_melding" then  	''  hopp over disse også
-		elseif LCase(tag.Name) = "sosi_bildeavmodellelement" then 			''  tas separat, hopp over
-''		elseif LCase(tag.Name) = "sosi_navn" then 							''  hopp over
-		else
-			call utvidTabellCelle( tabellCelle, tag.Name & ": " & tag.Value )
-		end if
-	next
-	if isArray( tabellCelle) then 
-		tabellRad = merge( adocTabellCelle("Profilparametre i tagged values: "), tabellCelle)
-		call utvidTabell( tabell, tabellrad)
-	end if
-	attributtbeskrivelse = tabell
 end function
 
 
@@ -557,244 +502,372 @@ end function
 ''				Operasjoner og restriksjoner
 ''  ----------------------------------------------------------------------------
 
-sub Operasjoner(element, underOverskrift)
+sub Operasjoner(element, tittel)
 
 	Dim meth as EA.Method
 	dim tabell
-					
+
 	For Each meth In element.Methods
-		tabell = adocTabellstart("20,80", underOverskrift) 
-		
-		call utvidTabell( tabell, adocTabellHode( "Navn:", meth.Name ) )
-		call utvidTabell( tabell, adocTabellRad( "Beskrivelse:", getCleanDefinition(meth.Notes) ) )
-
-''''''''''''''''''''''''''''''''''''''''''''''
-'''		call utvidTabell( tabell, adocTabellRad( "Stereotype:", meth.Stereotype) )
-'''		call utvidTabell( tabell, adocTabellRad( "Retur type:", meth.ReturnType) )
-'''		call utvidTabell( tabell, adocTabellRad( "Oppførsel:", meth.Behaviour) )
-
-		call skrivTabell( tabell)
-		underOverskrift = " "
-	Next
+		call SettInnSomTabell( beskrivOperasjon( meth), "", tittel)
+		tittel = ""
+	next
 
 end sub
+
+''  ----------------------------------------------------------------------------
+
+function beskrivOperasjon( meth)
+
+	dim navn : navn = array( bold("Navn:"), bold( meth.Name) ) 
+	dim beskrivelse : beskrivelse = array("Beskrivelse:", definisjon( meth) )
+	
+	beskrivOperasjon = array( navn, beskrivelse)
+
+exit function
+
+	dim ster, ret, behav
+	
+	ster = array( "Stereotype:", meth.Stereotype) 
+	ret =  array( "Retur type:", meth.ReturnType) 
+	behav = array( "Oppførsel:", meth.Behaviour) 
+	
+	beskrivOperasjon = array( navn, beskrivelse, ster, ret, behav)
+
+end function
 
 ''  ----------------------------------------------------------------------------
 
 sub Restriksjoner( element, underOverskrift)
 
 	Dim constr as EA.Constraint
-	dim tabell
-	
 	For Each constr In element.Constraints
-		tabell = adocTabellstart("20,80", underOverskrift) 
-		
-		call utvidTabell( tabell, adocTabellHode( "Navn:", Trim(constr.Name) ) )
-		call utvidTabell( tabell, adocTabellRad( "Beskrivelse:", getCleanRestriction(constr.Notes) ) )
-		
-'''''''''''''''''
-'''		call utvidTabell( tabell, adocTabellRad( "Type:", constr.Type) )
-'''		call utvidTabell( tabell, adocTabellRad( "Status:", constr.Status) )
-'''		call utvidTabell( tabell, adocTabellRad( "Vekt:", constr.Weight) )
 
-		call skrivTabell( tabell)
-		underOverskrift = " "
-	Next
-
+		call SettInnSomTabell( restrik( constr), "20,80", underOverskrift)
+		underOverskrift = ""
+	next
+	
 end sub
+
+''  ----------------------------------------------------------------------------
+
+function restrik( constr)
+
+	dim navn, beskrivelse, typ, oclKode
+	
+	
+	dim ocl : ocl = (constr.Type = "OCL")
+	
+	dim oclConstraint  '' , posInv
+	if ocl then 
+		dim noter : noter = split(constr.Notes, "inv:")
+		beskrivelse = noter(0)
+		if UBound(noter) > 0 then 
+			oclConstraint = Trimutf8("inv:" + noter(1))
+			oclKode = bokstavlig(oclConstraint)
+		end if
+	else
+		beskrivelse = constr.Notes
+	end if
+	
+	navn = array( bold("Navn:"), bold( trim( constr.Name)) ) 
+	typ = array( "Type:", constr.Type)
+	beskrivelse = array("Beskrivelse:", getCleanRestriction(beskrivelse) ) 
+	if not isEmpty(oclKode) then oclKode = array("OCL kode:", oclKode)
+
+	restrik = array( navn, beskrivelse, typ, oclKode)
+
+exit function
+	dim status : status = array( "Status:", constr.Status)
+	dim vekt : vekt= array( "Vekt:", constr.Weight)
+	restrik = array( navn, beskrivelse, typ, oclKode, status, vekt)
+
+end function
+
 
 '	-----------------	Operasjoner og Restriksjoner 	End	--------------------
 
 
-
-
 '===============================================================================
 '
-'		MODUL for relasjoner og Assosiasjonsroller   ################
+'		MODUL for relasjoner og Assosiasjonsroller   
 '
 '===============================================================================
+'
 
 ''  ----------------------------------------------------------------------------
 '					Relasjoner		
 ''  ----------------------------------------------------------------------------
 '
-sub Relasjoner( element, underOverskrift)
-	
-	dim tabell 
-	tabell = adocTabellstart("20,80", underOverskrift)	
+sub Relasjoner( element, byval underOverskrift)
+''	finn gjerne et nut navn til denne rutina
+''
 'assosiasjoner
-' skriv ut roller - sortert etter tagged value sequenceNumber TBD
+' skriv ut roller - sortert etter tagged value sequenceNumber
 
-	Dim con
-	For Each con In element.Connectors
-		If con.Type = "Association" or con.Type = "Aggregation" Then
+	dim rollesamling  	'' array av rolle-arryer
+	rollesamling = sorterteRoller( element)
+	if isEmpty(rollesamling) then 	EXIT sub
 
-			'' TBD:	Egenassosiasjoner.
-			'	Kan løses ved å erstatte elseif med if under
-			'   Eller legge det inn som et innledende særtilfelle
-			
-			'' Det er hensiktsmesig å rapportere aggregreringene i modellen slik EA velger å framstille dem i diagrammene
-			call fiksKonnektor( con)
+	SettInnTekst underOverskrift
+	dim rolle 
+	for each rolle in rollesamling
+''		call SettInnSomTabell(  beskrivRolle( rolle), "25,75", "")
+		call SettInnSomTabell(  beskrivRolle( rolle), "", "")
+	next
+	
 
-			dim aggType
-			dim realiserRolle : realiserRolle = false
-			If element.elementID = con.SupplierID  and element.elementID = con.ClientID Then
-				'' Egenassosiasjon
-				realiserRolle = TRUE
-				tabell = beskrivRolle( tabell, con.ClientEnd,   con.clientID,   aggregationType(con.SupplierEnd))
-				tabell = beskrivRolle( tabell, con.SupplierEnd, con.supplierID, aggregationType(con.ClientEnd))
-				tabell = beskrivKonnektor( tabell, con)
-
-			elseIf element.elementID = con.SupplierID  Then 
-				'dette elementet er suppliersiden - implisitt at fraklasse er denne klassen
-
-				aggType = aggregationType(con.SupplierEnd)
-				realiserRolle = realiserbarRolle(con.ClientEnd, aggType) 
-				if realiserRolle then
-				''	if aggType = "Assosiasjon" and con.Type = "Aggregation" then aggType = adocKursiv("Assosiasjon")  
-
-					tabell = beskrivRolle( tabell, con.ClientEnd, con.clientID, aggType)
-					tabell = beskrivKonnektor( tabell, con)
-					if false then tabell = beskrivCurrentEnd( tabell, con.SupplierEnd )
-				end if
-			elseIf element.elementID = con.ClientID  Then
-				'dette elementet er clientsiden, (rollen er på target)
-				
-				aggType = aggregationType(con.ClientEnd)
-				realiserRolle = realiserbarRolle(con.SupplierEnd, aggType) 
-				if realiserRolle then
-				''	if aggType = "Assosiasjon" and con.Type = "Aggregation" then aggType = adocKursiv("Assosiasjon")  
-				
-					tabell = beskrivRolle( tabell, con.SupplierEnd, con.supplierID, aggType)
-					tabell = beskrivKonnektor( tabell, con)
-					if false then tabell = beskrivCurrentEnd( tabell, con.ClientEnd )
-				end if
-			End If	
-
-			if realiserRolle then
-				call skrivTabell( tabell)
-
-				''  Initier neste tabell, uten overskrift
-				tabell = adocTabellstart("20,80", "")	
-			end if
-		End If
-	Next
 end sub
 
 ''  ----------------------------------------------------------------------------
 
-function realiserbarRolle( r, aggType)
+function beskrivRolle(rolle)
 
-	realiserbarRolle = ( r.Role <> "" or r.RoleNote <> "" or r.Cardinality <> "" or r.Navigable = "Navigable" or aggType <> "Assosiasjon" )
+	dim seqNo : seqNo = rolle(0)
+
+	dim con : set con = rolle(1)
+	dim current : set current = rolle(2)
+	dim target : set target = rolle(3)
+	dim targetID : targetID = rolle(4)
+	
+	dim aggType, res
+	aggType = aggregationType(current)
+	
+	dim rol, roltag, konn, konntag
+	
+	rol = rolleBeskrivelse( target, targetID, aggtype)
+	roltag = rolleTagger(target) 	
+	konn = konnektor(con) 
+	konntag = konnektorTagger(con) 
+
+	beskrivRolle = array( rol, roltag, konn, konntag)
 
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function beskrivRolle( byVal tabell, targetEnd, targetID, aggregeringsType)
+function alleRoller( element)
+	dim rolle   		'' array
+	dim rollesamling  	'' array av rolle-arryer
+	
+	dim beggeEnder : beggeEnder = array( "Supplier", "Client")
+	Dim con
+	For Each con In element.Connectors
+		dim rolleEnde   
+		for each rolleEnde in beggeEnder  
+			rolle = identifiserRolle( element.elementID, con, rolleEnde)
+			if isArray(rolle) then 
+				rollesamling = merge( rollesamling, array(rolle))
+''				rollesamling = append( rollesamling, rolle)
+			end if
+		next   
+	next
+
+	alleRoller = rollesamling
+end function
+
+''  ----------------------------------------------------------------------------
+
+function sorterteRoller( element)
+	dim rolle   		'' array
+	dim rollesamling  	'' array av rolle-arryer
+	
+	rollesamling = alleRoller( element)
+
+	if isEmpty(rollesamling) then 	EXIT function
+
+	dim sekvens()			'' array av sekvensnummre
+	redim sekvens(UBound(rollesamling))
+	for i = 0 to UBound(rollesamling)
+		sekvens(i) = rollesamling(i)(0)
+	next
+
+	dim indeks
+	indeks = sortertIndeks(sekvens)
+
+	dim res
+	res = rolleSamling
+	dim i, j
+''	for each i in indeks
+	for j = 0 to UBound(indeks) 
+		res(j) = rollesamling(indeks(j))
+	next
+
+	sorterteRoller = res
+end function
+
+''  ----------------------------------------------------------------------------
+
+function identifiserRolle( elemID, con, clientEllerSupplier)
+	'' Returnerer en referanse til en rolle som skal beskrives, 
+	'' dvs. en connector av typen "Association" eller "Aggregation"
+	
+	if con.Type <> "Association" and con.Type <> "Aggregation" Then
+		EXIT function		
+	end if
+
+''  Det er hensiktsmesig å rapportere aggregreringene i modellen 
+	''  på samme måte som EA velger å framstille dem i diagrammene
+	call fiksKonnektor( con)
+	
+	dim targetID, target, current
+	if elemID = con.SupplierID and clientEllerSupplier="Client" then
+		targetID = con.ClientID
+		set target = con.ClientEnd	
+		set current = con.SupplierEnd	
+		
+	elseif elemID = con.ClientID and clientEllerSupplier="Supplier" then
+		targetID = con.SupplierID
+		set target = con.SupplierEnd
+		set current = con.ClientEnd
+	
+	else 
+		exit function
+	end if
+	
+	if target.Role <> "" then   ''erstatter realiserbarRolle( target, aggType)
+		dim seqNo
+		seqNo = taggedValueFraRolle(target, "sequenceNumber")
+'''		if seqNo <> "" then sequenceNumberFraRolle = Cint(seqNo)		
+		if seqNo <> "" then seqNo = Cint(seqNo)		
+
+		identifiserRolle = array( seqNo, con, current, target, targetID)
+	end if
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+
+''  UTGÅR  ########
+function realiserbarRolle( r, aggType)
+
+	dim res
+	res =  r.Role <> "" or r.RoleNote <> "" or r.Cardinality <> ""
+	res =  res or r.Navigable = "Navigable" or aggType <> "Assosiasjon" 
+
+	realiserbarRolle = res
+end function
+
+
+''  ----------------------------------------------------------------------------
+
+function rolleBeskrivelse( targetEnd, targetID, aggregeringsType)
 ''
 ''	targetEnd angir Rollen: navn, def, multiplisitet og navigerbarhet
 ''	targetID angir klassen som Rollen peker på
 ''	aggregeringsType 
-''	
-''	tabell inneholder en initiert tabell, med eller uten overskrift 
-''
 
-	dim target : set target = Repository.GetElementByID(targetID)
+	dim res 
+	dim targetElement : set targetElement = Repository.GetElementByID(targetID)
 
-	call utvidTabell( tabell, adocTabellHode( "Rollenavn:", targetEnd.Role ) )
+	
+	dim navn : navn = targetEnd.Role
+	if navn = "" and debugModell then navn = "ADVARSEL: ROLLENAVN MANGLER"
+	res = array( bold("Rollenavn:"), bold(navn) ) 
 
-	dim definisjon
-	definisjon = getCleanDefinition(targetEnd.RoleNote)
-''	If definisjon = "" Then	definisjon = adocBold("ADVARSEL: ROLLEDEFINISJON MANGLER")   '''
-	call utvidTabell( tabell, adocTabellRad( "Definisjon:", definisjon )  )
+	dim definisjon : definisjon = getCleanDefinition(targetEnd.RoleNote)
+	If definisjon = "" and debugModell Then	
+		definisjon = bold("ADVARSEL: DEFINISJON MANGLER") 	
+	end if
+	res = merge( res, array( "Definisjon:", definisjon )  )
 
 
-	dim multiplisitet 	: multiplisitet = targetEnd.Cardinality    '''' tekstformat
+	dim multiplisitet : multiplisitet = targetEnd.Cardinality  '''' tekstformat
 	if multiplisitet <> "" then 
 		multiplisitet = "[" + targetEnd.Cardinality + "]"
-		call utvidTabell( tabell, adocTabellRad( "Multiplisitet:", multiplisitet ) )
+		res = merge( res, array(  "Multiplisitet:", multiplisitet ) )
 ''	else
-''		call utvidTabell( tabell, adocTabellRad( "Multiplisitet:", adocBold("1") ) )
+''		res = merge( res, array(  "Multiplisitet:", bold("1") ) )
 	end if
 
 
-	call utvidTabell( tabell, adocTabellRad( "Assosiasjonstype:", aggregeringsType) )     ''''  ****************
-''	call utvidTabell( tabell, adocTabellRad( "Aggregeringstype:", aggregeringsType) )     ''''  ****************
+	res = merge( res, array(  "Assosiasjonstype:", aggregeringsType) )    
+''	res = merge( res, array(  "Aggregeringstype:", aggregeringsType) )     
 	
 	dim textVar 		: textVar = "Til klasse"
 	dim navigerbarhet 	: navigerbarhet = targetEnd.Navigable
 	'Legg til info om klassen er navigerbar eller spesifisert ikke-navigerbar.
 	If navigerbarhet = "Navigable" Then 
-		textVar = textVar + adocKursiv(" (navigerbar):") 
+		textVar = textVar + kursiv(":") 
+''		textVar = textVar + kursiv(" (navigerbar):") 
 ''		textVar = "Navigerbar til:"
 	ElseIf navigerbarhet = "Non-Navigable" Then 
-		textVar = textVar + adocKursiv(" (ikke navigerbar):") 
+		textVar = textVar + kursiv(" (ikke navigerbar):") 
 ''		textVar = "Ikke navigerbar til:"		
 '	Elseif navigerbarhet = "Unspecified" Then 
-'		textVar = textVar + + adocBold(" (Uspesifisert):") 
+'		textVar = textVar + bold(" (Uspesifisert):") 
 ''		textVar = "Til klasse"
 	Else 
 		textVar = textVar + ":" 
 ''		textVar = "Til klasse:"
 	End If
 	
-'''	dim pakkeReferanse : pakkeReferanse = pathTilEksternPakke( target.PackageID)
-'	dim pakkeReferanse : pakkeReferanse = pathTilInternPakke( target.PackageID)
-'	dim elementReferanse : elementReferanse = targetLink( target )
-'	dim targetReferanse : targetReferanse = pakkeReferanse + "::" + elementReferanse
-'
-'	call utvidTabell( tabell, adocTabellRad( textVar, targetReferanse ) )
+	dim targetReferanse 	
+'''	dim pakkeReferanse 
+'''	pakkeReferanse = pathTilEksternPakke( targetElement.PackageID)
+'	dim pakkeReferanse 
+'	pakkeReferanse = pathTilInternPakke( targetElement.PackageID)
+'	dim elementReferanse 
+'	elementReferanse = targetLink( targetElement )
+'	targetReferanse = pakkeReferanse + "::" + elementReferanse
 
-	call utvidTabell( tabell, adocTabellRad( textVar, pathTilInterntElement(target) ) )
+	targetReferanse = pathTilInterntElement(targetElement)
+	res = merge( res, array(  textVar, targetReferanse ) )
 
-	beskrivRolle = tabell
+	rolleBeskrivelse = res
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function beskrivKonnektor( byVal tabell, connector)
-	dim konnNavn : 	konnNavn = stereotypeNavn(connector)
-	
-	if konnNavn <> "" then call utvidTabell( tabell, adocTabellRad( "Konnektor: ", konnNavn) )
+function konnektor( connector)
+	dim res 
 
-	if connector.Type = "Aggregation" or konnNavn <> "" then
-	'	call utvidTabell( tabell, adocTabellRad( "Assosiasjonstype:", connector.Type) )
-		call utvidTabell( tabell, adocTabellRad( "Konnektortype:", connector.Type ) ) '' Trenger vi denne ?
+	dim konnNavn : konnNavn = stereotypeNavn(connector)
+''	
+	if konnNavn <> "" then 
+		res = array( "Konnektor: ", konnNavn)
+		res = merge( res, array( "Konnektortype:", connector.Type )  )
+	elseif connector.Type = "Aggregation" then
+		'' Trenger vi denne ?
+		res = array( "Konnektortype:", connector.Type ) 
 	end if
-	
-	beskrivKonnektor = tabell
+		
+	if not isEmpty(res) then konnektor = res
+
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function beskrivCurrentEnd( byVal tabell, currentEnd )
+function currentEnd( ende )
+	dim res 
 
-	If currentEnd.Role <> "" Then
-		call utvidTabell( tabell, adocTabellRad( "Fra rolle:", currentEnd.Role ) )
+	If ende.Role <> "" Then
+		res = merge( res, array( "Fra rolle:", ende.Role ) )
 	End If
-	If currentEnd.RoleNote <> "" Then
-		call utvidTabell( tabell, adocTabellRad( "Fra rolle definisjon:", getCleanDefinition(currentEnd.RoleNote) ) )
+	If ende.RoleNote <> "" Then
+		dim def : def = getCleanDefinition(ende.RoleNote)
+		res = merge( res, array( "Fra rolle definisjon:", def ) )
 	End If
-	If currentEnd.Cardinality <> "" Then
-		call utvidTabell( tabell, adocTabellRad( "Fra multiplisitet:", currentEnd.Cardinality )  )
+	If ende.Cardinality <> "" Then
+		res = merge( res, array( "Fra multiplisitet:", ende.Cardinality ) )
 	End If
 
-	beskrivCurrentEnd = tabell
+	CurrentEnd = res
 end function
 
 ''  ----------------------------------------------------------------------------
 
-sub fiksKonnektor( connector)
-	'' Denne funksjonen gjennomfører de samme tilpasnignene som EA gjør i diagrammene
+sub FiksKonnektor( connector)
+	'' Denne funksjonen gjennomfører de tilpasningene som EA viser i diagrammene
 
 	if connector.Type = "Aggregation" then
 		'' En Aggregation kan ikke ha Assosiasjonsroller i begge ender
-		if connector.SupplierEnd.Aggregation = 0 and connector.ClientEnd.Aggregation = 0 then
+		if connector.ClientEnd.Aggregation > 0 then
+		elseif connector.SupplierEnd.Aggregation = 0 then
 			connector.SupplierEnd.Aggregation = 1
 		end if
-		
-		'' En Aggregation kan ikke ha ensidig retning mot destinasjon (target, supplier)	
+				
+		'' En Aggregation kan ikke ha ensidig retning mot destinasjon 	
 		if connector.Direction = "Source -> Destination" then 
 			connector.Direction = "Unspecified"
 			connector.SupplierEnd.Navigable = "Unspecified" 
@@ -817,7 +890,7 @@ function aggregationType(rolleEnde)
 	elseif aggType = 2 then 
 		res = "Komposisjon"
 	else
-		call skrivTekst("SYSTEMFEIL:  Assosiasjon har en uventa aggregeringstype:" & aggtype)
+		SettInnTekst "SYSTEMFEIL:  Assosiasjon har aggregeringstype:" & aggtype
 		exit function
 	end if
 
@@ -825,13 +898,72 @@ function aggregationType(rolleEnde)
 end function
 
 
+''  ----------------------------------------------------------------------------
+''
+''	Rutiner som brukes til å sortere på sekvensnummer
+''
+''  ----------------------------------------------------------------------------
+
+function sortertIndeks(byval sekvens)
+	dim res()
+	redim res(UBound(sekvens)) ''  : res = order
+
+	dim i, pos
+	for i = 0 to UBound( sekvens)
+		pos = posMinimum(sekvens)
+		
+		if isEmpty(pos) then pos = firstEmpty(sekvens)
+		
+		res(i) = pos
+		sekvens(pos) = -1   '' marker elementet som identifisert
+	next
+	
+	sortertIndeks = res
+	
+end function
+
+''  ----------------------------------------------------------------------------
+
+function firstEmpty(sekvens)
+''  identifiserer posisjoen til det første tomme elementet i en sekvens
+	dim j
+	for j = 0 to UBound(sekvens) 
+		if isEmpty(sekvens(j)) then 
+			firstEmpty = j
+			exit function
+		end if
+	next
+end function
+
+''  ----------------------------------------------------------------------------
+
+function posMinimum(sekvens)
+''  identifiserer posisjoen til det minste positive tallet i en sekvens
+	dim min, pos, j, seqNo
+
+	for j = 0 to UBound(sekvens)
+		seqNo = sekvens(j)
+		if not isNull(seqNo) and seqNo > 0 then    '' sjekk denne kandidaten
+			if isEmpty(min) or seqNo < min  then  '' beste kandidat så langt
+				min = seqNo
+				pos = j
+			end if
+		end if
+	next
+
+	posMinimum = pos
+	
+end function
+
+ 
+ 
 
 '	============================================================================
 '
 '					MODUL   navigeringEA    
 '
 '	============================================================================
-
+'
 '--------   Funksjoner som forholder seg til UML-modelllen i EA  ---------------
 
 ''  ----------------------------------------------------------------------------
@@ -839,104 +971,209 @@ end function
 ''  ----------------------------------------------------------------------------
 
 function isFeatureOrDataType(element)
-	dim ster 
-	ster = Ucase(element.Stereotype)
-	isFeatureOrDataType = (ster = "FEATURETYPE" OR ster = "DATATYPE" OR ster = "UNION" )
+
+	isFeatureOrDataType = isFeatureType(element) or isDataType(element)
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function isFeatureType(element)
+	dim ster : ster = Ucase(element.Stereotype)
+	
+	isFeatureType = (ster = "FEATURETYPE")
+end function
+
+''  ----------------------------------------------------------------------------
+
+function isDataType(element)
+	dim ster : ster = Ucase(element.Stereotype)
+
+	isDataType = (ster = "DATATYPE" OR ster = "UNION" )
 end function
 
 ''  ----------------------------------------------------------------------------
 
 function isCodelist(element)
-	dim ster 
-	ster = Ucase(element.Stereotype)
-	isCodelist = (ster = "CODELIST" OR ster = "ENUMERATION" OR element.Type = "Enumeration" )
+	dim ster : ster = Ucase(element.Stereotype)
+	dim sterOK
+	sterOK = (ster = "CODELIST" OR ster = "ENUMERATION" )
+	
+	isCodelist = sterOK OR (element.Type = "Enumeration")
 end function
 
 ''  ----------------------------------------------------------------------------
 
 function isAbstract(element)
-	isAbstract = (element.Abstract = 1 and Ucase(element.Stereotype) = "FEATURETYPE" )
+	dim ster : ster = Ucase(element.Stereotype)
+
+	isAbstract = (element.Abstract = 1 and ster = "FEATURETYPE" )
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function sosiBasistype( attrType)
+function erSosiBasistype( attrType)
 	'' trenger å sjekke om typen faktisk er en SOSI basistype
 	
-	dim basisTyper
-	basisTyper = "Date, Time, DateTime, Number, Decimal, Integer, Real, Vector" 
-	basisTyper = basisTyper + ", CharacterString, Boolean, URI, Any, Record, LanguageString"
-	basisTyper = basisTyper + ", GM_Point, GM_Curve, GM_Surface, GM_Solid"
-	basisTyper = basisTyper + ", GM_Primitive, GM_MultiSurface" 
-	basisTyper = basisTyper + ", Punkt, Sverm, Kurve, Flate" 
+	''**  En mer generesk tilnærming ville være å traversere nettressusen under
+	''	  og sett opp lista i bTyp ihht. typene som er definert der.
+	dim path : path = "http://skjema.geonorge.no/SOSI/basistype/" 
+	
+	dim bTyp
+	bTyp = "Date, Time, DateTime, Number, Decimal, Integer, Real, Vector" 
+	bTyp = bTyp + ", CharacterString, Boolean, URI, Any, Record, LanguageString"
+	bTyp = bTyp + ", GM_Point, GM_Curve, GM_Surface, GM_Solid"
+	bTyp = bTyp + ", GM_Primitive, GM_MultiSurface" 
+	bTyp = bTyp + ", Punkt, Sverm, Kurve, Flate" 
 
-	basisTyper = Split(basisTyper, ", ")
+	dim basisTyper : basisTyper = Split(bTyp, ", ")
 
-	dim typ, res
-	for each typ in basisTyper
-		if typ = attrType then 
-			res = "http://skjema.geonorge.no/SOSI/basistype/"  & attrType
-			exit for
-		end if
-	next
+	erSosiBasistype = listeInneholderElement( basisTyper, attrType)  
 
-	sosiBasistype = res
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function erLovligBasisType( attType) 
+function erLovligBasisType( attrType) 
 	dim lovligetyper
 ''	lovligetyper = Split("string, integer, date, boolean", ", ") 
 	lovligetyper = "string, integer, date, boolean"  '' typer for xml
 	lovligetyper = Split(lovligetyper, ", ") 
 	
-	erLovligBasisType = false
-	dim typ
-	for each typ in lovligetyper 
-		if typ = attType then erLovligBasisType = true
-	next
+	erLovligBasisType = listeInneholderElement( lovligetyper, attrType)
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function listeInneholderElement( liste, element)
+	listeInneholderElement = false
 	
+	dim el
+	for each el in liste
+		if el = element then listeInneholderElement = true
+	next
 end function
 
 ''  ----------------------------------------------------------------------------
 
 function attributtype(att)	
-	dim typ
 
-	if att.ClassifierID = 0 then  ''	attributtet har ingen referanse til en classifier
-		dim uri 
-		uri = sosiBasistype( att.Type)
-		
-		if uri <> "" then
-			typ = adocEksternLink( uri, att.Type)
-		elseif erLovligBasisType( att.Type) then   '' lovlig ihht f.eks. xml
-			typ = att.Type
-		else 
-			typ = adocBold("Ukjent type: ") + att.Type
-		end if
+	dim sosiPath : sosiPath = "http://skjema.geonorge.no/SOSI/basistype/" 
+	if erSosiBasistype(att.Type) then
+		attributtype = eksternLenke( sosiPath & att.Type, att.Type)
+
+	elseif erLovligBasisType( att.Type) then   '' lovlig ihht f.eks. xml
+		attributtype = att.Type
 
 	elseif att.ClassifierID > 0 then  '' referanse til en klasse i modellen
-	
+
+		''  Attributtets datatype er referert fra att.ClassifierID 
+		''  Må forutsette at ClassifierID faktisk peker på et element
 		dim classifier as EA.Element   '' for å angi attributtets datatype
-		set classifier = Repository.GetElementByID(att.ClassifierID) '' denne forutsetter at ID peker på noe...
+		set classifier = Repository.GetElementByID(att.ClassifierID) 
 
 		'' Sjekk om classifier skulle være en datatype definert utafor scope
+		dim typ
 		if erEksternPakke(classifier.PackageID) then
 			'' classifier er ekstern og derfor ikke beskrevet i dette dokumentet
-			typ = pathTilEksternPakke(classifier.PackageID) + "::" + adocUnderstrek(stereotypeNavn( classifier))
+			typ = pathTilEksternPakke(classifier.PackageID) 
+			typ = typ + "::" + understrek(stereotypeNavn( classifier))
 		else
 			typ = targetLink( classifier)
 		end if
 		
+		attributtype = typ		
+	else
+		attributtype = bold("Ukjent type: ") + att.Type	
 	end if
-	
-	attributtype = typ
+
 end function 
+
+''  ----------------------------------------------------------------------------
+
+function elementGirForingerFor( element, conType)
+	''  returnerer de elementene er avhengig av dette elementet
+	''	i form av en array med IDer
+
+	dim liste 
+
+	DIM pakkeReferanse, elementReferanse  '' , targetReferanse
+	dim con 
+	for each con in element.Connectors 
+		if element.ElementID = con.SupplierID and con.Type = contype then
+			liste = merge(liste, con.ClientID)
+		end if
+	next
+	elementGirForingerFor = liste
+end function
+
+''  ----------------------------------------------------------------------------
+
+function elementAvhengigAv( element, conType)
+	''  returnerer de elementene som dette elementet er avhengig av
+	''	i form av en array med IDer
+	dim liste 
+
+	dim con  
+	for each con in element.Connectors 
+		if element.ElementID = con.ClientID and con.Type = contype then
+			liste = merge(liste, con.SupplierID)
+		end if
+	next
+	elementAvhengigAv = liste
+end function
 
 
 ''  ----------------------------------------------------------------------------
 '				Referanser til pakker i modellregisteret
+''  ----------------------------------------------------------------------------
+
+function genererPakkeNavnListe(IDliste)
+	dim liste
+	
+	DIM pakkeReferanse, elementReferanse, targetReferanse
+	dim id, target
+	for each id in IDliste
+		set target = Repository.GetElementByID(id)
+
+		if target.Type <> "Boundary" then 					''''''''''''''''''
+		pakkeReferanse = pathTilEksternPakke(target.PackageID) 
+		elementReferanse = understrek(stereotypeNavn(target))
+		targetReferanse = pakkeReferanse + "::" + elementReferanse	
+
+		liste = merge(liste, targetReferanse)
+		end if											'''''''''''''''''''''''
+	next
+	genererPakkeNavnListe = liste
+end function
+
+''  ----------------------------------------------------------------------------
+
+function genererElementNavnListe(IDliste)
+	dim liste
+	
+	dim id, target
+	for each id in IDliste
+		set target = Repository.GetElementByID(id)
+		liste = merge(liste, targetlink(target))
+	next
+	genererElementNavnListe = liste
+end function
+
+''  ----------------------------------------------------------------------------
+
+function genererInternPathListe(IDliste)
+	dim liste
+	
+	dim id, target
+	for each id in IDliste
+		set target = Repository.GetElementByID(id)
+		liste = merge(liste, pathTilInterntElement(target))
+	next
+	genererInternPathListe = liste
+end function
+
 ''  ----------------------------------------------------------------------------
 
 function erEksternPakke( pakkeID)  '' pakke i et annet skjama
@@ -946,15 +1183,20 @@ function erEksternPakke( pakkeID)  '' pakke i et annet skjama
 	set pakke = Repository.GetPackageByID(pakkeID)
 
 	dim  res
-	if pakkeID = rootId then  '' Vi har nådd toppen av denne modellen: pakka er lokal
+	if pakkeID = rootId then  
+		'' Vi har nådd toppen av denne modellen: pakka er lokal
 		res = false
-	elseif pakke.parentID = rootId then  '' Vi har nådd toppen av denne modellen: pakka er lokal
+	elseif pakke.parentID = rootId then  
+		'' Vi har nådd toppen av denne modellen: pakka er lokal
 		res = false
-	elseif pakke.name = "SOSI Model" then  '' Vi har nådd toppen av modellregisteret
+	elseif pakke.name = "SOSI Model" then  
+		'' Vi har nådd toppen av modellregisteret
 		res = true
-	elseif pakke.parentID = 0 then	'' Vi har nådd toppen av modellregisteret: pakka er ekstern
+	elseif pakke.parentID = 0 then	
+		'' Vi har nådd toppen av modellregisteret: pakka er ekstern
 		res = true
-	elseif pakke.Element.Stereotype <> "" then '' Vi har nådd et annet applikasjonskjema: pakka er ekstern
+	elseif pakke.Element.Stereotype <> "" then 
+		'' Vi har nådd et annet applikasjonskjema: pakka er ekstern
 		res = true
 	else
 		res = erEksternPakke( pakke.ParentID) 
@@ -973,11 +1215,14 @@ function pathTilEksternPakke( pakkeID)  '' pakke i et annet skjama
 	dim pakkenavn, res
 	pakkenavn = pakke.name 
 
-	if pakke.parentID = 0 then	'' Vi har nådd toppen av modellregisteret: pakka er ekstern
+	if pakke.parentID = 0 then	
+		'' Vi har nådd toppen av modellregisteret: pakka er ekstern
 		res = ""
-	elseif pakkenavn = "SOSI Model" then  '' Vi har nådd toppen av modellregisteret
+	elseif pakkenavn = "SOSI Model" then  
+		'' Vi har nådd toppen av modellregisteret
 		res = ""
-	elseif pakke.Element.Stereotype <> "" then '' Vi har nådd et applikasjonskjema: pakka er ekstern
+	elseif pakke.Element.Stereotype <> "" then 
+		'' Vi har nådd et applikasjonskjema: pakka er ekstern
 		res = pakkenavn
 	else
 		dim path
@@ -996,9 +1241,10 @@ end function
 
 ''  ----------------------------------------------------------------------------
 
-function pathTilInterntElement( target)
+function pathTilInterntElement( element)
 
-	pathTilInterntElement = pathTilInternPakke(target.PackageID) + "::" + targetLink(target)
+	dim tlink : tlink = targetLink(element)
+	pathTilInterntElement = pathTilInternPakke(element.PackageID) + "::" + tLink
 
 end function
 
@@ -1014,11 +1260,14 @@ function pathTilInternPakke( pakkeID)
 	dim pakkenavn, res
 	pakkenavn = pakke.name
 
-	if pakke.parentID = rootId then  '' Vi har nådd toppen av denne modellen: pakka er lokal
+	if pakke.parentID = rootId then  
+		'' Vi har nådd toppen av denne modellen: pakka er lokal
 		res = pakkenavn
-	elseif pakke.parentID = 0 then	'' Vi har nådd toppen av modellregisteret: pakka er ekstern
+	elseif pakke.parentID = 0 then	
+		'' Vi har nådd toppen av modellregisteret: pakka er ekstern
 		res = ""
-	elseif pakke.Element.Stereotype <> "" then '' Vi har nådd et annet applikasjonskjema: pakka er ekstern
+	elseif pakke.Element.Stereotype <> "" then 
+		'' Vi har nådd et annet applikasjonskjema: pakka er ekstern
 		res = ""
 	else
 		dim parentPath
@@ -1036,17 +1285,18 @@ end function
 
 
 ''	============================================================================
+'
 '					MODUL: taggedValues
 '
 '		Høsting av tagged values fra modellen  
 '
 ''	============================================================================
 
-
 '----------------  Funksjoner for å lese tagged values -------------------
-'
+
 function taggedValueFraElement(element, byVal tagName)
 	tagName = LCase(tagName)
+
 	dim tag
 	for each tag in element.TaggedValues
 		if LCase(tag.Name) = tagName and tag.Value <> "" then
@@ -1059,29 +1309,170 @@ end function
 
 ''  ----------------------------------------------------------------------------
 
-function getTaggedValue(element,taggedValueName)
-	dim i, existingTaggedValue
-	getTaggedValue = ""
-	for i = 0 to element.TaggedValues.Count - 1
-		set existingTaggedValue = element.TaggedValues.GetAt(i)
-		if LCase(existingTaggedValue.Name) = LCase(taggedValueName) then
-			getTaggedValue = existingTaggedValue.Value
+function taggedValueFraRolle(rolle, byVal tagName)
+	tagName = LCase(tagName)
+
+	dim tag
+	for each tag in rolle.TaggedValues
+		if LCase(tag.Tag) = tagName and tag.Value <> "" then
+			taggedValueFraRolle = tag.Value
+			exit for
 		end if
 	next
+
 end function
 
 ''  ----------------------------------------------------------------------------
 
-	function getPackageTaggedValue(package,taggedValueName) 	'''' kan fjernes
-		dim i, existingTaggedValue
-		getPackageTaggedValue = ""
-		for i = 0 to package.element.TaggedValues.Count - 1
-			set existingTaggedValue = package.element.TaggedValues.GetAt(i)
-			if LCase(existingTaggedValue.Name) = LCase(taggedValueName) then
-				getPackageTaggedValue = existingTaggedValue.Value
-			end if
-		next
-	end function
+function egenskapsTagger( element) '' element er et atributt
+
+	dim res()
+	redim res(element.TaggedValues.Count )
+	dim tagNr : tagNr = 0
+	
+	dim tag
+	for each tag in element.TaggedValues
+		if not ignorerTag(tag) then 	
+			res(tagNr) = array(tag.Name, tag.Value) 
+			tagNr = tagNr + 1
+		end if
+	next
+
+	if tagNr = 0 then exit function
+
+	egenskapsTagger = res
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function elementTagger( element) '' element er ei pakke
+
+	dim res()
+	redim res(element.TaggedValues.Count )
+	dim tagNr : tagNr = 0
+	
+	dim tag
+	for each tag in element.TaggedValues
+		if not ignorerTag(tag) then 	
+			res(tagNr) = array(tag.Name, tag.Value) 
+			tagNr = tagNr + 1
+		end if
+	next
+	
+	if tagNr = 0 then exit function
+
+	elementTagger = res
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function pakkeTagger( element) '' element er ei pakke
+
+	dim res()
+	redim res(element.TaggedValues.Count )
+	dim tagNr : tagNr = 0
+	
+	dim tag
+	for each tag in element.TaggedValues
+		if not ignorerTag(tag) then 	
+			res(tagNr) = array(tag.Name, tag.Value) 
+			tagNr = tagNr + 1
+		end if
+	next
+
+	if tagNr = 0 then exit function
+	
+	redim preserve res(tagNr-1)
+	pakkeTagger = res
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function konnektorTagger( con) 
+
+	if con.TaggedValues.Count = 0 then EXIT function 
+
+	dim res, tag
+	for each tag in con.TaggedValues
+		res = merge ( res, array(tag.Name, tag.Value) )
+	next
+
+	konnektorTagger = res
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function rolleTagger( rol) 
+
+'	if not rol.hasAttributes() then	exit function
+'
+	if rol.TaggedValues.Count = 0 then 	EXIT function
+	
+	dim res, tag
+	for each tag in rol.TaggedValues
+		if tag.Tag <> "sequenceNumber" then res = merge ( res, array(tag.Tag, tag.Value) )
+	next
+
+	rolleTagger = res
+
+end function
+
+'
+'----------------  Funksjoner for å lese tagged values End -------------------
+
+''  ----------------------------------------------------------------------------
+
+function profilParametre( element) 
+''	kalles ikke men testen kan brukes i rutina for pakketagger
+
+	dim res
+	dim tag
+	for each tag in element.TaggedValues
+		if ignorerTag(tag) then 									  	''	pass
+		elseif tag.Name = "byValuePropertyType" then					''	pass
+		elseif tag.Name = "isCollection" then						''	pass
+		elseif tag.Name = "noPropertyType" then 						''	pass
+		elseif tag.Name = "asDictionary" AND tag.Value = "false" then 	''	pass
+		else
+			res = merge ( res, array(tag.Name, tag.Value) )
+		end if
+	next
+
+	profilParametre = res
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function ignorerTag(tag)
+	
+	dim navn : navn = LCase(tag.Name) 
+	dim ignorer
+	ignorer = navn = "persistence" or navn = "sosi_melding" 				'' skriv ut BARE i debug-modus
+	ignorer = ignorer AND not debugModell
+	ignorer = ignorer or tag.Value = "" 									'' 	hopp over tomme tagger
+	ignorer = ignorer or navn = "sosi_bildeavmodellelement"  						'' 	tas separat, hopper over
+		
+	ignorerTag = ignorer or ignorerSosiFormatTag(tag)
+
+end function
+''  ----------------------------------------------------------------------------
+
+function ignorerSosiFormatTag(tag)
+
+	ignorerSosiFormatTag = false
+	if ignorerSosiformatTagger then
+		dim sosiTag
+		for each sosiTag in array( "sosi_navn","sosi_lengde", "sosi_datatype")
+			if sosiTag = LCase(tag.Name) then ignorerSosiFormatTag = true
+		next	
+	end if 
+	
+end function
 '
 '----------------  Funksjoner for å lese tagged values End -------------------
 
@@ -1098,9 +1489,8 @@ end function
 ''  			Utseende av tekst i dokumentet
 ''  ----------------------------------------------------------------------------
 
-
 function bounds( att)
-''  Returnerer en formattert tekst som angir nedre og øvre grense for et intervall
+''  Returnerer en formattert tekst med nedre og øvre grense for et intervall
 	bounds = att.LowerBound & ".." & att.UpperBound
 	bounds = "[" & bounds & "]"
 end function
@@ -1131,7 +1521,8 @@ end function
 
 function tekstformatEnumeration( element)
 	if element.Type = "Enumeration" then  
-		tekstformatEnumeration = """Enumeration"" "
+''		tekstformatEnumeration = """Enumeration"" "
+		tekstformatEnumeration = "«Enumeration»"
 	end if
 end function
 
@@ -1146,30 +1537,29 @@ end function
 
 function targetLink( element)
 	'' intern hyperlenke i dokumentet som peker til beskrivelsen av et element
-	targetLink = adocLink( bokmerke(element), stereotypeNavn(element) )
-end function
+	targetLink = internLenke( bokmerke(element), stereotypeNavn(element) )
 
+end function
 
 ''  ----------------------------------------------------------------------------
 
 function elementOverskrift(elementLevel, element, pakke)
 	
-	dim elementnavn, overskrift
+	dim elementnavn, tittel
 	elementnavn = stereotypeNavn(element) 
-	if isAbstract(element) then
-		elementnavn = adocKursiv( elementnavn & " (abstrakt)" )    '''' NYTT: gjort abstracte klasser kursiv
+	if isAbstract(element) then '''' NYTT: gjort abstracte klasser kursiv
+		elementnavn = kursiv( elementnavn & " (abstrakt)" )   
 	end if
 
 	if elementLevel > 4 then   
-		overskrift = adocOverskrift( 4, pakke.Name & "::" & elementnavn)
+		tittel = nummerertOverskrift( 4, pakke.Name & "::" & elementnavn)
 	else
-		overskrift = adocOverskrift( elementLevel, elementnavn) 
+		tittel = nummerertOverskrift( elementLevel, elementnavn) 
 	end if
 	
-	dim bokmerke
-	bokmerke = merge( adocSkillelinje, adocBokmerke(element) )
+	dim res : res = overkriftMedBokmerke( tittel, bokmerke(element))
+	elementOverskrift = merge( skillelinje(), res)
 	
-	elementOverskrift = merge( bokmerke, overskrift)
 end function
 
 
@@ -1177,66 +1567,92 @@ end function
 ''				Tabeller
 ''  ----------------------------------------------------------------------------
 
-sub skrivTabell(tabell)
-	call avsluttTabell( tabell)
-	call skrivTekst( tabell)
-end sub
+sub SettInnSomTabell( byVal data, tabellFormat, overskrift)
 
-sub avsluttTabell(tabell)
-	tabell = merge(tabell, adocTabellavslutning )
-end sub
+	if not isArray(data) then EXIT sub
 
-''  ----------------------------------------------------------------------------
+	if UBound(data) < 0 then EXIT sub 
 
-sub utvidTabell( tabell, tabellRad)
-''  Tabell utvides med tabellrad 
-''	Det forutsettes at tabellraden inneholder riktig antall tabellceller
-''
-	tabell = merge(tabell, tabellRad)
-end sub
+	if tabellFormat = "" then tabellFormat = standardTabellFormat
 
-sub utvidTabellRad( tabellRad, byVal tabellcelle)
-''  Tabellrad utvides med ei ny tabellcelle som legges til raden
-''
-	tabellRad = merge(tabellRad, tabellcelle)
-end sub
+	SettInnTekst formatertTabell( data, tabellFormat, overskrift)
 
-sub utvidTabellCelle( celle, ekstraLinje )
-''  Tabellcelle utvides med ei ekstraLinje og returneres
-''
-	if ekstraLinje <> "" then celle = merge( celle, ekstraLinje & adocLinjeskift )
 end sub
 
 ''  ----------------------------------------------------------------------------
 
+function formatertTabell( byVal tabell, tabellFormat, overskrift)
 
-function adocTabellHode( parameter, verdi)
-    adocTabellHode = adocTabellRad( adocBold(parameter), adocBold(verdi) ) 
+	if not isArray(tabell) then EXIT function
+'
+	dim antallRader : antallRader = UBound(tabell) +1
+	if antallRader = 0 then EXIT function 
+
+	if tabellFormat = "" then tabellFormat = standardTabellFormat
+
+	dim res() : redim res(UBound(tabell)+2)
+	
+	dim i, rad
+	res(0) = array( overskrift, tabellstart( tabellFormat) )
+	i = 1
+	for each rad in tabell 
+		rad = tabellRad( rad)
+		if not isEmpty(rad) then
+			res(i) = rad
+			i = i +1
+		end if
+	next
+	res(i) = tabellavslutning()
+	redim preserve res(i)
+	
+	if i > 1 then 
+		formatertTabell = res
+	end if
+
 end function
 
-function adocTabellHode3( parameter, verdi, ekstra)
-    adocTabellHode3 = adocTabellRad3( adocBold(parameter), adocBold(verdi), adocBold(ekstra) ) 
+''  ----------------------------------------------------------------------------
+
+function tabellRad( byval rad)
+	
+	if isEmpty( rad) then 	EXIT function
+
+	if not isArray(rad) then
+		tabellRad = tabellCelle( rad) '' " - skulle vært array... ")
+		EXIT function
+	end if
+	
+	dim i
+	for i = 0 to UBound(rad) 
+		rad(i) = tabellCelle( rad(i) )
+	next
+
+	tabellRad = rad 
+	
 end function
 
-function adocTabellRad( parameter, verdi)
-''  Returnerer asciidoc-kode for å skive ut en rad i en tabell med to kolonner
+''  ----------------------------------------------------------------------------
 
-	dim res(1)
-	res(0) = "|" & parameter & " "
-	res(1) = "|" & verdi & " "
+function listeFraTabell( byval tabell, skilletegn)
 
-	adocTabellRad = res
-end function
+	if not isArray(tabell) then EXIT function
 
-function adocTabellRad3( parameter, verdi, ekstra)
-''  Returnerer asciidoc-kode for å skive ut en rad i en tabell med tre kolonner
+	if skilletegn = "" then skilletegn = ": "
 
-	dim res(2)
-	res(0) = "|" & parameter & " "
-	res(1) = "|" & verdi & " "
-	res(2) = "|" & ekstra & " "
+	dim res()
+	redim res( UBound(tabell) )
 
-	adocTabellRad3 = res
+	dim i, rad, nyrad
+	for each rad in tabell
+		if isArray(rad) then 
+			res(i) = join( rad , skilletegn )
+			i = i+1 
+		end if
+	next
+	
+	redim preserve res(i-1) 
+	listeFraTabell = res
+		
 end function
 
 
@@ -1248,12 +1664,25 @@ end function
 function merge( ByVal list, byVal tillegg)
 ''  Slår sammen to variabler, gjerne arrayer, til en ny array
 ''
-	if not isArray(list) Then list = array(list)
-	if not isArray(tillegg) Then tillegg = array(tillegg)
+	if isEmpty(tillegg) Then 
+		merge = list
+		exit function
+	elseif not isArray(tillegg) Then 
+		tillegg = array(tillegg)
+	end if
+	
+	if isEmpty(list) Then 
+		merge = tillegg
+		exit function
+	elseif not isArray(list) then
+		list = array(list)
+	end if
+
 
 	dim i, start
 	dim res()
 	redim res(UBound(list))
+
 	for i = 0 to UBound(list) 
 		res(i) = list(i)
 	next
@@ -1265,6 +1694,7 @@ function merge( ByVal list, byVal tillegg)
 	next
 	
 	merge = res
+
 end function
 
 
@@ -1273,179 +1703,181 @@ end function
 '  			TBD:  Direkte utskrift til fil
 '  ----------------------------------------------------------------------------
 '
-sub skrivTekst(byVal tekst)
+sub SettInnTekst( tekst)
 	if not isArray(tekst) then 
-		call skrivTekstlinje(tekst)
+		if tekst <> "" then Session.Output tekst
 	else
 		dim t
 		for each t in tekst
-			skrivTekstlinje(t)
+			SettInnTekst t   ''rekursivt
 		next
 	end if 
 end sub
 
 ''  ----------------------------------------------------------------------------
 
-sub skrivTekstlinje(tekst)
-	if tekst <> "" then Session.Output(tekst)
-end sub
+			sub SkrivTekstlinje(tekst)
+				if tekst <> "" then Session.Output(tekst)
+			end sub
 
 ''  ----------------------------------------------------------------------------
 
 
-
 '===============================================================================
 '
-'		MODUL for Bilder   ################
+'		MODUL for Bilder   
 '
 '===============================================================================
+'
 
+
+''	UTGÅR    ########################
+''	sub bildeAvModellelement( element)  
+''
+''	ERSTATTES av disse
+''	function bildeAvObjekttype(element)
+''	function bildeAvKodeliste(element)
+''	function bildeAvPakke(element)
+''	Som alle kaller på 
+''		function bildeAvModellElement		##############################
+''
+
+''	UTGÅR    ########################
+''	sub attrbilde(att,typ)  
+''
 
 ''  ----------------------------------------------------------------------------
 
-sub bildeAvModellelement( element)
-
-	dim standardTekst
-	dim standardAlternativ(1)
-	if isFeatureOrDataType(element)	then
-		standardTekst = "Illustrasjon av objekttype "
-		standardAlternativ(0) = "Bilde av et eksempel på objekttypen "
-'''' 		Tatt bort formuleringen om påtegning av geometri
-''		standardAlternativ[1] = ", eventuelt med påtegning av streker som viser hvor geometrien til objektet skal måles fra."
-	elseif isCodelist(element) then
-		standardTekst = "Illustrasjon av kodeliste: "
-		standardAlternativ(0) = "Illustrasjon av hva kodelisten "
-		standardAlternativ(1) = " kan inneholde." 
-	else
-		standardTekst = "Illustrasjon av pakke "
-		standardAlternativ(0) = "Bildet viser en illustrasjon av innholdet i UML-pakken "
-		standardAlternativ(1) = ", der alle detaljene kommer i teksten nedenfor."
+function bildeAvObjekttype(element)
+	dim standardTekst, alt
+	
+	standardTekst = "Illustrasjon av objekttype "  + element.Name
+	if isDataType(element) then
+		standardTekst = "Illustrasjon av datatype "  + element.Name
 	end if
-
-
-	dim tag as EA.TaggedValue
-	dim bilde, bildetekst, alternativbildetekst
-
- if isFeatureOrDataType(element) then
-''		Tilnærming fra objekttyper og datatyper:
-''
-	for each tag in element.TaggedValues								
-		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
-
-			bilde = getTaggedValue(element, "SOSI_bildeAvModellelement") 
-			
-			if getTaggedValue(element, "SOSI_bildetekst") <> "" then 
-				bildetekst = getTaggedValue(element, "SOSI_bildetekst")
-			else
-				bildetekst = standardTekst & element.Name & ""
-			end if
-			
-			if getTaggedValue(element,"SOSI_alternativbildetekst") <> "" then 
-				alternativbildetekst = getTaggedValue(element, "SOSI_alternativbildetekst")
-			else
-				alternativbildetekst = standardAlternativ(0) & element.Name 
-			end if
-			
-			call settInnBilde( bildetekst, bilde, alternativbildetekst) 
-			
-		end if
-	next
 	
- elseif isCodelist(element)	then
-''		Tilnærming fra kodelister:
-''
-	for each tag in element.TaggedValues										
-		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then	
-			bildetekst = standardTekst & element.Name
-			bilde = tag.Value		
-			alternativbildetekst = standardAlternativ(0) & element.Name & standardAlternativ(1)
+	alt = "Bilde av et eksempel på objekttypen " + element.Name
 
-			call settInnBilde( bildetekst, bilde, alternativbildetekst)
-		end if
-	next
+	bildeAvObjekttype = bildeAvModellElement( element, standardTekst, alt)
 	
- else   '''  Tilnærming fra Pakker
-
-	for each tag in element.TaggedValues
-		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
-
-			bilde = getTaggedValue(element, "SOSI_bildeAvModellelement") 
-			
-			if getTaggedValue(element, "SOSI_bildetekst") <> "" then 
-				bildetekst = getTaggedValue(element, "SOSI_bildetekst")
-			else
-				bildetekst = standardTekst & element.Name & ""
-			end if
-			
-			if getTaggedValue(element,"SOSI_alternativbildetekst") <> "" then 
-				alternativbildetekst = getTaggedValue(element, "SOSI_alternativbildetekst")
-			else
-				alternativbildetekst = standardAlternativ(0) & element.Name & standardAlternativ(1)
-			end if
-			
-			call settInnBilde(bildetekst, bilde, alternativbildetekst) 
-
-		end if
-	next
-
- end if
-
-exit sub
-	'' Ny felles tilnærming kan komme her....
-	
-	bilde = taggedValueFraElement(element, "sosi_bildeavmodellelement")   ''    ????
-
-end sub
-
-
-''  ----------------------------------------------------------------------------
-' Func Name: attrbilde(att)
-' Author: Kent Jonsrud
-' Date: 2021-09-16
-' Purpose: skriver ut lenke til bilde av element ved siden av elementet
-'
-sub attrbilde(att,typ)
-''	call skrivTekst( bildeAvAttributt(att, typ) )	
-''exit sub 
-	dim tag as EA.TaggedValue
-	for each tag in att.TaggedValues								
-		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
-			Session.Output(" +")
-			Session.Output("Illustrasjon av " & typ & " "&att.Name&"")
-			Session.Output("image:"&tag.Value&"[link="&tag.Value&",width=100,height=100, alt=""Bilde av " & typ & " "&att.Name&" som er forklart i teksten.""]")
-		end if
-	next
-end sub
-'
-'-------------------------------------------------------------END---------------
-
-''  ----------------------------------------------------------------------------
-
-function bildeAvAttributt( att, typ)
-	dim tag as EA.TaggedValue
-	dim bildetekst, alternativbildetekst, res
-	
-	for each tag in att.TaggedValues								
-		if LCase(tag.Name) = "sosi_bildeavmodellelement" and tag.Value <> "" then
-			bildetekst = "Illustrasjon av " & typ & " " & att.Name &""		
-			alternativbildetekst = "Bilde av " & typ & " " & att.Name & " som er forklart i teksten."
-			res = adocInlineBilde( bildetekst, tag.Value, alternativbildetekst)	
-
-			exit for  '' eller skal det være mulig å ha flere bilder av samme attributt ???
-		end if
-	next
-	
-	bildeAvAttributt = res
 end function 
 
 ''  ----------------------------------------------------------------------------
 
-sub settInnBilde(bildetekst, bilde, alternativbildetekst)
-''	Setter inn et bilde i full størrelse med innledende skillelinje
+function bildeAvKodeliste(element)
+	dim standardTekst, alt
 
-	call settInnSkillelinje
+	standardTekst = "Illustrasjon av kodeliste " + element.Name
 
-	call skrivTekst(adocBilde(bildetekst, bilde, alternativbildetekst) )	
+	alt = "Illustrasjon av hva kodelisten "  + element.Name + " kan inneholde" 
+
+	bildeAvKodeliste = bildeAvModellElement( element, standardTekst, alt)
+	
+end function 
+
+''  ----------------------------------------------------------------------------
+
+function bildeAvPakke(element)
+	dim standardTekst, alt
+
+	standardTekst = "Illustrasjon av pakke "
+
+	alt = "Illustrasjon av innholdet i UML-pakken " + element.Name
+	
+	bildeAvPakke = bildeAvModellElement( element, standardTekst, alt)
+	
+end function 
+
+''  ----------------------------------------------------------------------------
+
+function bildeAvModellElement( element, standardBildeTekst, standardAltTekst)
+''	**  Bør få et nytt navn ======
+
+
+	dim bilde
+	bilde = taggedValueFraElement(element, "SOSI_bildeavmodellelement")  
+
+	if bilde = "" then EXIT FUNCTION
+	
+	dim bildeTekst
+	bildeTekst = taggedValueFraElement(element, "SOSI_bildetekst")
+	if bildeTekst = "" then bildeTekst = standardBildeTekst
+	
+	dim altBildeTekst
+	altBildeTekst = taggedValueFraElement(element, "SOSI_alternativbildetekst")
+	if altBildeTekst = "" then altBildeTekst = standardAltTekst
+	
+	bildeAvModellElement = bildeFrittstaaende(bildeTekst, bilde, altBildeTekst) 
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function bildeAvDiagram( diag)
+
+	dim bilde : bilde = imgfolder + diag.Name + ".png"
+	
+	dim bildeTekst : bildeTekst = diag.Name
+	
+''	dim altBildeTekst :	altBildeTekst = alternativBildeTekstForDiagram( diag)
+	dim altBildeTekst
+	if diag.Notes <> "" then
+		altBildeTekst = getCleanDefinition(diag.Notes)  
+	else
+		dim altTekst(2)
+		altTekst(0) = "Diagram med navn " 
+		altTekst(1) = diag.Name 
+		altTekst(2) = " som viser UML-klasser beskrevet i teksten nedenfor."
+		altBildeTekst = join( altTekst)
+	end if
+	
+	bildeAvDiagram = bildeFrittstaaende(bildeTekst, bilde, altBildeTekst) 
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+sub OpprettDiagramFil(diag, diagramfil)
+
+	dim diagID : diagID = diag.DiagramGUID
+	dim fullPathDia : fullPathDia = utkatalog & diagramfil
+	
+	dim openDia 
+	openDia = ( Repository.IsTabOpen(diag.Name) > 0 )
+	Call projectclass.PutDiagramImageToFile(diagID, fullPathDia, 1)
+	if not openDia then call Repository.CloseDiagram(diag.DiagramID)
+
+end sub
+
+''  ----------------------------------------------------------------------------
+
+function bildeAvAttributt( att, typ)
+
+	dim bilde
+	bilde = taggedValueFraElement(att, "sosi_bildeavmodellelement")
+	if bilde <> "" then
+		dim bildetekst, alternativTekst
+		bildetekst = "Illustrasjon av " & typ & " " & att.Name &""		
+		alternativTekst = "Bilde av " & typ & " " & att.Name 
+		alternativTekst = alternativTekst & " som er forklart i teksten."
+		
+		bildeAvAttributt = bildeITekst( bildetekst, bilde, alternativTekst)	
+	end if
+
+end function 
+
+''  ----------------------------------------------------------------------------
+
+sub SettInnBilde( bilde)
+
+	if isArray(bilde)  then
+		SettInnTekst Skillelinje()
+	elseif bilde <> "" then
+		SettInnTekst Skillelinje()
+	end if
+
+	SettInnTekst bilde
+
 end sub
 
 
@@ -1456,20 +1888,16 @@ end sub
 '
 ''	============================================================================
 
+function definisjon( element)
 
-''  ----------------------------------------------------------------------------
-'
-'     brukes kun til debugging av definisjoner
-'
-''  ----------------------------------------------------------------------------
-''' --- Ascidoc for definisjoner
-''
-function adocDefinisjonsAvsnitt( element)
-	dim definisjon, advarsel
-	definisjon = getCleanDefinition(element.Notes)
-	advarsel = "ADVARSEL: DEFINISJON MANGLER"
-''	if definisjon = "" then definisjon = adocBold(advarsel)
-	adocDefinisjonsAvsnitt = adocBold("Definisjon:") & " " & definisjon
+	dim advarsel : advarsel = bold("ADVARSEL: DEFINISJON MANGLER")	
+	dim def : def = getCleanDefinition( element.Notes)
+
+	if def = "" and debugModell then 
+		definisjon = advarsel		
+	else
+		definisjon = def
+	end if
 	
 end function 
 
@@ -1479,7 +1907,7 @@ end function
 '
 ''  ----------------------------------------------------------------------------
 
-function getCleanDefinition(byVal txt)
+function getCleanDefinition(byVal txt)     '' Gjenstår: fjerne avsnitt i teksten
 	'removes all formatting in notes fields, except crlf
 	Dim res, tegn, i, u
 	
@@ -1582,7 +2010,7 @@ end function
 
 ''  ----------------------------------------------------------------------------
 
-function getCleanBildetekst(byVal txt)                                 ''' Ikke i bruk
+function getCleanBildetekst(byVal txt)                         ''' Ikke i bruk
 
 	dim res
 	res = getCleanDefinition(txt)
@@ -1598,24 +2026,26 @@ end function
 '							 Trimutf8 	
 ''  ----------------------------------------------------------------------------
 
-function Trimutf8(txt)
+function trimUTF8(byval txt)
 	'convert national characters back to utf8
-'	dim res, tegn, i, u, ÉéÄäÖöÜü-Áá &#233; forrige &#229;r i samme retning skal den h&#248; prim&#230;rt prim&#230;rt
 
 	Dim inp
-	inp = Trim(txt)
+	txt = Trim(txt)
 
-	call ErstattKodeMedTegn( inp, 230, "æ")
-	call ErstattKodeMedTegn( inp, 248, "ø")
-	call ErstattKodeMedTegn( inp, 229, "å")
-	call ErstattKodeMedTegn( inp, 198, "Æ")
-	call ErstattKodeMedTegn( inp, 216, "Ø")
-	call ErstattKodeMedTegn( inp, 197, "Å")
-	call ErstattKodeMedTegn( inp, 233, "é")
+	call ErstattKodeMedTegn( txt, 230, "æ")
+	call ErstattKodeMedTegn( txt, 248, "ø")
+	call ErstattKodeMedTegn( txt, 229, "å")
+	call ErstattKodeMedTegn( txt, 198, "Æ")
+	call ErstattKodeMedTegn( txt, 216, "Ø")
+	call ErstattKodeMedTegn( txt, 197, "Å")
+	call ErstattKodeMedTegn( txt, 233, "é")
 	
-	call ErstattKodeMedTegn( inp, 167, "§")
+	call ErstattKodeMedTegn( txt, 167, "§")
 	
-	Trimutf8 = inp
+	call ErstattBokstavkodeMedTegn( txt, "lt", "<")
+	call ErstattBokstavkodeMedTegn( txt, "gt", ">")
+	
+	trimUTF8 = txt
 end function
 
 ''  ----------------------------------------------------------------------------
@@ -1623,9 +2053,22 @@ end function
 SUB ErstattKodeMedTegn( txt, byVal tallkode, tegn)
 	
 	tallkode = "&#" & tallkode & ";"
-	if InStr(1, txt, tallkode, 0) <> 0 then
-		txt = Replace(txt, tallkode, tegn, 1, -1, 0)
-	end if
+	
+	call ErstattTegn( txt, tallkode, tegn)
+'	if InStr(1, txt, tallkode, 0) <> 0 then
+'		txt = Replace(txt, tallkode, tegn, 1, -1, 0)
+'	end if
+
+end SUB
+
+''  ----------------------------------------------------------------------------
+
+SUB ErstattBokstavkodeMedTegn( txt, byVal bokstavKode, tegn)
+	
+	bokstavKode = "&" & bokstavKode & ";"
+	
+	call ErstattTegn( txt, bokstavKode, tegn)
+'	call ErstattTegn( txt, "&" & kode & ";", tegn)
 
 end SUB
 
@@ -1641,11 +2084,11 @@ end SUB
 
 
 ''  ----------------------------------------------------------------------------
-''				Timestamp
+''				Timestamp   IKKE I BRUK
 ''  ----------------------------------------------------------------------------
 
 function nao()
-	' I just want a correct xml timestamp to document when the script was run
+' I just want a correct xml timestamp to document when the script was run
 	dim m,d,t,min,sek,tm,td,tt,tmin,tsek
 	y =  Year(Date) & "-"
 	tm = innledendeNull( Month(Date)) & "-"
@@ -1675,7 +2118,8 @@ end function
 ''	============================================================================
 '							MODUL adocSyntaks
 '
-' 	Tilgjengelige tekstutformingsfunksjoner ihht. adoc-syntaksen   #############
+' 	Tilgjengelige tekstutformingsfunksjoner ihht. adoc-syntaksen  ##############
+'	Funksjoner som starter med adoc er ikke ment å brukes fra andre moduler
 '
 ''	============================================================================
 
@@ -1686,23 +2130,55 @@ end function
 '
 ''  ----------------------------------------------------------------------------
 
-function adocBold( tekst)
+function bold( tekst)
 ''	Returnerer asciidoc-kode for feit/bold tekst
 ''
-	adocBold = adocFormat( tekst, "**", "")
+	bold = adocFormat( tekst, "**", "")
 end function 
 
-function adocKursiv( tekst)
+''  ----------------------------------------------------------------------------
+
+function kursiv( tekst)
 ''	Returnerer asciidoc-kode for kursiv tekst
 ''
-	adocKursiv = adocFormat( tekst, "__", "")
+	kursiv = adocFormat( tekst, "__", "")
 end function 
 
-function adocUnderstrek( tekst)
+''  ----------------------------------------------------------------------------
+
+function understrek( tekst)
 ''	Returnerer asciidoc-kode for understreka tekst
 ''
-	adocUnderstrek = adocFormat( tekst, "##", "underline")
+	understrek = adocFormat( tekst, "##", "underline")
 end function 
+
+''  ----------------------------------------------------------------------------
+
+function bokstavlig( tekst)
+''	Returnerer asciidoc-kode for tekst som skal gjensgis bokstavlig
+''
+	bokstavlig = array( "[literal]", tekst, avsnittSkille() )
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function erBokstavlig( tekst)
+	if isArray(tekst) then
+		erBokstavlig =  (tekst(0) = "[literal]" and UBound(tekst) = 2)
+	end if
+end function
+
+''  ----------------------------------------------------------------------------
+
+function bokstavligCelle( tekst)
+''	asciidoc-kode for tekst som skal gjensgis bokstavlig i en tabell	
+''
+	bokstavligCelle = array ( "l|", tekst(1))
+
+end function
+
+''  ----------------------------------------------------------------------------
 
 function adocFormat( tekst, format, rolle)
 ''	Returnerer asciidoc-kode for formattert tekst
@@ -1715,6 +2191,7 @@ function adocFormat( tekst, format, rolle)
 	else
 		adocFormat = format + tekst + format
 	end if
+	
 end function 
 
 
@@ -1724,45 +2201,51 @@ end function
 '
 ''  ----------------------------------------------------------------------------
 
-function adocBilde(bildetekst, bilde, alternativbildetekst)
-	dim res(), size
-	size = ""
-	redim res(2)
-'''	res(0) = "." & bildetekst
-	res(0) = adocBildeTekst(bildetekst)
-	res(1) = adocBildeLink(bilde, alternativbildetekst, size)
-	res(2) = adocAvsnittSkille( )
-	
-	adocBilde = res
+function bildeFrittstaaende( byVal bildetekst, bilde, alternativtekst)
+
+	dim bildelink 
+	bildelink = adocBildelink(bilde, alternativtekst, "" )
+
+	bildetekst = adocBildeTekst(bildetekst)
+
+	bildeFrittstaaende = array( bildetekst, bildelink, avsnittSkille( ) )
 end function
 
-function adocInlineBilde( bildetekst, bilde, alternativbildetekst)
-	dim res(2)
-	res(0) = " +"
-	res(1) = bildetekst
-	res(2) = adocBildeLink( bilde, alternativbildetekst, "width=100")
+''  ----------------------------------------------------------------------------
 
-	adocInlineBilde = res
+function bildeITekst( byVal bildetekst, byval bilde, byval alternativtekst)
+
+	dim bildelink 
+	bildelink = adocBildelink(bilde, alternativtekst, "width=100")
+
+	bildeITekst = array( linjeskift(), bildetekst, bildelink)
 end function 
 
-function adocBildeLink(bilde, alternativbildetekst, imagesize )
-''		adocBildeLink = "image::" & bilde & "[link=" & bilde & ", alt=""" & alternativbildetekst & """]"
+''  ----------------------------------------------------------------------------
 
-	dim res
-	res =       "image::" & bilde 
-	res = res & "[link=" & bilde 
-	if imagesize <> "" then res = res & ", " & imagesize 
-	res = res & ", alt=""" & alternativbildetekst 
-	res = res & """]"
+function adocBildelink( byVal bilde, byVal alternativtekst, byVal imagesize)
+	dim fnutt : fnutt = """"
+
+	dim bildelink : bildelink = "link=" + bilde
+	alternativtekst = "alt=" + fnutt + alternativtekst + fnutt 
+
+	dim link
+	if imagesize <> "" then 
+		link = array( bildelink, alternativtekst)
+	else
+		link = array( bildelink, imagesize, alternativtekst)
+	end if
 	
-	adocBildeLink = res
-
+	link = "[" + join( link, ", ") + "]"
+	
+	adocBildelink = "image::" + bilde + link	
 end function
+
+''  ----------------------------------------------------------------------------
 
 function adocBildeTekst(tekst)
-	adocBildeTekst = "." + tekst
+	adocBildeTekst = "." & tekst
 end function
-
 
 
 ' 	----------------------------------------------------------------------------
@@ -1771,97 +2254,100 @@ end function
 '
 '	----------------------------------------------------------------------------
 
-'' --- Asciidoc-rutiner for dokumentoppdeling
-'''
-sub settInnSideskift
-	call skrivTekst( adocAvsnittSkille( ))
-	call skrivTekst( adocKommentar(" *********** Sideskift *********** ") )
-	call skrivTekst( adocPageBreak())
+
+function sideskift()
+	dim kommentar
+	kommentar = adocKommentar(" *********** Sideskift *********** ")
 	
-end sub
+	sideskift = array( avsnittSkille(), kommentar, adocPageBreak() )
+	
+end function
+
+''  --------
 
 function adocPageBreak()
 	adocPageBreak = "<<<"
 end function
 
+''  ----------------------------------------------------------------------------
 
-sub settInnSkillelinje
-	call skrivTekst( adocSkillelinje)
-end sub
+function skillelinje( )
 
-function adocSkillelinje
-	dim res(2)
-	res(0) = adocAvsnittSkille( )
-	res(1) = adocKommentar(" ----------- Skillelinje -----------") 
-	res(2) = adocBreak()
+	dim kommentar
+	kommentar = adocKommentar(" ----------- Skillelinje -----------")
+
+	skillelinje = array( avsnittSkille(), kommentar, adocBreak() )
 	
-	adocSkillelinje = res
 end function
+
+''  --------
 
 function adocBreak()
 	adocBreak = "'''"
 end function
 
+''  ----------------------------------------------------------------------------
 
-function adocAvsnittSkille( )
-	adocAvsnittSkille = " "
+function avsnittSkille( )
+
+	avsnittSkille = " "
+	
 end function
 
-function adocLinjeskift( )
-	adocLinjeskift = " +"
+''  ----------------------------------------------------------------------------
+
+function linjeskift( )
+
+	linjeskift = " +"
+	
 end function
-	
-	
+
+
 '	----------------------------------------------------------------------------
 '
 '	Overskrifter
 '
 '	----------------------------------------------------------------------------
 
-''' --- Ascidoc for overskrifter --------------------------------------
-'''
-sub skrivUnderOverskrift(elementLevel, overskrift)
-	skrivTekst( adocUnderOverskrift(elementLevel, overskrift) )
-end sub
+function unummerertOverskrift(byVal level, byval tittel)
 
-
-function adocUnderOverskrift(elementLevel, overskrift)
-''  Returnerer asciidoc-kode til en underoverskrift for en del av beskrivelsen av et element
-''  Overskriften skal være ett nivå lavere enn elementet som den er en del av.
-''  Den skal være diskret, dvs. ikke skal vises i innholdsfortegnelsen
-''	
-	dim res(2)
-	res(0) = adocAvsnittSkille()
-	res(1) = "[discrete]"
-	res(2) = adocOverskrift(elementLevel+1, overskrift)   
+	tittel = adocOverskrift(level, tittel)
 	
-	adocUnderOverskrift = res
+	unummerertOverskrift = array( avsnittSkille(), "[discrete]", tittel )	
 end function
 
-function adocVanligOverskrift(elementLevel, overskrift)
-''  Returnerer asciidoc-kode til en overskrift for et modellelement
-''  Overskriften skal være på samme nivå som elementet den innleder beskrivelsen til.
-''  Den skal vises i innholdsfortegnelsen
-''	
-	dim res(1)
-	res(0) = adocAvsnittSkille()
-	res(1) = adocOverskrift(elementLevel, overskrift)   
+''  ----------------------------------------------------------------------------
+
+function nummerertOverskrift(byVal level, byval tittel)
+
+	tittel = adocOverskrift(level, tittel)
 	
-	adocVanligOverskrift = res
+	nummerertOverskrift = array( avsnittSkille(), tittel )
 end function
 
-function adocOverskrift(byVal level, overskrift)
-''  En overskrift kan være på nivå 0-5. Den angis med 1-6 stk "=" før overskriftsteksten 
+''  ----------------------------------------------------------------------------
 
-	if level > 5 then  	level = 5
+function adocOverskrift(byVal level, tittel)
+''  En overskrift kan være på nivå 0-5. 
+''	Den angis med 1-6 stk "=" før overskriftsteksten 
 
-	if level >= 0 then
-		adocOverskrift = string(level+1, "=") & " " & overskrift
+	if level > nedersteOverskiftsnivaa then level = nedersteOverskiftsnivaa
 
-	else       ''   level < 0 gir ingen mening...
-		adocOverskrift = overskrift
+	if level >=  oversteOverskiftsnivaa then
+		adocOverskrift = string(level, "=") & "= " & tittel
+
+	else       ''   kan ikke lage overskrift
+		adocOverskrift = tittel
 	end if
 	
+end function
+
+''  ----------------------------------------------------------------------------
+
+function overkriftMedBokmerke( tittel, byval bokmerke)
+	
+	overkriftMedBokmerke = array( adocBokmerke(bokmerke), tittel)
+
 end function
 
 
@@ -1871,24 +2357,29 @@ end function
 '
 '	----------------------------------------------------------------------------
 
-''' --- Ascidoc-funksjoner for linker og referanser  ------------------
-'''
 
-function adocLink( link, tekst)
-	adocLink = "<<" + link + ", " + tekst + ">>"  
+function internLenke( bokmerke, tekst)
+
+	internLenke = "<<" + bokmerke + ", " + tekst + ">>"  	
+	
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function adocEksternLink( link, tekst)
-	adocEksternLink = link + "[" + tekst + "]" 
+function eksternLenke( uri, tekst)
+
+	eksternLenke = uri + "[" + tekst + "]" 	
+	
 end function 
 
 ''  ----------------------------------------------------------------------------
 
-function adocBokmerke(element)
-	adocBokmerke = "[[" + bokmerke(element) + "]]"
+function adocBokmerke(bokmerke)
+
+	adocBokmerke = "[[" + bokmerke + "]]"
+	
 end function
+
 
 '	----------------------------------------------------------------------------
 '
@@ -1896,45 +2387,53 @@ end function
 '
 '	----------------------------------------------------------------------------
 
-''' --- Asciidoc for tabeller
-'''
-function adocTabellstart( kolonneBredder, overskrift )
-''  Returnerer asciidoc-kode for å opprette en tabell med overskrift og angitte kolonnebredder
+function tabellStart( byval kolonneBredder )
 	
-	dim topp(2)
-	topp(0) = adocKommentar("Topp av tabell __________________")
-	topp(1) = "[cols=""" & kolonneBredder & """]"
-	topp(2) = "|==="
-
-	if  isArray(overskrift) then
-		adocTabellstart = merge( overskrift, topp)
-	elseif overskrift <> "" then 
-		adocTabellstart = merge( overskrift, topp)
-	else
-		adocTabellstart = topp 
-	end if
-
+	dim kommentar : kommentar = adocKommentar("Topp av tabell _______________")
+	
+	dim fnutt : fnutt = """"
+	kolonnebredder = "[cols=" + fnutt + kolonneBredder + fnutt + "]"
+	
+	tabellStart = array(kommentar, kolonnebredder, "|===")
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function adocTabellavslutning()
+function tabellAvslutning()
 ''  Returnerer asciidoc-kode for å avslutte en tabell
-	dim res(1)
-	res(0) = "|==="	
-	res(1) = adocKommentar("Slutt på tabell __________________")
+	dim kommentar : kommentar = adocKommentar("Slutt på tabell _______________")
 	
-	adocTabellavslutning = res
+	tabellavslutning = array( "|===", kommentar)
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function adocTabellCelle( innhold)
-	adocTabellCelle = "|" & innhold & " "
+function tabellCelle( byval innhold)
+
+	if erBokstavlig( innhold) then
+
+		tabellCelle = bokstavligCelle( innhold)
+		
+	elseif not isArray( innhold) then
+	
+		tabellCelle = "|" & innhold & " "
+		
+	else
+		dim res()
+		redim res(Ubound(innhold)+1)
+		res(0) =  "|"
+
+		dim i
+		for i = 0 to Ubound(innhold)
+			if not isEmpty(innhold(i)) then 
+				res(i+1) = innhold(i) + linjeskift()
+			end if
+		next
+		redim preserve res(i)
+		tabellCelle = res
+	end if
+	
 end function
-
-
-''  ----------------------------------------------------------------------------
 
 ''  ----------------------------------------------------------------------------
 
