@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Versjon: 0.35 Dato: 2024-01-15 Jostein Amlien: Feilretting i utskift av tagger på egenskaper. Definert standard overskrift på kodelister.
 ' Versjon: 0.34 Dato: 2024-01-15 Jostein Amlien: Globale styreparamtre, åpn diagrammer, realiserigner til kodeliste, roller sortert på sequenceNo, refaktorering med vekt på tabeller og tagger
 ' Versjon: 0.33-1 Dato: 2024-01-05 Jostein Amlien: Omgruppert fila slik at rutinene er gruppert i moduler, med overskrifter. Ingen endring av koden.
 ' Versjon: 0.33 Dato: 2023-03-01 Jostein Amlien: Ny funksjonalitet: pakkeavhengigheter, eksterne modellelementer, assosisasjoner og aggregeringer, basisTyper. Rydding i kode.
@@ -68,7 +69,7 @@ Option Explicit
 ''  ----------------------------------------------------------------------------
 ''  --------	Globale parametre
 
-dim debugModell : debugModell = false
+dim debugModell
 dim genererDiagrammer : genererDiagrammer = true
 
 Dim projectclass As EA.Project 
@@ -85,6 +86,10 @@ dim imgfolder 	'' underkatalog med bildefiler for diagrammer
 dim detaljnivaa, nedersteOverskiftsnivaa
 dim toppnivaa, oversteOverskiftsnivaa
 dim standardTabellFormat
+
+dim alleTaggerISammeTabellrad '' boolean 
+
+dim alternativBetegnelseForInitialverdi
 
 ''  ----------------------------------------------------------------------------
 
@@ -123,10 +128,12 @@ sub InitierGlobaleParametre
 	''	parametre bør helst hentes fra en konfigurasjonsfil eller fra modellen
 	
 	''	--	Definer hvor mye info som skal skrives ut i rapporten
-	debugModell = true  '' and false
+	debugModell = true 
 
 	ignorerSosiformatTagger = false 
 	standardTabellFormat = "20,80"
+	
+''	alternativBetegnelseForInitialverdi = "Kodeverdi:"
 	
 	''	--	Styr antall overskriftsnivåer
 	toppnivaa = 1   '' endra fra 2
@@ -442,7 +449,11 @@ function kodeTabellHode(element)
 	dim att
 	for each att in element.Attributes
 		if att.Default <> "" then 
-			hode = array( "Kodenavn:", "Definisjon:", "Kodeverdi:")
+			hode = array( "Kodenavn:", "Definisjon:", "Utvekslingsalias:")
+			if alternativBetegnelseForInitialverdi <> "" then 
+				hode(2) = alternativBetegnelseForInitialverdi
+			end if
+			
 			exit for
 		end if
 	next
@@ -463,8 +474,6 @@ End function
 function attributtbeskrivelse( att)
 
 	dim navn, def, mult, init, visib, typ
-	dim tagger, taggListe
-	dim attributt
 	
 	navn = array(bold("Navn:"), bold(att.Name) ) 
 
@@ -482,23 +491,10 @@ function attributtbeskrivelse( att)
 		
 	typ = array( "Type:", attributtype(att)	) 
 	
-	tagger = egenskapsTagger( att)
+	dim attributt
+	attributt = array ( navn, def, mult, init, visib, typ)
 	
-	taggListe = listeFraTabell(tagger, ": ")
-
-'	if not isEmpty( taggListe) then
-	''	taggListe = array( "Profilparametre i tagged values:", taggListe )
-'		taggListe = array( "Tagged values:", taggListe )
-'	end if
-'	
-'	attributt = array ( navn, def, mult, init, visib, typ)
-'
-'  Ta heller taggene inn i tabellen med en rad for hver tagg
-	attributt = array ( navn, def, mult, init, visib, typ, taggListe)
-	
-	attributtbeskrivelse = attributt
-	
-	attributtbeskrivelse = merge(attributt, tagger)
+	attributtbeskrivelse = merge(attributt, egenskapsTagger( att))
 
 end function
 
@@ -1345,7 +1341,21 @@ function egenskapsTagger( element) '' element er et atributt
 
 	if tagNr = 0 then exit function
 
+	redim preserve res(tagNr-1)
+
 	egenskapsTagger = res
+
+	if alleTaggerISammeTabellrad then 
+		'' Legg alle tagger i en og samme tabell-celle
+		dim taggListe : taggListe = listeFraTabell(res, ": ")
+
+		if  isEmpty( taggListe) then EXIT function 
+		
+	''	taggListe = array( "Profilparametre i tagged values:", taggListe )
+		taggListe = array( "Tagged values:", taggListe )
+		egenskapsTagger = array(taggListe)
+
+	end if
 
 end function
 
