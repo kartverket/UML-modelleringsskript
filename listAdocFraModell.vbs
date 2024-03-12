@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Versjon: 0.36 Dato: 2024-02-02 Jostein Amlien: Rapport skrives til fil. Feilretting i utskift av rolletagger. Modul for hjelpefunksjoner
 ' Versjon: 0.35 Dato: 2024-01-15 Jostein Amlien: Feilretting i utskift av tagger på egenskaper. Definert standard overskrift på kodelister.
 ' Versjon: 0.34 Dato: 2024-01-15 Jostein Amlien: Globale styreparamtre, åpn diagrammer, realiserigner til kodeliste, roller sortert på sequenceNo, refaktorering med vekt på tabeller og tagger
 ' Versjon: 0.33-1 Dato: 2024-01-05 Jostein Amlien: Omgruppert fila slik at rutinene er gruppert i moduler, med overskrifter. Ingen endring av koden.
@@ -87,9 +88,12 @@ dim detaljnivaa, nedersteOverskiftsnivaa
 dim toppnivaa, oversteOverskiftsnivaa
 dim standardTabellFormat
 
-dim alleTaggerISammeTabellrad '' boolean 
+dim alleTaggerISammeTabellrad
 
 dim alternativBetegnelseForInitialverdi
+
+dim rapportfil, utfil
+
 
 ''  ----------------------------------------------------------------------------
 
@@ -107,13 +111,18 @@ Sub OnProjectBrowserScript
 			Repository.ClearOutput "Script"
 			
 			' Code for when a package is selected
-			
+		
+			Session.Output "// Modelrapport "  '' + rotPakke.element.name
 			Session.Output "// Start of UML-model"
 
 			InitierGlobaleParametre
-			Call ListPakke( toppnivaa, rotPakke)
-
+			
+			set utfil = rapportfil
+			Call SkrivModellrapport( toppnivaa, rotPakke)  '' full modellrapport
+			utfil.close
+		
 			Session.Output "// End of UML-model"
+			Session.Output "// Dokumentasjon ferdig "
 		Case Else
 			' Error message
 			Session.Prompt "This script does not support items of this type.", promptOK
@@ -152,23 +161,48 @@ sub InitierGlobaleParametre
 	dim xmlns
 	xmlns = taggedValueFraElement(rotPakke.Element,"xmlns")
 
-''	genererDiagrammer = false
-	imgfolder = "Diagrammer" + xmlns +"\"	
+	prefiksBokmerke = xmlns
+	
+	dim sosiKortnavn
+	sosiKortnavn = taggedValueFraElement(rotPakke.Element,"SOSI_kortnavn")
 
-	Dim imgFSO : Set imgFSO = CreateObject("Scripting.FileSystemObject")
-	utkatalog = imgFSO.GetParentFolderName(Repository.ConnectionString()) & "\"
+	dim pakkenavn
+	pakkenavn = rotPakke.Element.Name
+	
+''	genererDiagrammer = false
+
+	Dim FSO : Set FSO = CreateObject("Scripting.FileSystemObject")
+	utkatalog = FSO.GetParentFolderName(Repository.ConnectionString()) & "\"
+	if sosiKortnavn <> "" then 
+		utkatalog = utkatalog & sosiKortnavn & "\"
+		imgfolder = "Diagrammer\"
+	elseif pakkenavn <> "" then
+		utkatalog = utkatalog & pakkenavn & "\"
+		imgfolder = "Diagrammer\"	
+	else
+		imgfolder = "Diagrammer" & xmlns & "\"	
+	end if
+	
+	if not FSO.FolderExists(utkatalog) then FSO.CreateFolder utkatalog
 	
 	Dim imgparent  	'' full path til underkatalog med bildefiler
 	imgparent = utkatalog  & imgfolder
-	if not imgFSO.FolderExists(imgparent) then imgFSO.CreateFolder imgparent
+	if not FSO.FolderExists(imgparent) then FSO.CreateFolder imgparent
 
- 	prefiksBokmerke = xmlns
+	dim filnavn : filnavn = utkatalog + "modellRapport.adoc"
+	dim overWrite : overWrite = true
+	dim unicode : unicode = true
+	set rapportfil = FSO.CreateTextFile( filnavn, overWrite, unicode)
 
 end sub
 
-''  ----------------------------------------------------------------------------
 
-Sub ListPakke(pakkelevel, thePackage)
+''	============================================================================
+'							MODUL Modelrapport
+'
+''	============================================================================
+
+Sub SkrivModellrapport(pakkelevel, thePackage)
 
 
 	dim pakkeElement
@@ -263,9 +297,12 @@ end if
 '	ALT 4  Alle undeliggende pakker skrives ut på nivå 3
 '	nestelevel = 3
 
+
 	dim pack as EA.Package
 	for each pack in thePackage.Packages
-		Call ListPakke(nestelevel, pack)
+	
+		Call SkrivModellrapport(nestelevel, pack)
+		
 	next
 
 end sub
@@ -637,11 +674,14 @@ function beskrivRolle(rolle)
 	
 	rol = rolleBeskrivelse( target, targetID, aggtype)
 	roltag = rolleTagger(target) 	
-	konn = konnektor(con) 
-	konntag = konnektorTagger(con) 
+	rol = merge( rol, roltag)
+	
+	konn = merge (konnektor(con), konnektorTagger(con) )
 
-	beskrivRolle = array( rol, roltag, konn, konntag)
 
+''	beskrivRolle = array( rol, roltag, konn, konntag)
+
+	beskrivRolle = merge( rol, konn)
 end function
 
 ''  ----------------------------------------------------------------------------
@@ -728,7 +768,7 @@ function identifiserRolle( elemID, con, clientEllerSupplier)
 	if target.Role <> "" then   ''erstatter realiserbarRolle( target, aggType)
 		dim seqNo
 		seqNo = taggedValueFraRolle(target, "sequenceNumber")
-'''		if seqNo <> "" then sequenceNumberFraRolle = Cint(seqNo)		
+
 		if seqNo <> "" then seqNo = Cint(seqNo)		
 
 		identifiserRolle = array( seqNo, con, current, target, targetID)
@@ -759,31 +799,35 @@ function rolleBeskrivelse( targetEnd, targetID, aggregeringsType)
 ''	aggregeringsType 
 
 	dim res 
-	dim targetElement : set targetElement = Repository.GetElementByID(targetID)
-
+	dim rolle
+''	redim rolle(4)
+	dim navn, definisjon, multiplisitet, assType, targetRef
 	
-	dim navn : navn = targetEnd.Role
+	navn = targetEnd.Role
 	if navn = "" and debugModell then navn = "ADVARSEL: ROLLENAVN MANGLER"
-	res = array( bold("Rollenavn:"), bold(navn) ) 
-
-	dim definisjon : definisjon = getCleanDefinition(targetEnd.RoleNote)
+	navn = array( bold("Rollenavn:"), bold(navn) ) 
+	res = navn
+	
+	definisjon = getCleanDefinition(targetEnd.RoleNote)
 	If definisjon = "" and debugModell Then	
 		definisjon = bold("ADVARSEL: DEFINISJON MANGLER") 	
 	end if
-	res = merge( res, array( "Definisjon:", definisjon )  )
+	definisjon = array( "Definisjon:", definisjon )
+	res = merge( res,  definisjon  )
 
 
-	dim multiplisitet : multiplisitet = targetEnd.Cardinality  '''' tekstformat
+	multiplisitet = targetEnd.Cardinality  '''' tekstformat
 	if multiplisitet <> "" then 
 		multiplisitet = "[" + targetEnd.Cardinality + "]"
-		res = merge( res, array(  "Multiplisitet:", multiplisitet ) )
-''	else
-''		res = merge( res, array(  "Multiplisitet:", bold("1") ) )
+		multiplisitet = array( "Multiplisitet:", multiplisitet )
+	else
+		multiplisitet = array(  "Multiplisitet:", " " ) 
 	end if
+	res = merge( res,  multiplisitet )
 
-
-	res = merge( res, array(  "Assosiasjonstype:", aggregeringsType) )    
 ''	res = merge( res, array(  "Aggregeringstype:", aggregeringsType) )     
+	assType = array(  "Assosiasjonstype:", aggregeringsType)
+	res = merge( res, assType )    
 	
 	dim textVar 		: textVar = "Til klasse"
 	dim navigerbarhet 	: navigerbarhet = targetEnd.Navigable
@@ -803,19 +847,22 @@ function rolleBeskrivelse( targetEnd, targetID, aggregeringsType)
 ''		textVar = "Til klasse:"
 	End If
 	
-	dim targetReferanse 	
+	dim targetElement : set targetElement = Repository.GetElementByID(targetID)
+	
 '''	dim pakkeReferanse 
 '''	pakkeReferanse = pathTilEksternPakke( targetElement.PackageID)
 '	dim pakkeReferanse 
 '	pakkeReferanse = pathTilInternPakke( targetElement.PackageID)
 '	dim elementReferanse 
 '	elementReferanse = targetLink( targetElement )
-'	targetReferanse = pakkeReferanse + "::" + elementReferanse
+'	targetRef = pakkeReferanse + "::" + elementReferanse
 
-	targetReferanse = pathTilInterntElement(targetElement)
-	res = merge( res, array(  textVar, targetReferanse ) )
+	targetRef = array(  textVar, pathTilInterntElement(targetElement) )
+	res = merge( res, targetRef )
 
-	rolleBeskrivelse = res
+	rolle = array( navn, definisjon, multiplisitet, assType, targetRef)
+
+	rolleBeskrivelse = rolle
 end function
 
 ''  ----------------------------------------------------------------------------
@@ -1297,6 +1344,7 @@ end function
 
 function taggedValueFraElement(element, byVal tagName)
 	tagName = LCase(tagName)
+	taggedValueFraElement = ""
 
 	dim tag
 	for each tag in element.TaggedValues
@@ -1333,7 +1381,7 @@ function egenskapsTagger( element) '' element er et atributt
 	
 	dim tag
 	for each tag in element.TaggedValues
-		if not ignorerTag(tag) then 	
+		if not ignorerTag(tag.Name) and tag.Value <> "" then 	
 			res(tagNr) = array(tag.Name, tag.Value) 
 			tagNr = tagNr + 1
 		end if
@@ -1361,23 +1409,28 @@ end function
 
 ''  ----------------------------------------------------------------------------
 
-function elementTagger( element) '' element er ei pakke
+function elementTagger( element) 
 
-	dim res()
-	redim res(element.TaggedValues.Count )
+	dim antallTagger 
+	antallTagger = element.TaggedValues.Count
+	if antallTagger = 0 then 	EXIT function
+	
+	dim tagger()
+	redim tagger(antallTagger )
 	dim tagNr : tagNr = 0
 	
 	dim tag
 	for each tag in element.TaggedValues
-		if not ignorerTag(tag) then 	
-			res(tagNr) = array(tag.Name, tag.Value) 
+		if not ignorerTag(tag.Name) and tag.Value <> "" then 	
+			tagger(tagNr) = array(tag.Name, tag.Value) 
 			tagNr = tagNr + 1
 		end if
 	next
 	
 	if tagNr = 0 then exit function
 
-	elementTagger = res
+	redim preserve tagger(tagNr-1)
+	elementTagger = tagger
 
 end function
 
@@ -1385,22 +1438,26 @@ end function
 
 function pakkeTagger( element) '' element er ei pakke
 
-	dim res()
-	redim res(element.TaggedValues.Count )
+	dim antallTagger 
+	antallTagger = element.TaggedValues.Count
+	if antallTagger = 0 then 	EXIT function
+	
+	dim tagger()
+	redim tagger(antallTagger )
 	dim tagNr : tagNr = 0
 	
 	dim tag
 	for each tag in element.TaggedValues
-		if not ignorerTag(tag) then 	
-			res(tagNr) = array(tag.Name, tag.Value) 
+		if not ignorerTag(tag.Name) and tag.Value <> "" then 	
+			tagger(tagNr) = array(tag.Name, tag.Value) 
 			tagNr = tagNr + 1
 		end if
 	next
 
 	if tagNr = 0 then exit function
 	
-	redim preserve res(tagNr-1)
-	pakkeTagger = res
+	redim preserve tagger(tagNr-1)
+	pakkeTagger = tagger
 
 end function
 
@@ -1408,14 +1465,25 @@ end function
 
 function konnektorTagger( con) 
 
-	if con.TaggedValues.Count = 0 then EXIT function 
+	dim antallTagger 
+	antallTagger = con.TaggedValues.Count
+	if antallTagger = 0 then 	EXIT function
 
+	dim tagger()
+	redim tagger(antallTagger )
+	dim tagNr : tagNr = 0
+	
 	dim res, tag
 	for each tag in con.TaggedValues
-		res = merge ( res, array(tag.Name, tag.Value) )
+		if not ignorerTag(tag.Name) and tag.Value <> "" then 	
+			tagger(tagNr) = array(tag.Name, tag.Value) 
+			tagNr = tagNr + 1
+		end if
 	next
+	
+	redim preserve tagger(tagNr-1)
 
-	konnektorTagger = res
+	konnektorTagger = tagger
 
 end function
 
@@ -1423,16 +1491,25 @@ end function
 
 function rolleTagger( rol) 
 
-'	if not rol.hasAttributes() then	exit function
-'
-	if rol.TaggedValues.Count = 0 then 	EXIT function
+	dim antallTagger 
+	antallTagger = rol.TaggedValues.Count
+	if antallTagger = 0 then 	EXIT function
 	
+	dim tagger()
+	redim tagger(antallTagger )
+	dim tagNr : tagNr = 0
+
 	dim res, tag
 	for each tag in rol.TaggedValues
-		if tag.Tag <> "sequenceNumber" then res = merge ( res, array(tag.Tag, tag.Value) )
+		if not ignorerTag(tag.Tag) and tag.Value <> "" then 	
+			tagger(tagNr) = array(tag.Tag, tag.Value) 
+			tagNr = tagNr + 1
+		end if
 	next
 
-	rolleTagger = res
+	redim preserve tagger(tagNr-1)
+
+	rolleTagger = tagger
 
 end function
 
@@ -1447,7 +1524,8 @@ function profilParametre( element)
 	dim res
 	dim tag
 	for each tag in element.TaggedValues
-		if ignorerTag(tag) then 									  	''	pass
+		if ignorerTag(tag.Name) then 						''	pass
+		elseif tag.Value <> "" then 						''	pass
 		elseif tag.Name = "byValuePropertyType" then					''	pass
 		elseif tag.Name = "isCollection" then						''	pass
 		elseif tag.Name = "noPropertyType" then 						''	pass
@@ -1463,28 +1541,28 @@ end function
 
 ''  ----------------------------------------------------------------------------
 
-function ignorerTag(tag)
-	
-	dim navn : navn = LCase(tag.Name) 
+function ignorerTag( byval navn)
+	navn = LCase(navn) 
 	dim ignorer
-	ignorer = navn = "persistence" or navn = "sosi_melding" 				'' skriv ut BARE i debug-modus
+
+	ignorer = navn = "persistence" or navn = "sosi_melding" '' skriv ut BARE i debug-modus
 	ignorer = ignorer AND not debugModell
-	ignorer = ignorer or tag.Value = "" 									'' 	hopp over tomme tagger
-	ignorer = ignorer or navn = "sosi_bildeavmodellelement"  						'' 	tas separat, hopper over
+	ignorer = ignorer or navn = "sosi_bildeavmodellelement"  '' 	tas separat, hopper over
 		
-	ignorerTag = ignorer or ignorerSosiFormatTag(tag)
+	ignorerTag = ignorer or ignorerSosiFormatTag(navn)
 
 end function
 ''  ----------------------------------------------------------------------------
 
-function ignorerSosiFormatTag(tag)
+function ignorerSosiFormatTag(tagnavn)
 
-	ignorerSosiFormatTag = false
 	if ignorerSosiformatTagger then
-		dim sosiTag
-		for each sosiTag in array( "sosi_navn","sosi_lengde", "sosi_datatype")
-			if sosiTag = LCase(tag.Name) then ignorerSosiFormatTag = true
-		next	
+		dim sosiTagger 
+		sosiTagger = array( "sosi_navn","sosi_lengde", "sosi_datatype") 
+		ignorerSosiFormatTag = listeInneholder( sosiTagger, tagnavn) 
+		
+	else
+		ignorerSosiFormatTag = false
 	end if 
 	
 end function
@@ -1584,6 +1662,8 @@ end function
 
 sub SettInnSomTabell( byVal data, tabellFormat, overskrift)
 
+''		if isEmpty(data) then EXIT sub
+
 	if not isArray(data) then EXIT sub
 
 	if UBound(data) < 0 then EXIT sub 
@@ -1636,48 +1716,60 @@ function tabellRad( byval rad)
 		tabellRad = tabellCelle( rad) '' " - skulle vært array... ")
 		EXIT function
 	end if
-	
-	dim i
-	for i = 0 to UBound(rad) 
-		rad(i) = tabellCelle( rad(i) )
-	next
-
-	tabellRad = rad 
-	
-end function
-
-''  ----------------------------------------------------------------------------
-
-function listeFraTabell( byval tabell, skilletegn)
-
-	if not isArray(tabell) then EXIT function
-
-	if skilletegn = "" then skilletegn = ": "
 
 	dim res()
-	redim res( UBound(tabell) )
-
-	dim i, rad, nyrad
-	for each rad in tabell
-		if isArray(rad) then 
-			res(i) = join( rad , skilletegn )
-			i = i+1 
-		end if
+	redim res(UBound(rad) +1)
+	dim i
+	for i = 0 to UBound(rad) 
+		res(i) = tabellCelle( rad(i) )
 	next
+	res(UBound(rad) +1) = " "  '' ihht adoc-konvesjon: blank linje
 	
-	redim preserve res(i-1) 
-	listeFraTabell = res
-		
+	tabellRad = res
+	
 end function
 
 
+'  ----------------------------------------------------------------------------
+'  		Utskrift av generert tekst
+'  			TBD:  Direkte utskrift til fil
+'  ----------------------------------------------------------------------------
+'
+sub SettInnTekst( tekst)
+	if not isArray(tekst) then 
+		if tekst <> "" then SettInnTekstLinje tekst
+	else
+		dim t
+		for each t in tekst
+			SettInnTekst t   ''rekursivt
+		next
+	end if 
+end sub
 
 ''  ----------------------------------------------------------------------------
-''  			Aggregering av generert tekst før utskrift
+
+sub SettInnTekstLinje( tekstlinje)
+
+	if isNull(utfil) then 
+		Session.Output tekstlinje
+	else
+		utfil.write tekstlinje & vbCrLf
+	end if
+	
+end sub
 ''  ----------------------------------------------------------------------------
+
+
+
+'===============================================================================
+'
+'		MODUL for hjelpefunksjoner  
+'
+'===============================================================================
+
 
 function merge( ByVal list, byVal tillegg)
-''  Slår sammen to variabler, gjerne arrayer, til en ny array
+''  Forlenger ei liste (array) med et tillegg, og returnere ei ny liste
 ''
 	if isEmpty(tillegg) Then 
 		merge = list
@@ -1713,55 +1805,53 @@ function merge( ByVal list, byVal tillegg)
 end function
 
 
-'  ----------------------------------------------------------------------------
-'  		Utskrift av generert tekst
-'  			TBD:  Direkte utskrift til fil
-'  ----------------------------------------------------------------------------
-'
-sub SettInnTekst( tekst)
-	if not isArray(tekst) then 
-		if tekst <> "" then Session.Output tekst
-	else
-		dim t
-		for each t in tekst
-			SettInnTekst t   ''rekursivt
+''  ----------------------------------------------------------------------------
+
+function listeFraTabell( byval tabell, skilletegn)
+	''  Input er en tabell som består av en array av arrayer, kalt rader
+	''	Hver rad gjøres om fra en array til en sammensatt streng med skilletegn
+	''	Resultatet er ei liste av sammensatte strenger
+	
+	if not isArray(tabell) then EXIT function
+
+	if skilletegn = "" then skilletegn = ": "
+
+	dim res()
+	redim res( UBound(tabell) )
+
+	dim i, rad, nyrad
+	for each rad in tabell
+		if isArray(rad) then 
+			res(i) = join( rad , skilletegn )
+			i = i+1 
+		end if
+	next
+	
+	redim preserve res(i-1) 
+	listeFraTabell = res
+		
+end function
+
+''  ----------------------------------------------------------------------------
+
+function listeInneholder(liste, verdi)
+
+	listeInneholder = false
+	
+	dim ledd
+	if isArray(liste) then
+		for each ledd in liste
+			if ledd = verdi then listeInneholder = true
 		next
-	end if 
-end sub
-
-''  ----------------------------------------------------------------------------
-
-			sub SkrivTekstlinje(tekst)
-				if tekst <> "" then Session.Output(tekst)
-			end sub
-
-''  ----------------------------------------------------------------------------
-
+	end if
+	
+end function
 
 '===============================================================================
 '
 '		MODUL for Bilder   
 '
 '===============================================================================
-'
-
-
-''	UTGÅR    ########################
-''	sub bildeAvModellelement( element)  
-''
-''	ERSTATTES av disse
-''	function bildeAvObjekttype(element)
-''	function bildeAvKodeliste(element)
-''	function bildeAvPakke(element)
-''	Som alle kaller på 
-''		function bildeAvModellElement		##############################
-''
-
-''	UTGÅR    ########################
-''	sub attrbilde(att,typ)  
-''
-
-''  ----------------------------------------------------------------------------
 
 function bildeAvObjekttype(element)
 	dim standardTekst, alt
@@ -2063,9 +2153,6 @@ SUB ErstattKodeMedTegn( txt, byVal tallkode, tegn)
 	tallkode = "&#" & tallkode & ";"
 	
 	call ErstattTegn( txt, tallkode, tegn)
-'	if InStr(1, txt, tallkode, 0) <> 0 then
-'		txt = Replace(txt, tallkode, tegn, 1, -1, 0)
-'	end if
 
 end SUB
 
@@ -2076,7 +2163,6 @@ SUB ErstattBokstavkodeMedTegn( txt, byVal bokstavKode, tegn)
 	bokstavKode = "&" & bokstavKode & ";"
 	
 	call ErstattTegn( txt, bokstavKode, tegn)
-'	call ErstattTegn( txt, "&" & kode & ";", tegn)
 
 end SUB
 
@@ -2119,8 +2205,6 @@ function innledendeNull(n)
 	
 	innledendeNull = res
 end function 
-
-''  ----------------------------------------------------------------------------
 
 
 ''	============================================================================
@@ -2455,3 +2539,6 @@ end function
 OnProjectBrowserScript
 
 '====================================================
+
+
+
