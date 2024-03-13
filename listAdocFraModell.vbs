@@ -7,9 +7,10 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Versjon: 0.37 Dato: 2024-14-03 Jostein Amlien: Gjennomgang av globale parametre. Modul for forflata beskrivelse av realiserte objekttyper til egen fil.
 ' Versjon: 0.36 Dato: 2024-02-02 Jostein Amlien: Rapport skrives til fil. Feilretting i utskift av rolletagger. Modul for hjelpefunksjoner
-' Versjon: 0.35 Dato: 2024-01-15 Jostein Amlien: Feilretting i utskift av tagger på egenskaper. Definert standard overskrift på kodelister.
-' Versjon: 0.34 Dato: 2024-01-15 Jostein Amlien: Globale styreparamtre, åpn diagrammer, realiserigner til kodeliste, roller sortert på sequenceNo, refaktorering med vekt på tabeller og tagger
+' Versjon: 0.35 Dato: 2024-01-19 Jostein Amlien: Feilretting i utskift av tagger på egenskaper. Definert standard overskrift på kodelister.
+' Versjon: 0.34 Dato: 2024-01-18 Jostein Amlien: Globale styreparamtre, åpn diagrammer, realiserigner til kodeliste, roller sortert på sequenceNo, refaktorering med vekt på tabeller og tagger
 ' Versjon: 0.33-1 Dato: 2024-01-05 Jostein Amlien: Omgruppert fila slik at rutinene er gruppert i moduler, med overskrifter. Ingen endring av koden.
 ' Versjon: 0.33 Dato: 2023-03-01 Jostein Amlien: Ny funksjonalitet: pakkeavhengigheter, eksterne modellelementer, assosisasjoner og aggregeringer, basisTyper. Rydding i kode.
 ' Versjon: 0.32 Dato: 2023-01-31 Jostein Amlien: Refaktorering. Sjekk av sosiBasisTyper og definisjonstekster. Prefiks av bokmerke, pakkeoverskrifter, filtrere tagger. 
@@ -68,35 +69,9 @@ Option Explicit
 ' TBD: opprydding !!!
 '
 ''  ----------------------------------------------------------------------------
-''  --------	Globale parametre
-
-dim debugModell
-dim genererDiagrammer : genererDiagrammer = true
-
-Dim projectclass As EA.Project 
-set projectclass = Repository.GetProjectInterface()
-
-dim ignorerSosiformatTagger
-
-Dim rotPakke As EA.Package
-DIM rootId
-DIM prefiksBokmerke
-dim utkatalog	'' full path til hovedkatalogen for det genererte dokumentet 
-dim imgfolder 	'' underkatalog med bildefiler for diagrammer
-
-dim detaljnivaa, nedersteOverskiftsnivaa
-dim toppnivaa, oversteOverskiftsnivaa
-dim standardTabellFormat
-
-dim alleTaggerISammeTabellrad
-
-dim alternativBetegnelseForInitialverdi
-
-dim rapportfil, utfil
 
 
 ''  ----------------------------------------------------------------------------
-
 '
 ' Project Browser Script main function
 Sub OnProjectBrowserScript
@@ -111,17 +86,26 @@ Sub OnProjectBrowserScript
 			Repository.ClearOutput "Script"
 			
 			' Code for when a package is selected
-		
-			Session.Output "// Modelrapport "  '' + rotPakke.element.name
-			Session.Output "// Start of UML-model"
+
+			Dim valgtPakke As EA.Package
+			set valgtPakke = Repository.GetTreeSelectedObject()
 
 			InitierGlobaleParametre
 			
-			set utfil = rapportfil
-			Call SkrivModellrapport( toppnivaa, rotPakke)  '' full modellrapport
+			GlobaleParametreForValgtPakke( valgtPakke)
+			
+			Session.Output "// Modellrapport "   + valgtPakke.element.name
+			Session.Output "// Start of UML-model"		
+
+			set utfil = tomTekstfil( filnavn + ".adoc")
+			Call SkrivModellrapport( toppnivaa, valgtPakke)  '' full modellrapport
 			utfil.close
-		
+
 			Session.Output "// End of UML-model"
+
+			visSosiFormatRealisering = true	
+			Call listRealiserteObjekttyper( valgtPakke)  '' flat beskrivelse av alle realiserte objekttyper
+
 			Session.Output "// Dokumentasjon ferdig "
 		Case Else
 			' Error message
@@ -131,30 +115,84 @@ Sub OnProjectBrowserScript
 
 End Sub
 
+
+''  --------	Globale styringsparametre	------------------------------------
+
+dim filnavn  '' navn på fil med modellrapporten
+
+'' 	Styring av innhold
+dim debugModell 
+dim ignorerSosiformatTagger
+
+dim genererDiagrammer : genererDiagrammer = true
+
+dim standardTabellFormat
+dim alleTaggerISammeTabellrad : alleTaggerISammeTabellrad = false
+dim alternativBetegnelseForInitialverdi
+
+dim detaljnivaa, nedersteOverskiftsnivaa
+dim toppnivaa, oversteOverskiftsnivaa
+
+dim visSosiFormatRealisering '' viser sosi-format i vedlegget 
+
+
 ''  ----------------------------------------------------------------------------
 
 sub InitierGlobaleParametre
 	''	parametre bør helst hentes fra en konfigurasjonsfil eller fra modellen
-	
-	''	--	Definer hvor mye info som skal skrives ut i rapporten
-	debugModell = true 
+		
+	filnavn = "modellRapport"
 
-	ignorerSosiformatTagger = false 
+	''	--	Definer hvor mye info som skal skrives ut i rapporten
+''	debugModell = true 	'' skriver ut noe innhold som kan avsløre modellfeil 
+''	debugModell = false  '' filterer bort noe innhold som ikke skal rapporteres
+
+'	ignorerSosiformatTagger = false '' Ta med tagger for SOSI-format i rapporten
+	ignorerSosiformatTagger = true 	'' Utelat tagger for SOSI-format i rapporten
+	
+	genererDiagrammer = true  	'' regenererer alle diagrammer
+''	genererDiagrammer = false  	'' anta at alle diagrammer er på plass
+	
+	''  ---------  	Utseende av tabeller	------------------------------------
+	
 	standardTabellFormat = "20,80"
 	
-''	alternativBetegnelseForInitialverdi = "Kodeverdi:"
+	''	tabellhode for koder
+''	alternativBetegnelseForInitialverdi = "Kodeverdi:"   
+
+'	alleTaggerISammeTabellrad = true   '' alle taggene samla i en tabellrad
+	alleTaggerISammeTabellrad = false  '' en tabellrad for hver tag
 	
-	''	--	Styr antall overskriftsnivåer
-	toppnivaa = 1   '' endra fra 2
+	
+	''	-----	Styring av overskriftsnivåer   ---------------------------------
+	toppnivaa = 2   
 	detaljnivaa = 5	'' mest detaljerte overskriftsnivvå
 	nedersteOverskiftsnivaa = 5
 	oversteOverskiftsnivaa = 1
-		dim topplevel
+	
+'		dim topplevel
 '''		topplevel = 1    '''  foreslått endring
-		topplevel = 2
+'		topplevel = 2
+end sub
 
+
+''  --------------   Globale variable avleda fra valgt pakke   -----------------
+
+DIM rootId
+DIM prefiksBokmerke
+
+dim utkatalog	'' full path til hovedkatalogen for det genererte dokumentet 
+dim imgfolder 	'' underkatalog med bildefiler for diagrammer
+
+dim utfil
+
+Dim projectclass As EA.Project 
+
+
+''  ----------------------------------------------------------------------------
+
+sub GlobaleParametreForValgtPakke( rotPakke) 
 	''	--	Ta vare på hvilken pakke som blir dokumentert
-	set rotPakke = Repository.GetTreeSelectedObject()
 	rootId = rotPakke.PackageId
 	
 	'' La navneromsforkortelsen til skjemaet styre prefiks
@@ -185,20 +223,17 @@ sub InitierGlobaleParametre
 	
 	if not FSO.FolderExists(utkatalog) then FSO.CreateFolder utkatalog
 	
-	Dim imgparent  	'' full path til underkatalog med bildefiler
-	imgparent = utkatalog  & imgfolder
+	''	opprett katalog for bilder og diagrammer
+	Dim imgparent : imgparent = utkatalog  & imgfolder
 	if not FSO.FolderExists(imgparent) then FSO.CreateFolder imgparent
-
-	dim filnavn : filnavn = utkatalog + "modellRapport.adoc"
-	dim overWrite : overWrite = true
-	dim unicode : unicode = true
-	set rapportfil = FSO.CreateTextFile( filnavn, overWrite, unicode)
-
+	
+	set projectclass = Repository.GetProjectInterface()
 end sub
 
 
 ''	============================================================================
-'							MODUL Modelrapport
+'
+'							MODUL Modellrapport
 '
 ''	============================================================================
 
@@ -208,9 +243,9 @@ Sub SkrivModellrapport(pakkelevel, thePackage)
 	dim pakkeElement
 	set pakkeElement = thePackage.Element
 	
-	dim xmlns : xmlns = taggedValueFraElement(pakkeElement,"xmlns")
-	if prefiksBokmerke = "" and xmlns <> "" then prefiksBokmerke = xmlns
-	
+'	dim xmlns : xmlns = taggedValueFraElement(pakkeElement,"xmlns")
+'	if prefiksBokmerke = "" and xmlns <> "" then prefiksBokmerke = xmlns
+
 '----------------- Overskrift og beskrivelse -----------------
 
 	dim overskrift, pakketype
@@ -1757,8 +1792,20 @@ sub SettInnTekstLinje( tekstlinje)
 	end if
 	
 end sub
+
 ''  ----------------------------------------------------------------------------
 
+function tomTekstfil( byval filnavn)
+	filnavn = utkatalog + filnavn
+	
+	Dim FSO : Set FSO = CreateObject("Scripting.FileSystemObject")
+
+	dim overWrite : overWrite = true
+	dim unicode : unicode = true
+
+	set tomTekstfil = FSO.CreateTextFile( filnavn, overWrite, unicode)
+	
+end function
 
 
 '===============================================================================
@@ -2534,11 +2581,531 @@ function adocKommentar(kommentar)
 end function
 
 
+''	'====================================================
+''
+''	OnProjectBrowserScript
+''
+''	'====================================================
+
+
+''	============================================================================
+'							MODUL Realiserte Objekttyper
+'
+' 	Skriver ut oversikt over objekttypenes egenskper i forflata form
+'	med eller uten kolomnner for SOSI-format
+'	
+'	Den globale parameteren visSosiFormatRealisering bestemmer om 
+'	kolonnene for SOSI-format skal være med eller ikke. 
+'
+''	============================================================================
+
+
+Sub listRealiserteObjekttyper( pakke)
+
+''	visSosiFormatRealisering = true	
+''	visSosiFormatRealisering = false	
+
+	dim filnavn
+
+	dim hode, i
+	if visSosiFormatRealisering then
+		hode = array( "Navn", "Type", "Mult.", "SOSI-navn", "SOSI-type")
+		filnavn = "SOSIformatRealisering"
+	else
+		hode = array( "Navn", "Type", "Mult.")	
+		filnavn = "RealiserteObjekttyper"
+	end if
+''	hode(0) = "GML-navn på egenskap/rolle"
+''	hode(0) = "Navn på egenskap/rolle"
+
+	for i = 0 to UBound(hode)
+		hode(i) = bold(hode(i))
+	next
+
+	Session.Output "// Realiserte objekttyper i " + pakke.element.name
+	Session.Output "// Start of UML-model"		
+
+	set utfil = tomTekstfil( filnavn + ".adoc")
+	
+	call visPakkasRealiserteObjekttyper( pakke, hode)
+	
+	utfil.close
+	
+	Session.Output "// End of UML-model"
+
+
+end sub
+
+''  ----------------------------------------------------------------------------
+
+Sub visPakkasRealiserteObjekttyper( pakke, tabellhode)
+
+	dim pakkenavn : pakkenavn = pakke.Name
+
+	dim tabellformat
+	if UBound(tabellhode) = 2 then tabellformat = "20,20,10"
+	if UBound(tabellhode) = 4 then tabellformat = "20,20,10,20,10"  
+
+	dim overskriftsnivaa 
+	overskriftsnivaa = 3
+	
+	dim overskrift
+	overskrift = unummerertOverskrift( overskriftsnivaa, "Pakke : " + pakkenavn)
+''	settInnTekst overskrift   ''  Pakka kan være tom for realiserbare klasser...
+	overskriftsnivaa = 4
+	
+	Dim element As EA.Element
+	For each element in pakke.Elements
+		dim ster : ster = Ucase(element.Stereotype)
+		If element.Type <> "Class" then  	'' hopp over
+		elseif element.Abstract = 1 then	'' hopp over abstrakte klasser
+		elseif (ster = "FEATURETYPE" or ster = "") Then
+		
+			dim elementNavn  '' navnet på featuretype
+			elementNavn = pakkenavn + "::" + stereotypenavn( element)
+''			elementNavn = "Objekttype: " + element.Name)
+			settInnTekst unummerertOverskrift( overskriftsnivaa, elementNavn)
+						
+			if visSosiFormatRealisering then
+				dim avgrensingslinjer, avgrensingsflater
+				avgrensingslinjer = avgrensingsrelasjoner(element,"avgrensesAv")
+				avgrensingsflater = avgrensingsrelasjoner(element,"avgrenser")
+			
+				dim navnestreng
+				if UBound(avgrensingslinjer) >= 0 then 
+					navnestreng = join( navneliste(avgrensingslinjer), ", ")
+					settInnTekst bold("Avgrenses av: ") + navnestreng
+				end if		
+				if UBound(avgrensingsflater) >= 0 then 
+					navnestreng = join( navneliste(avgrensingsflater), ", ")
+					settInnTekst bold("Avgrenser: ") + navnestreng
+				end if
+			end if
+								
+			dim attributtListe
+			attributtListe = egenskaperOgRoller( element, avgrensingslinjer)
+			
+			if UBound(attributtListe) > 0 then		
+				attributtListe(0) = tabellhode
+				call SettInnSomTabell( attributtListe, tabellFormat, "")
+			end if
+			
+		End if		
+	Next
+
+	''	Gå rekursivt gjennom alle underpakker
+	dim delpakke as EA.Package
+	for each delpakke in pakke.Packages
+	
+		Call visPakkasRealiserteObjekttyper( delpakke, tabellhode)
+		
+	next
+	
+end sub
+
+''  ----------------------------------------------------------------------------
+
+function avgrensingsrelasjoner( featureType, relasjonsType)
+
+	''	finn først featuretypens avgrensingsrelasjoner
+	''	deretter fra supertypen, som legges først i lista
+
+	dim liste()
+	redim liste(featuretype.Connectors.Count)
+	dim relNr : relNr = 0
+	
+	Dim con
+	For Each con In featureType.Connectors
+	
+		dim avgrensing
+		dim elementID
+	
+		if relasjonsType = "avgrensesAv" then
+			elementID = avgrensesAv( featureType, con)
+		elseif relasjonsType = "avgrenser" then
+			elementID = avgrenser( featureType, con) 
+		end if
+		
+		if elementID <> 0 then
+			liste(relNr) = elementID
+			relNr = relNr +1
+		end if
+		
+	next
+	redim preserve liste(relNr-1)
+
+	if antallSupertyper( featureType) = 1 then
+		'' egenskaper og roller fra supertypen legges først i lista
+		dim super
+		super = avgrensingsrelasjoner( superType(featureType), relasjonsType)
+		avgrensingsrelasjoner = merge( super, liste)
+	else
+		avgrensingsrelasjoner = liste
+	end if
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function avgrensesAv( element, con)
+
+'' Finn ut om elementet geometrisk kan avgrenses av et annet element (target)
+'' I så fall returneres target-elementets ID
+
+	dim elementId : elementId = element.elementID
+	dim targetID, target
+
+	if elementId = con.SupplierID then
+		targetID = con.ClientID
+		set target = con.ClientEnd	
+		
+	elseif elementId = con.ClientID  then
+		targetID = con.SupplierID
+		set target = con.SupplierEnd
+	
+	else 
+		exit function
+	end if
+
+	'	Det er tre måter å avgøre om target er et avgrensingsobjekt:
+	' SOSI 4.5:	conn.Stereotype = "Topo". Kan navigere fra current til target
+	' SOSI 5.0:	element.Constraints inneholder 'KanAvgrensesAv Target.Name'
+	' FKB-praksis:	target.Role = "avgrensesAv"
+	'
+	'	Det er bare FKB-varianten som er lagt inn
+	'
+	if inStr(LCase(target.Role),"avgrensesav") <> 0 then
+		avgrensesAv = targetID
+	end if
+	
+end function
+
+''  ----------------------------------------------------------------------------
+
+function avgrenser( element, con)
+
+'' Finn ut om elementet geometrisk kan avgrense et annet element (target)
+'' I så fall returneres target-elementets ID
+
+	dim elementId : elementId = element.elementID
+	dim targetID, current
+
+	if elementId = con.SupplierID then
+		targetID = con.ClientID
+		set current = con.SupplierEnd	
+		
+	elseif elementId = con.ClientID  then
+		targetID = con.SupplierID
+		set current = con.ClientEnd
+	
+	else 
+		exit function
+	end if
+	
+	'	Det er tre måter å avgøre om target er ei flate som avgrenses:
+	' SOSI 4.5:	conn.Stereotype = "Topo". Kan navigere fra target til current
+	' SOSI 5.0:	element.Constraints inneholder 'KanAvgrensesAv Current.Name'
+	' FKB-praksis:	current.Role = "avgrensesAv"
+	'
+	'	Det er bare FKB-varianten som er lagt inn
+	'
+	if inStr(LCase(current.Role),"avgrensesav") <> 0 then
+		avgrenser = targetID
+	end if
+	
+end function
+
+''  ----------------------------------------------------------------------------
+
+function egenskaperOgRoller( featureType, avgrensingslinjer)
+
+	''	finn først featuretypens egen egenskaper og roller
+	''	deretter fra supertypen, som legges først i lista
+	
+	dim egensk, roller
+	egensk = egneEgenskaper( featureType, "", ".")
+	roller = egneRoller( featureType, avgrensingslinjer)
+	egensk = merge( egensk,	roller)
+	
+	
+	if antallSupertyper( featureType) = 0 then
+		''	Denne featuretypen har ingen supertyper
+		dim plassTilTabellhode()
+		redim plassTilTabellhode(0)   '' første linje i lista holdes tom
+		egenskaperOgRoller = merge( plassTilTabellhode, egensk)  
+		
+''	elseif antallSupertyper(featureType) > 1 then
+''		'' FEILSITUASJON
+
+	else  '' harSupertype(featureType) = true
+		'' egenskaper og roller fra supertypen legges først i lista
+		dim super
+		super = egenskaperOgRoller( superType(featureType), avgrensingslinjer)
+		egenskaperOgRoller = merge( super, egensk)
+	end if
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function egneEgenskaper( element, byVal egenskapsgruppe, byval sosiPrikker)
+
+	if egenskapsgruppe <> "" then egenskapsgruppe = egenskapsgruppe + "."
+	sosiPrikker = sosiPrikker + "."
+	
+	dim liste()
+	redim liste(element.Attributes.Count-1)
+
+	dim radNr : radNr = 0
+
+	Dim att As EA.Attribute
+	for each att in element.Attributes
+		Dim datatype As EA.Element
+
+		dim egNavn, mult, dtyp
+		if att.ClassifierID <> 0 then
+			set datatype = Repository.GetElementByID(att.ClassifierID)
+			dtyp = stereotypeNavn( datatype)
+		else
+			datatype = null
+			dtyp = att.Type
+		end if
+		egNavn = egenskapsgruppe & att.Name 
+		mult = "[" & att.LowerBound & ".." & att.UpperBound & "]"
+		
+		dim attrib
+		attrib = array(egNavn, dtyp, mult)
+		
+		if visSosiFormatRealisering then
+			dim sNavn, sType
+			sNavn = sosiNavn(att, sosiPrikker)
+
+			sType = sosiDatatype(att)
+			
+			if sType = "" and not isnull(datatype) then 
+				'' hent sosi-typen fra datatypen
+				if iscodelist( datatype) then 
+					sType = sosiDatatype(dataType)
+				elseif isDataType( dataType) then
+					sType = "*"
+				end if
+			end if
+			
+			attrib = merge( attrib, array(sNavn, sType) )
+		end if
+		
+		liste(radNr) = attrib
+		radNr = radNr +1
+		
+		dim underEgenskaper : underEgenskaper = null
+				
+		if not isNull(datatype) then
+			if LCase(datatype.Stereotype) = "datatype" then
+				underEgenskaper = egneEgenskaper( datatype, egNavn, sosiPrikker)
+			end if
+			if not isNull(underEgenskaper) then
+				redim preserve liste(UBound(liste) + UBound(underEgenskaper)+1 )
+				dim eg
+				for each eg in underEgenskaper
+					liste(radNr) = eg				
+					radNr = radNr +1
+				next
+			end if
+		end if
+		
+	next
+
+	redim preserve liste(radNr-1)
+	
+	egneEgenskaper = liste
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function egneRoller( featureType, avgrensingslinjer)
+
+	dim sosiPrikker : sosiPrikker = ".."
+	
+	dim liste()
+	redim liste(featureType.Connectors.Count)
+
+	dim radNr : radNr = 0
+	
+	dim rollesamling  	'' array av rolle-arryer
+''	rollesamling = alleRoller( featureType)
+	rollesamling = sorterteRoller( featureType)
+	if isEmpty(rollesamling) then 	EXIT function
+	
+	dim target, targetID
+	dim rollenavn, dtyp, mult
+	dim datatype
+
+	dim rolle   		
+	for each rolle in rollesamling 
+		targetID = rolle(4)
+
+		if not listeInneholder(avgrensingslinjer, targetID) then
+			set target = rolle(3)
+			rollenavn = bold("Rolle: ") + target.Role
+			mult = "[" & target.Cardinality & "]"
+			if targetID <> 0 then
+				set datatype = Repository.GetElementByID(targetID)
+				dtyp = stereotypenavn( datatype)
+			else
+				set datatype = nothing
+				dtyp = ""
+			end if
+			dim rolleEgenskaper 
+			rolleEgenskaper = array(rollenavn, dtyp, mult)
+			
+			if visSosiFormatRealisering then
+				dim sNavn, sType
+				sNavn = taggedValueFraRolle(target, "SOSI_navn") 
+				if sNavn <> "" then sNavn = sosiPrikker & sNavn
+				sType = "REF"
+
+				rolleEgenskaper = merge( rolleEgenskaper, array(sNavn, sType))
+	''			rolleEgenskaper = array(rollenavn, dtyp, mult, sNavn, sType)
+			end if
+
+			liste(radNr) = rolleEgenskaper
+			radNr = radNr +1
+		end if
+	next
+	
+	redim preserve liste(radNr-1)
+	egneRoller = liste
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function antallSuperTyper( elem)
+
+	antallSuperTyper = 0
+	
+	dim conn as EA.Collection
+	for each conn in elem.Connectors
+		if conn.Type = "Generalization" and elem.ElementID = conn.ClientID then
+			antallSuperTyper = antallSuperTyper +1
+		end if
+	next
+		
+end function
+
+''  ----------------------------------------------------------------------------
+
+function harSuperType( elem)
+
+	harSuperType = false
+	
+	dim conn as EA.Collection
+	for each conn in elem.Connectors
+		if conn.Type = "Generalization" and elem.ElementID = conn.ClientID then
+			harSuperType = true
+			exit for
+		end if
+	next
+		
+end function
+
+''  ----------------------------------------------------------------------------
+
+function superType( elem)
+
+	dim conn as EA.Collection
+	for each conn in elem.Connectors
+		if conn.Type = "Generalization" and elem.ElementID = conn.ClientID then
+			set superType = Repository.GetElementByID(conn.SupplierID)				
+			exit for
+		end if
+	next
+		
+end function
+
+''  ----------------------------------------------------------------------------
+
+function sosiNavn( element, sosiPrikker)
+
+	dim sNavn : sNavn = taggedValueFraElement(element, "SOSI_navn")
+	dim sosiGeometri : sosiGeometri = sosiGeometritype( element)
+
+	if sosiGeometri <> "" then 
+		sosiNavn = "." + sosiGeometri 
+	elseif sNavn <> "" then 
+		sosiNavn = sosiPrikker & sNavn
+	end if
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function sosiDatatype( element)
+
+	dim sosiType, sosiLengde
+	sosiType   = taggedValueFraElement(element, "SOSI_datatype")
+	sosiLengde = taggedValueFraElement(element, "SOSI_lengde")
+	
+	sosiDatatype = sosiType & sosiLengde
+	
+end function
+
+''  ----------------------------------------------------------------------------
+
+function navneliste( idListe)
+
+	if isNull(idListe) then exit function
+	
+	dim liste : liste = idListe
+	dim id, element
+	dim i : i = 0
+	for each id in idliste
+		set element = Repository.GetElementByID( id)
+		liste(i) = element.Name
+		i = i+1
+	next
+
+	navneliste = liste
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function sosiGeometritype(element)
+
+	dim gtype : gtype = element.Type
+
+	if gtype = "Punkt" or gtype = "Kurve" or gtype = "Flate" then
+	'' if listeInneholder(array("Punkt", "Kurve", "Flate"), gtype) then
+		sosiGeometritype = UCase( gtype)
+
+	'fra Ralisering i SOSI-format versjon 5.0 tabell 8.2:
+	elseif gtype = "GM_Point" then
+		sosiGeometritype = "PUNKT"
+		
+	elseif gtype = "GM_MultiPoint" then
+		sosiGeometritype = "SVERM"
+		
+	elseif gtype = "GM_Curve" or gtype = "GM_CompositeCurve" then
+		sosiGeometritype = "KURVE"
+		
+	elseif gtype = "GM_Surface" or gtype = "GM_CompositeSurface" then
+		sosiGeometritype = "FLATE"
+		
+	'fra "etablert praksis"
+	elseif gtype = "GM_Object" or gtype = "GM_Primitive" then
+		sosiGeometritype = "OBJEKT"
+		
+	else
+		sosiGeometritype = ""
+	end if
+	
+end function
+
+
 '====================================================
 
 OnProjectBrowserScript
 
 '====================================================
-
-
-
