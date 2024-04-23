@@ -7,6 +7,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Versjon: 0.38 Dato: 2024-23-04 Jostein Amlien: Forbedra gjengivelse av OCL-kode for restriksjoner
 ' Versjon: 0.37 Dato: 2024-14-03 Jostein Amlien: Gjennomgang av globale parametre. Modul for forflata beskrivelse av realiserte objekttyper til egen fil.
 ' Versjon: 0.36 Dato: 2024-02-02 Jostein Amlien: Rapport skrives til fil. Feilretting i utskift av rolletagger. Modul for hjelpefunksjoner
 ' Versjon: 0.35 Dato: 2024-01-19 Jostein Amlien: Feilretting i utskift av tagger på egenskaper. Definert standard overskrift på kodelister.
@@ -627,16 +628,37 @@ function restrik( constr)
 
 	dim navn, beskrivelse, typ, oclKode
 	
-	
-	dim ocl : ocl = (constr.Type = "OCL")
-	
-	dim oclConstraint  '' , posInv
-	if ocl then 
+	if constr.Type = "OCL" then 
+		''	Restriksjonen består av en tekstlig beskrivelse, 
+		''	der hver linje innledes med --
+		''	og selve koden, som innledes med inv:
+		''  Rekkefølgen kan være vilkårlig
+		''	Beskrivelsen gjengis uten de innledende --
+		''	Det gjenstår å håndtere kommentarer som identifiseres med /*
+		
 		dim noter : noter = split(constr.Notes, "inv:")
-		beskrivelse = noter(0)
-		if UBound(noter) > 0 then 
-			oclConstraint = Trimutf8("inv:" + noter(1))
-			oclKode = bokstavlig(oclConstraint)
+		
+		dim foranstiltBeskrivelse 	
+		foranstiltBeskrivelse = join( split( noter(0), "--"), vbcrlf )
+		
+		if UBound(noter) = 0 then 
+			beskrivelse = foranstiltBeskrivelse
+		elseif UBound(noter) > 0 then
+''			oclConstraint = Trimutf8("inv:" + noter(1))
+
+			dim restriksjonOgEvtBeskrivelse
+			restriksjonOgEvtBeskrivelse = split(noter(1), "--")
+
+			dim restriksjon : restriksjon = restriksjonOgEvtBeskrivelse(0)
+			oclKode = bokstavlig( Trimutf8( "inv:"+restriksjon) )
+
+			if UBound(restriksjonOgEvtBeskrivelse) = 0 then
+				beskrivelse = foranstiltBeskrivelse		
+			elseif UBound(restriksjonOgEvtBeskrivelse) > 0 then 
+				beskrivelse = restriksjonOgEvtBeskrivelse
+				beskrivelse(0) = foranstiltBeskrivelse
+				beskrivelse = join( beskrivelse, vbcrlf)
+			end if
 		end if
 	else
 		beskrivelse = constr.Notes
@@ -2293,32 +2315,7 @@ end function
 
 ''  ----------------------------------------------------------------------------
 
-function bokstavlig( tekst)
-''	Returnerer asciidoc-kode for tekst som skal gjensgis bokstavlig
-''
-	bokstavlig = array( "[literal]", tekst, avsnittSkille() )
-
-end function
-
-''  ----------------------------------------------------------------------------
-
-function erBokstavlig( tekst)
-	if isArray(tekst) then
-		erBokstavlig =  (tekst(0) = "[literal]" and UBound(tekst) = 2)
-	end if
-end function
-
-''  ----------------------------------------------------------------------------
-
-function bokstavligCelle( tekst)
-''	asciidoc-kode for tekst som skal gjensgis bokstavlig i en tabell	
-''
-	bokstavligCelle = array ( "l|", tekst(1))
-
-end function
-
-''  ----------------------------------------------------------------------------
-
+''	Denne funksjonen er flytta opp tre plasser, urørt
 function adocFormat( tekst, format, rolle)
 ''	Returnerer asciidoc-kode for formattert tekst
 	if tekst = "" then
@@ -2332,6 +2329,36 @@ function adocFormat( tekst, format, rolle)
 	end if
 	
 end function 
+
+''  ----------------------------------------------------------------------------
+
+function bokstavlig( tekst)
+''	Returnerer asciidoc-kode for tekst som skal gjensgis bokstavlig
+''
+	bokstavlig = array( "[literal]", tekst, avsnittSkille() )
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function erBokstavlig( tekst)
+	if isArray(tekst) then
+		erBokstavlig = (tekst(0) = "[literal]" and UBound(tekst) = 2)
+	end if
+end function
+
+''  ----------------------------------------------------------------------------
+
+function bokstavligCelle( byval bokstavligTekst, celleSeparator)
+''	Bokstavlig tekst konverteres til bokstavlig tabellcelle
+''
+	dim res : res = bokstavligTekst
+	
+	res(0) = "l" + celleSeparator
+	call ErstattTegn( res(1), celleSeparator, "\"+celleSeparator)
+
+	bokstavligCelle = res
+end function
 
 
 ''  ----------------------------------------------------------------------------
@@ -2549,18 +2576,20 @@ end function
 
 function tabellCelle( byval innhold)
 
+	dim celleSeparator : celleSeparator = "|"
+	
 	if erBokstavlig( innhold) then
 
-		tabellCelle = bokstavligCelle( innhold)
+		tabellCelle = bokstavligCelle( innhold, celleSeparator)
 		
 	elseif not isArray( innhold) then
 	
-		tabellCelle = "|" & innhold & " "
+		tabellCelle = celleSeparator & innhold & " "
 		
 	else
 		dim res()
 		redim res(Ubound(innhold)+1)
-		res(0) =  "|"
+		res(0) =  celleSeparator
 
 		dim i
 		for i = 0 to Ubound(innhold)
@@ -2602,6 +2631,7 @@ end function
 
 Sub listRealiserteObjekttyper( pakke)
 
+''	Denne globale paramteren settes i hovedrutina, ikke her
 ''	visSosiFormatRealisering = true	
 ''	visSosiFormatRealisering = false	
 
