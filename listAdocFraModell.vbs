@@ -22,7 +22,9 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
-' Versjon: 0.39 Dato: 2024-05-13 Jostein Amlien: Forbedra beskrivelse av realisering i SOSI-format. Refaktorering av modulen.
+
+' Versjon: 0.40 Dato: 2024-25-24 Jostein Amlien: Lagt til opsjon for å skrive ut tomme tagger. Refaktorerr modulen taggedValues.
+' Versjon: 0.39 Dato: 2024-05-13 Jostein Amlien: Forbedra beskrivelse av realisering i SOSI-format. Refaktorering av modulen Realisert objekttyper.
 ' Versjon: 0.38 Dato: 2024-04-23 Jostein Amlien: Forbedra gjengivelse av OCL-kode for restriksjoner
 ' Versjon: 0.37 Dato: 2024-03-14 Jostein Amlien: Gjennomgang av globale parametre. Modul for forflata beskrivelse av realiserte objekttyper til egen fil.
 ' Versjon: 0.36 Dato: 2024-02-02 Jostein Amlien: Rapport skrives til fil. Feilretting i utskift av rolletagger. Modul for hjelpefunksjoner
@@ -123,7 +125,11 @@ Sub OnProjectBrowserScript
 			Session.Output "// Realiserte objekttyper i " + valgtPakke.element.name
 			Session.Output "// Start of UML-model"		
 
-			call listSosiFormatRealisering( valgtPakke)
+''			call listSosiFormatRealisering( valgtPakke)
+
+			Session.Output "//"
+
+''			Call listRealiserteObjekttyper( valgtPakke)  '' flat beskrivelse av alle realiserte objekttyper
 
 			Session.Output "// End of UML-model"
 
@@ -146,6 +152,9 @@ dim filnavn  '' navn på fil med modellrapporten
 '' 	Styring av innhold
 dim debugModell 
 dim ignorerSosiformatTagger
+
+dim	visTommeEgenskapsTagger, visTommeKonnektorTagger, visTommeRolleTagger
+dim	visTommeElementTagger, visTommePakkeTagger
 
 dim genererDiagrammer : genererDiagrammer = true
 
@@ -170,6 +179,8 @@ sub InitierGlobaleParametre
 
 '	ignorerSosiformatTagger = false '' Ta med tagger for SOSI-format i rapporten
 	ignorerSosiformatTagger = true 	'' Utelat tagger for SOSI-format i rapporten
+
+''	visTommeEgenskapsTagger = true
 	
 	genererDiagrammer = true  	'' regenererer alle diagrammer
 ''	genererDiagrammer = false  	'' anta at alle diagrammer er på plass
@@ -260,6 +271,51 @@ end sub
 
 Sub SkrivModellrapport(pakkelevel, thePackage)
 
+	call beskrivPakkasEgenskaper( thePackage, pakkelevel )
+
+'-----------------Elementer----------------- 
+
+	dim elementLevel : elementLevel = pakkelevel+1
+	Dim element As EA.Element 
+	For each element in thePackage.Elements
+		if isFeatureOrDataType(element) or isCodelist(element) then 	
+			SettInnTekst elementOverskrift(elementLevel, element, thePackage)
+			call beskrivElement( element, elementLevel)		
+		end if
+	Next
+
+'----------------- Underpakker ----------------- 
+
+	dim nesteLevel
+
+'	ALT 1 Underpakker flatt på samme nivå som Application Schema
+'	nesteLevel = pakkelevel
+
+'	ALT 2 Nøsting av pakker ned til nivå 4 under Application Schema
+	nestelevel = pakkelevel + 1
+	if pakkelevel = 4 then nestelevel = 4
+
+'	ALT 3 TBD Nøsting helt ned 
+'	med utskrift av Pakke::Klasse (Pakke/Pakke2::Klasse TBD)
+' 	nestelevel = pakkelevel + 1
+
+'	ALT 4  Alle undeliggende pakker skrives ut på nivå 3
+'	nestelevel = 3
+
+
+	dim pack as EA.Package
+	for each pack in thePackage.Packages
+		
+		Call SkrivModellrapport(nestelevel, pack)
+		
+	next
+
+end sub
+
+
+''  ----------------------------------------------------------------------------
+
+sub beskrivPakkasEgenskaper( thePackage, pakkelevel)
 
 	dim pakkeElement
 	set pakkeElement = thePackage.Element
@@ -269,9 +325,10 @@ Sub SkrivModellrapport(pakkelevel, thePackage)
 
 '----------------- Overskrift og beskrivelse -----------------
 
-	dim overskrift, pakketype
+	dim overskrift
 
 If false then   ''''''''' Erstatta av linjene under
+	dim pakketype
 	if pakkeElement.Stereotype = "" then
 
 		SettInnTekst sideskift()              ''' Hvorfor det ?
@@ -326,41 +383,6 @@ end if
 	
 	next
 
-'-----------------Elementer----------------- 
-
-	Dim element As EA.Element 
-	For each element in thePackage.Elements
-	
-		call beskrivElement(pakkelevel+1, element, thePackage)		
-
-	Next
-
-'----------------- Underpakker ----------------- 
-
-	dim nesteLevel
-
-'	ALT 1 Underpakker flatt på samme nivå som Application Schema
-'	nesteLevel = pakkelevel
-
-'	ALT 2 Nøsting av pakker ned til nivå 4 under Application Schema
-	nestelevel = pakkelevel + 1
-	if pakkelevel = 4 then nestelevel = 4
-
-'	ALT 3 TBD Nøsting helt ned 
-'	med utskrift av Pakke::Klasse (Pakke/Pakke2::Klasse TBD)
-' 	nestelevel = pakkelevel + 1
-
-'	ALT 4  Alle undeliggende pakker skrives ut på nivå 3
-'	nestelevel = 3
-
-
-	dim pack as EA.Package
-	for each pack in thePackage.Packages
-	
-		Call SkrivModellrapport(nestelevel, pack)
-		
-	next
-
 end sub
 
 ''  ----------------------------------------------------------------------------
@@ -386,11 +408,7 @@ End function
 
 ''  ----------------------------------------------------------------------------
 
-sub BeskrivElement(elementLevel, element, pakke)
-
-	if not (isFeatureOrDataType(element) or isCodelist(element) ) then EXIT sub
-	
-	SettInnTekst elementOverskrift(elementLevel, element, pakke) 
+sub BeskrivElement(element, elementLevel)
 
 	SettInnTekst bold("Definisjon:") & " " & definisjon(element)
 
@@ -1449,92 +1467,22 @@ function taggedValueFraRolle(rolle, byVal tagName)
 end function
 
 ''  ----------------------------------------------------------------------------
+''	Globale parametre som trigger utskrift av tomme tagger:
+''	visTommeEgenskapsTagger, visTommeKonnektorTagger, visTommeRolleTagger
+''	visTommeElementTagger, visTommePakkeTagger
+''  ----------------------------------------------------------------------------
+''
+function pakkeTagger( pakke) 
 
-function egenskapsTagger( element) '' element er et atributt
-
-	dim res()
-	redim res(element.TaggedValues.Count )
-	dim tagNr : tagNr = 0
-	
-	dim tag
-	for each tag in element.TaggedValues
-		if not ignorerTag(tag.Name) and tag.Value <> "" then 	
-			res(tagNr) = array(tag.Name, tag.Value) 
-			tagNr = tagNr + 1
-		end if
-	next
-
-	if tagNr = 0 then exit function
-
-	redim preserve res(tagNr-1)
-
-	egenskapsTagger = res
-
-	if alleTaggerISammeTabellrad then 
-		'' Legg alle tagger i en og samme tabell-celle
-		dim taggListe : taggListe = listeFraTabell(res, ": ")
-
-		if  isEmpty( taggListe) then EXIT function 
-		
-	''	taggListe = array( "Profilparametre i tagged values:", taggListe )
-		taggListe = array( "Tagged values:", taggListe )
-		egenskapsTagger = array(taggListe)
-
-	end if
+	pakkeTagger =  taggerSomTabell( pakke, visTommePakkeTagger) 
 
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function elementTagger( element) 
+function elementTagger( element) '' element er en klasse eller ei kodeliste
 
-	dim antallTagger 
-	antallTagger = element.TaggedValues.Count
-	if antallTagger = 0 then 	EXIT function
-	
-	dim tagger()
-	redim tagger(antallTagger )
-	dim tagNr : tagNr = 0
-	
-	dim tag
-	for each tag in element.TaggedValues
-		if not ignorerTag(tag.Name) and tag.Value <> "" then 	
-			tagger(tagNr) = array(tag.Name, tag.Value) 
-			tagNr = tagNr + 1
-		end if
-	next
-	
-	if tagNr = 0 then exit function
-
-	redim preserve tagger(tagNr-1)
-	elementTagger = tagger
-
-end function
-
-''  ----------------------------------------------------------------------------
-
-function pakkeTagger( element) '' element er ei pakke
-
-	dim antallTagger 
-	antallTagger = element.TaggedValues.Count
-	if antallTagger = 0 then 	EXIT function
-	
-	dim tagger()
-	redim tagger(antallTagger )
-	dim tagNr : tagNr = 0
-	
-	dim tag
-	for each tag in element.TaggedValues
-		if not ignorerTag(tag.Name) and tag.Value <> "" then 	
-			tagger(tagNr) = array(tag.Name, tag.Value) 
-			tagNr = tagNr + 1
-		end if
-	next
-
-	if tagNr = 0 then exit function
-	
-	redim preserve tagger(tagNr-1)
-	pakkeTagger = tagger
+	elementTagger =  taggerSomTabell( element, visTommeElementTagger) 
 
 end function
 
@@ -1542,25 +1490,79 @@ end function
 
 function konnektorTagger( con) 
 
-	dim antallTagger 
-	antallTagger = con.TaggedValues.Count
-	if antallTagger = 0 then 	EXIT function
+	konnektorTagger =  taggerSomTabell( con, visTommeKonnektorTagger) 
 
+end function
+
+''  ----------------------------------------------------------------------------
+
+function egenskapsTagger( egenskap ) 
+
+	if alleTaggerISammeTabellrad then 
+		egenskapsTagger = taggerSomEnkeltrad( egenskap, visTommeEgenskapsTagger) 
+	else
+		egenskapsTagger = taggerSomTabell( egenskap, visTommeEgenskapsTagger) 
+	end if
+	
+end function
+
+''  ----------------------------------------------------------------------------
+
+function taggerSomEnkeltrad( element, visTommeTagger) 
+
+	dim tagger : tagger = taggerSomTabell( element, visTommeTagger)
+	
+	if not isArray(tagger) then EXIT function
+
+	dim i, tag	
+	dim liste : liste = tagger
+''	dim liste(UBound(tagger))
+	for i = 0 to UBound(liste)
+		tag = tagger(i)
+		if isArray(tag) then 
+			liste(i) = join( tag, ": " )
+'		else
+'			liste(i) = tag
+		end if
+	next
+
+	if  isEmpty( liste) then EXIT function 
+	
+''	liste = array( "Profilparametre i tagged values:", liste )
+	liste = array( "Tagged values:", liste )
+	
+	taggerSomEnkeltrad = array(liste)
+
+end function
+
+''  ----------------------------------------------------------------------------
+
+function taggerSomTabell( element, visTommeTagger) 
+
+	dim antallTagger 
+	antallTagger = element.TaggedValues.Count
+	if antallTagger = 0 then 	EXIT function
+	
 	dim tagger()
 	redim tagger(antallTagger )
 	dim tagNr : tagNr = 0
 	
-	dim res, tag
-	for each tag in con.TaggedValues
-		if not ignorerTag(tag.Name) and tag.Value <> "" then 	
+	dim tag
+	for each tag in element.TaggedValues
+		if ignorerTag(tag.Name) then
+		elseif tag.Value <> "" then 	
 			tagger(tagNr) = array(tag.Name, tag.Value) 
 			tagNr = tagNr + 1
+		elseif visTommeTagger then
+			tagger(tagNr) = array(tag.Name, bold("TAGGEN ER TOM")) 
+			tagNr = tagNr + 1		
 		end if
 	next
 	
-	redim preserve tagger(tagNr-1)
+	if tagNr = 0 then exit function
 
-	konnektorTagger = tagger
+	redim preserve tagger(tagNr-1)
+	taggerSomTabell = tagger
 
 end function
 
@@ -1578,9 +1580,13 @@ function rolleTagger( rol)
 
 	dim res, tag
 	for each tag in rol.TaggedValues
-		if not ignorerTag(tag.Tag) and tag.Value <> "" then 	
+		if ignorerTag(tag.Tag) then
+		elseif tag.Value <> "" then 	
 			tagger(tagNr) = array(tag.Tag, tag.Value) 
 			tagNr = tagNr + 1
+		elseif visTommeRolleTagger then
+			tagger(tagNr) = array(tag.Tag, bold("TAGGEN ER TOM")) 
+			tagNr = tagNr + 1		
 		end if
 	next
 
@@ -1595,24 +1601,18 @@ end function
 
 ''  ----------------------------------------------------------------------------
 
-function profilParametre( element) 
-''	kalles ikke men testen kan brukes i rutina for pakketagger
+function ignorerProfilParameter( tag) 
 
-	dim res
-	dim tag
-	for each tag in element.TaggedValues
-		if ignorerTag(tag.Name) then 						''	pass
-		elseif tag.Value <> "" then 						''	pass
-		elseif tag.Name = "byValuePropertyType" then					''	pass
-		elseif tag.Name = "isCollection" then						''	pass
-		elseif tag.Name = "noPropertyType" then 						''	pass
-		elseif tag.Name = "asDictionary" AND tag.Value = "false" then 	''	pass
-		else
-			res = merge ( res, array(tag.Name, tag.Value) )
-		end if
-	next
+	dim res : res = false
+	
+	if ignorerTag(tag.Name) then res = true
+	if tag.Value <> "" then res = true
+	if tag.Name = "byValuePropertyType" then res = true
+	if tag.Name = "isCollection" then res = true
+	if tag.Name = "noPropertyType" then	res = true
+	if tag.Name = "asDictionary" AND tag.Value = "false" then  res = true
 
-	profilParametre = res
+	ignorerProfilParameter = res
 
 end function
 
@@ -1908,7 +1908,7 @@ function listeFraTabell( byval tabell, skilletegn)
 	dim res()
 	redim res( UBound(tabell) )
 
-	dim i, rad, nyrad
+	dim i, rad
 	for each rad in tabell
 		if isArray(rad) then 
 			res(i) = join( rad , skilletegn )
