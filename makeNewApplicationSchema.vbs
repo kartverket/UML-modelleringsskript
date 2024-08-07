@@ -3,19 +3,27 @@ option explicit
 !INC Local Scripts.EAConstants-VBScript
 
 ' script:		makeNewApplicationSchema
-' purpose:		updates stereotypes to new 2024 iso standard Rules for Application Schema, changing stereotypes to a new profile without loosing old tagged values
+' purpose:		updates stereotypes into new 2024 iso standard Rules for Application Schema, changing stereotypes to a new profile without loosing old tagged values
 ' formål:		endre kjente stereotyper til ny iso19109:2024 standard UML profil
-' author:		Kent
+' author:		Kent Jonsrud
+' version:		2024-08-07	specialized class types like datatype, codelist and enumeration need some special care
+' version:		2024-07-31	testing prerequisits, that the profile "ISO19109" exists before the package is updated, 
 ' version:		2024-02-20	testing against the new profile "ISO19109", 
 ' version:		2024-02-15	testing against the new profile "ISO19109 merged"
-' version:		2024-02-09  Switches to current national profile SOSI-UML-profil 5.1::
+' version:		2024-02-09	Switches to current national profile SOSI-UML-profil 5.1::
 ' version:		2024-02-02	Changed switch over from GI_Class and enumeration to GI_Interface and GI_Enumeration
 ' version:		2023-10-28	roles with role names handled
 ' version:		2023-10-27	switch known stereotypes, from FeatureType to GI_Class etc.
 ' version:		2023-10-27	classes and attributes handled, codelists with codes become GI_Enumerations
+'				TBD: copy definititon text in Notes into tag definition, ?
+'				TBD: use of description <memo>, ?
+'				TBD: fix erronious æøå in Notes also at this stage?
+'				TBD: still ok to keep all other tags directly on element and not in a profile? (like sequenceNumber,SOSI_Navn,++)
+'				TBD: move exiting alias names into (EN) designation tags and move --Definition-- parts into separate (EN) definition tags ?
+'				TBD: may be problems with attributes that has some other existing stereotypes ?
+'
 '				TBD: check that all elements are changed, complete or discard description <memo>, ?enumerations (<memo>)
 '				TBD: tagged values on GI_Property and GI_Enum not visible under Properties tab, just stereotype name (however scripts will work)
-'				TBD: fix æøå in Notes also at this stage?
 '				TBD: if not pkg.Update() on all Update(), show old profile name, 
 
 		DIM debug,txt
@@ -29,6 +37,7 @@ option explicit
 sub makeNewApplicationSchema()
 	Repository.EnsureOutputVisible "Script"
 
+	Dim i,o
 	Dim theElement as EA.Element
 	dim conn as EA.Connector
 	dim connend as EA.ConnectorEnd
@@ -47,34 +56,82 @@ sub makeNewApplicationSchema()
 
 	Set theElement = Repository.GetTreeSelectedObject()
 	if not theElement is nothing  then
+		o = 0
+		if false then
+			Repository.ClearOutput "Script"
+			Repository.WriteOutput "Script", "Repository.ConnectionString [" &Repository.ConnectionString & "]" & vbCrLf ,0
+			Repository.WriteOutput "Script", "Repository.RepositoryType() [" &Repository.RepositoryType() & "]" & vbCrLf ,0
+	'		Repository.WriteOutput "Script", "Repository.EAEditionEx [" &Repository.EAEditionEx & "]" & vbCrLf ,0
+			Repository.WriteOutput "Script", "Repository.LibraryVersion [" &Repository.LibraryVersion & "]" & vbCrLf ,0
+	'		Repository.WriteOutput "Script", "Repository.LastUpdate [" &Repository.LastUpdate & "]" & vbCrLf ,0
+	'		Repository.WriteOutput "Script", "Repository.GetCounts() [" &Repository.GetCounts() & "]" & vbCrLf ,0
+			Repository.WriteOutput "Script", "Repository.IsTechnologyLoaded (GML) [" &Repository.IsTechnologyLoaded ("GML") & "]" & vbCrLf ,0
+			Repository.WriteOutput "Script", "Repository.IsTechnologyLoaded (ISO19109) [" &Repository.IsTechnologyLoaded ("ISO19109") & "]" & vbCrLf ,0
+		 
+			Repository.WriteOutput "Script", "theElement.element.GetStereotypeList() [" &theElement.element.GetStereotypeList() & "]" & vbCrLf ,0
+	'		Repository.WriteOutput "Script", "theElement.element.GetStereotypeList() [" &theElement.element.   .GetStereotypeList() & "]" & vbCrLf ,0
+			Repository.WriteOutput "Script", "FQName [" & theElement.element.FQName & "]" & vbCrLf ,0
+			Repository.WriteOutput "Script", "FQ Stereotype [" & theElement.element.FQStereotype & "]" & vbCrLf ,0
+			Repository.WriteOutput "Script", "Has Stereotype SOSI-UML-profil 5.1::ApplicationSchema [" & theElement.element.HasStereotype("SOSI-UML-profil 5.1::ApplicationSchema") & "]" & vbCrLf ,0
+			Repository.WriteOutput "Script", "Has Stereotype ISO19109::ApplicationSchema [" & theElement.element.HasStereotype("ISO19109::ApplicationSchema") & "]" & vbCrLf ,0
+			Repository.WriteOutput "Script", "Stereotype : [«" & theElement.element.Stereotype & "»]" & ".",0
+			Repository.WriteOutput "Script", "StereotypeEx : [«" & theElement.element.StereotypeEx & "»]" & ".",0
+			dim ster as EA.Stereotype
+			for i = 0 to Repository.Stereotypes.Count - 1 
+				set ster = Repository.Stereotypes.GetAt( i ) 
+		'		set xxxx = Repository.Resources.GetAt( i ) 
+	'			Repository.WriteOutput "Script", i & " Repository.Stereotypes Name: " & ster.Name ,0
+	'			Repository.WriteOutput "Script", i & " Repository.Stereotypes AppliesTo: " & ster.AppliesTo ,0
+		'		Repository.WriteOutput "Script", i & " Repository.Stereotypes ObjectType: " & ster.ObjectType ,0
+			'	if ster.Type = "Class" then
+			'		o = o + 1
+			'	end if
+			next
+		'?		Repository.WriteOutput "Script", "TaggedValuesEX : [«" & theElement.element.TaggedValues.   & "»]" & ".",0
+		end if 'debug
 
-		dim box
-		box = Msgbox ("Skript makeNewApplicationSchema" & vbCrLf & vbCrLf & "Skriptversjon 2024-02-20" & vbCrLf & _
-			"Endrer kjente stereotyper til ny 2024 standard UML profil: [" & theElement.Name & "]."  & vbCrLf & _
-			"NOTE! This script will automatically make change to your model!",1)
-		select case box
-			case vbOK
-			
-				Repository.ClearOutput "Script"
-				Repository.CreateOutputTab "Error"
-				Repository.ClearOutput "Error"			
+		if Repository.IsTechnologyLoaded ("ISO19109") then
+			dim box
+			box = Msgbox ("Skript makeNewApplicationSchema" & vbCrLf & vbCrLf & "Skriptversjon 2024-08-07" & vbCrLf & _
+				"Endrer kjente stereotyper til ny 2024 standard UML profil: [" & theElement.Name & "]."  & vbCrLf & _
+				"NOTE! This script will make CHANGES to ALL elements in your model!",1)
+			select case box
+				case vbOK
 				
-				if Repository.GetTreeSelectedItemType() = otPackage then
-					Repository.WriteOutput "Script", Now & " Start processing of package.",0
-					makeApplicationSchema(theElement)
-				else 
-					if Repository.GetTreeSelectedItemType() = otElement and theElement.Type = "Class" then
-						Repository.WriteOutput "Script", Now & " Start processing of class.",0
-						makeClass(theElement)
-					else
-						MsgBox( "This script requires a package or a class to be selected in the Project Browser." & vbCrLf & _
-							"Please select this and try again." )			
-					end if
-				end if
-				Repository.WriteOutput "Script", Now & " End of processing.",0
+					Repository.ClearOutput "Script"
+					Repository.CreateOutputTab "Error"
+					Repository.ClearOutput "Error"			
+					
+			'		if debug then
+			'			Repository.WriteOutput "Script", "Repository.GetTreeSelectedItemType() [" &Repository.GetTreeSelectedItemType() & "]" & " theElement.Type [" &theElement.Type & "]" & vbCrLf ,0
+			'		end if
 
-			case VBcancel
-		end select
+					dim box2
+					box2 = Msgbox ("ALL ELEMENTS WILL NOW BE CHANGED!",1)
+					select case box2
+						case vbOK
+
+							if Repository.GetTreeSelectedItemType() = otPackage then
+								Repository.WriteOutput "Script", Now & " Start processing of package.",0
+								makeApplicationSchema(theElement)
+							else 
+								if Repository.GetTreeSelectedItemType() = otElement and theElement.Type = "Class" or theElement.Type = "DataType" or theElement.Type = "Enumeration" then
+									Repository.WriteOutput "Script", Now & " Start processing of class.",0
+									makeClass(theElement)
+								else
+									MsgBox( "This script requires a package or a class to be selected in the Project Browser." & vbCrLf & _
+										"Please select this and try again." )			
+								end if
+							end if
+							Repository.WriteOutput "Script", Now & " End of processing.",0
+						case VBcancel
+					end select
+
+				case VBcancel
+			end select
+		else
+			Repository.WriteOutput "Script", Now & " MDG Technology (UML Profile) ISO19109 not found. End of processing.",0
+		end if
 
 	else
 		MsgBox( "This script requires a package or a class to be selected in the Project Browser." & vbCrLf & _
@@ -86,7 +143,7 @@ end sub
 sub makeApplicationSchema(pkg)
 	dim elements as EA.Collection
 	dim i
-	Repository.WriteOutput "Script", " Stereotypes will be changed for Package : [«" & pkg.element.Stereotype & "» " & pkg.Name & "].",0
+	Repository.WriteOutput "Script", " All Stereotypes will be updated for Package : [«" & pkg.element.Stereotype & "» " & pkg.Name & "].",0
 
 
 	if LCase(pkg.element.Stereotype) = "applicationschema" or LCase(pkg.element.Stereotype) = "abstractschema" then
@@ -129,7 +186,8 @@ sub makeApplicationSchema(pkg)
  	for i = 0 to elements.Count - 1 
 		dim element as EA.Element 
 		set element = elements.GetAt( i ) 	
-		if element.Type = "Class" then
+		if debug then Repository.WriteOutput "Script", "Element Name [" & element.Name & "]"  & " Element Type [" & element.Type & "]" ,0 end if
+		if element.Type = "Class" or element.Type = "DataType" or element.Type = "Enumeration" or element.Type = "Type" then
 			makeClass(element)
 			element.Refresh()
 		end if
@@ -158,25 +216,33 @@ sub makeClass(theElement)
 	dim i, c
 
 	if debug then
-		Repository.WriteOutput "Script", " Stereotypes will be changed for Class : [«" & theElement.Stereotype & "» " & theElement.Name & "].",0		
-		Repository.WriteOutput "Script", "Old Stereotype [" & theElement.Stereotype & "]" & vbCrLf ,0
-		Repository.WriteOutput "Script", "FQ  Stereotype [" & theElement.FQStereotype & "]" & vbCrLf ,0
-		Repository.WriteOutput "Script", "StereotypeList [" & theElement.GetStereotypeList() & "]" & vbCrLf ,0
-		Repository.WriteOutput "Script", "StereotypeEx   [" & theElement.StereotypeEx & "]" & vbCrLf ,0
+		Repository.WriteOutput "Script", " ------------------ Stereotypes will be changed for Class : [«" & theElement.Stereotype & "» " & theElement.Name & "].",0		
+		Repository.WriteOutput "Script", "Old Stereotype [" & theElement.Stereotype & "]" ,0
+		Repository.WriteOutput "Script", "FQ  Stereotype [" & theElement.FQStereotype & "]" ,0
+		Repository.WriteOutput "Script", "StereotypeList [" & theElement.GetStereotypeList() & "]" ,0
+		Repository.WriteOutput "Script", "StereotypeEx   [" & theElement.StereotypeEx & "]" ,0
+		Repository.WriteOutput "Script", "MetaType       [" & theElement.MetaType & "]" ,0
 	end if
 	backupElementTags(theElement)
 	
 	
 				
 	if LCase(theElement.Stereotype) = "featuretype" or LCase(theElement.Stereotype) = "gi_interface" then
+		if debug then 		Repository.WriteOutput "Script", " featuretype Class : [«" & theElement.Stereotype & "» " & theElement.Name & "].",0 end if
+		if debug then call listAllElementTags(theElement, "at start") end if
+		theElement.Stereotype = ""
 		theElement.StereotypeEx = ""
 		theElement.Update()
 		theElement.TaggedValues.Refresh()
+		deleteAllOldElementTags(theElement)
 		theElement.Refresh()
+		if debug then call listAllElementTags(theElement, "all tags after old stereotype is removed and before new stereotype") end if
 		theElement.StereotypeEx = "ISO19109::FeatureType"
 		theElement.Update()
 		theElement.TaggedValues.Refresh()
 		theElement.Refresh()
+		if debug then call listAllElementTags(theElement, "tags after some of them are moved to new stereotype") end if
+		if debug then call listAllElementTags(theElement, "tags after restore") end if
 		
 		for each attr in theElement.Attributes
 			makeAttribute(attr)
@@ -185,55 +251,106 @@ sub makeClass(theElement)
 			theElement.TaggedValues.Refresh()
 			'?
 		next
+		if debug then call listAllElementTags(theElement, "tags after attributes updated") end if
+		theElement.TaggedValues.Refresh()
+		theElement.Update()
+		theElement.Refresh()
+		restoreElementTags(theElement)
+		if debug then call listAllElementTags(theElement, "tags after restore") end if
+		theElement.TaggedValues.Refresh()
+		theElement.Update()
+		theElement.Refresh()
+		if debug then call listAllElementTags(theElement, "tags after last Refresh") end if
 	end if
 	if LCase(theElement.Stereotype) = "datatype" or LCase(theElement.Stereotype) = "gi_datatype" then
+		if debug then 		Repository.WriteOutput "Script", " datatype Class : [«" & theElement.Stereotype & "» " & theElement.Name & "].",0 end if
+		if debug then 		Repository.WriteOutput "Script", " datatype1 Type : [«" & theElement.ClassifierType & "» " & theElement.Type & "].",0 end if
+		if debug then call listAllElementTags(theElement, "at start") end if
+		theElement.Stereotype = ""
 		theElement.StereotypeEx = ""
+		theElement.Type = "DataType"
 		theElement.Update()
 		theElement.TaggedValues.Refresh()
+		deleteAllOldElementTags(theElement)
 		theElement.Refresh()
+		if debug then call listAllElementTags(theElement, "all tags after old stereotype is removed and before new stereotype") end if
 		theElement.StereotypeEx = "ISO19109::GI_DataType"
 		theElement.Update()
 		theElement.TaggedValues.Refresh()
 		theElement.Refresh()
+		if debug then call listAllElementTags(theElement, "tags after new stereotype") end if
+		if debug then 		Repository.WriteOutput "Script", " datatype2 Class : [«" & theElement.Stereotype & "» " & theElement.Name & "].",0 end if
+
 		for each attr in theElement.Attributes
 			makeAttribute(attr)
+			theElement.Update()
+			theElement.Refresh()
+	'		theElement.TaggedValues.Refresh()
 		next
-		theElement.Update()
+		if debug then call listAllElementTags(theElement, "tags after attributes updated") end if
 		theElement.TaggedValues.Refresh()
+		theElement.Update()
 		theElement.Refresh()
+		restoreElementTags(theElement)
+		if debug then call listAllElementTags(theElement, "tags after restore") end if
+		theElement.TaggedValues.Refresh()
+		theElement.Update()
+		theElement.Refresh()
+		if debug then call listAllElementTags(theElement, "tags after last Refresh") end if
 	end if
-	if LCase(theElement.Stereotype) = "codelist" or LCase(theElement.Stereotype) = "gi_codeset" then
+	if LCase(theElement.Stereotype) = "codelist" or LCase(theElement.Stereotype) = "gi_codeset" or LCase(theElement.Stereotype) = "enumeration" or LCase(theElement.Stereotype) = "gi_enumeration" or theElement.Type = "Enumeration"then
+		if debug then 		Repository.WriteOutput "Script", " codelist Class : [«" & theElement.Stereotype & "» " & theElement.Name & "] codelist Type : [" & theElement.Type & "].",0 end if
+		theElement.Stereotype = ""
 		theElement.StereotypeEx = ""
-		theElement.Update()
-		theElement.TaggedValues.Refresh()
-		theElement.Refresh()
 		if theElement.Attributes.Count() > 0 then
-			'theElement.StereotypeEx = "SOSI-UML-profil 5.1::enumeration"
+			theElement.Type = "Enumeration"
+			theElement.Update()
+			theElement.TaggedValues.Refresh()
+			deleteAllOldElementTags(theElement)
+			theElement.Refresh()
 			theElement.StereotypeEx = "ISO19109::GI_Enumeration"
 			theElement.Update()
+			theElement.TaggedValues.Refresh()
 			theElement.Refresh()
 		else
-			theElement.StereotypeEx = "ISO19109::CodeSet"
+			theElement.Type = "DataType"
 			theElement.Update()
+			theElement.TaggedValues.Refresh()
+			deleteAllOldElementTags(theElement)
 			theElement.Refresh()
-			'NB TBD	theElement.StereotypeEx = "CodeSet"
+			theElement.StereotypeEx = "ISO19109::GI_CodeSet"
+			theElement.Update()
+			theElement.TaggedValues.Refresh()
+			theElement.Refresh()
 		end if
+
 		if theElement.Attributes.Count() > 0 then
-			Repository.WriteOutput "Script", "Warning: Class with codes not empty! ["  & theElement.Name & " has "& theElement.Attributes.Count() & " codes]" & vbCrLf ,0
+			Repository.WriteOutput "Script", "Info: Element with codes not empty! ["  & theElement.Name & " has "& theElement.Attributes.Count() & " codes]" & vbCrLf ,0
 			for each attr in theElement.Attributes
 				makeAttribute(attr)
+				theElement.Update()
+				theElement.Refresh()
+				theElement.TaggedValues.Refresh()
 			next
 		end if
-		theElement.Update()
+		if debug then call listAllElementTags(theElement, "tags after attributes updated") end if
 		theElement.TaggedValues.Refresh()
+		theElement.Update()
 		theElement.Refresh()
+		restoreElementTags(theElement)
+		if debug then call listAllElementTags(theElement, "tags after restore") end if
+		theElement.TaggedValues.Refresh()
+		theElement.Update()
+		theElement.Refresh()
+		if debug then call listAllElementTags(theElement, "tags after last Refresh") end if
 	end if
-	if LCase(theElement.Stereotype) = "enumeration" or LCase(theElement.Stereotype) = "gi_enumeration" then
-		'TBD
-		'for each attr in theElement.Attributes
-			'makeCode(attr)
-		'next
-	end if
+'	if LCase(theElement.Stereotype) = "enumeration" or LCase(theElement.Stereotype) = "gi_enumeration" or theElement.Type = "Enumeration" then
+'		if debug then 		Repository.WriteOutput "Script", " TBD enumeration Class : [«" & theElement.Stereotype & "» " & theElement.Name & "].",0 end if
+'		'TBD
+'		'for each attr in theElement.Attributes
+'			'makeCode(attr)
+'		'next
+'	end if
 
 '	Repository.WriteOutput "Script", "New Stereotype [" & theElement.Stereotype & "]" & vbCrLf ,0			
 	Repository.WriteOutput "Script", " Stereotype changed for Class : [«" & theElement.Stereotype & "» " & theElement.Name & "].",0
@@ -280,9 +397,10 @@ sub makeClass(theElement)
 			end if
 		end if
 	next
-	restoreElementTags(theElement)
-	theElement.Update()
-	theElement.Refresh()
+'	restoreElementTags(theElement)
+'	theElement.TaggedValues.Refresh()
+'	theElement.Update()
+'	theElement.Refresh()
 			
 			
 
@@ -307,7 +425,8 @@ sub makeAttribute(attr)
 				
 	backupAttributeTags(attr)
 	
-	if LCase(attr.Stereotype) = "" and LCase(attr.Type) <> "" then
+'	if LCase(attr.Stereotype) = "" and LCase(attr.Type) <> "" then
+	if debug then
 		Repository.WriteOutput "Script", " Stereotype to be changed for Attribute : [" & attr.Name & " : " & attr.Type & "].",0
 	end if
 	if LCase(attr.Stereotype) = "" or LCase(attr.Stereotype) = "egenskap" or LCase(attr.Stereotype) = "gi_property" then
@@ -555,6 +674,32 @@ sub backupPackageTags(pkg)
 	next
 end sub
 
+sub listAllElementTags(element, stage)
+	dim existing, i
+	Repository.WriteOutput "Script", " Stage : [" & stage & "].",0 
+	for i = 0 to element.TaggedValues.Count - 1
+		set existing = element.TaggedValues.GetAt(i)
+		Repository.WriteOutput "Script", " --- Tagged value " & i & " for element : [" & element.Name & "] - tag name: [" & existing.Name & "] tag FQname: [" & existing.FQName & "] tag value: [" & existing.Value & "].",0 
+	next
+end sub
+
+sub deleteAllOldElementTags(element)
+	dim existing, i
+	if element.TaggedValues.Count > 0 then
+		if debug then Repository.WriteOutput "Script", " \\\ Deleting Count " & element.TaggedValues.Count & " for element : [" & element.Name & "] ",0 
+		for i = 0 to element.TaggedValues.Count - 1
+			if debug then 
+				set existing = element.TaggedValues.GetAt(i)
+				Repository.WriteOutput "Script", " \\\ Deleting Tagged value " & i & " for element : [" & element.Name & "] - tag name: [" & existing.Name & "] tag FQname: [" & existing.FQName & "] tag value: [" & existing.Value & "].",0 
+			end if
+			element.TaggedValues.Delete(i)
+		next
+		element.Update()
+		element.TaggedValues.Refresh()
+		element.Refresh()
+	end if
+end sub
+
 sub backupElementTags(element)
 	dim existing, i
 	tnelist.Clear
@@ -562,7 +707,7 @@ sub backupElementTags(element)
 	for i = 0 to element.TaggedValues.Count - 1
 		set existing = element.TaggedValues.GetAt(i)
 		if existing.Value <> "" then
-			if debug then Repository.WriteOutput "Script", " Backup Tagged value " & i & " for element : [" & element.Name & " - tag name: " & existing.Name & " tag value: " & existing.Value & "].",0 end if
+			if debug then Repository.WriteOutput "Script", " Backup Tagged value " & i & " for element : [" & element.Name & "] - tag name: [" & existing.Name & "] tag value: [" & existing.Value & "].",0 end if
 			tnelist.Add existing.Name
 			tvelist.Add existing.Value
 		end if
@@ -664,6 +809,7 @@ sub restoreElementTags(element)
 		for j = 0 to element.TaggedValues.Count - 1
 			set existingTag = element.TaggedValues.GetAt(j)
 			if existingTag.Name = tnelist.Item(i) then
+				if debug then Repository.WriteOutput "Script", " Tag found in " & j & " for element : [" & element.Name & " - tag name: " & existingTag.Name & " tag value: " & existingTag.Value & "].",0 end if
 				hit = hit + 1
 				if existingTag.Value = "" then
 					'tag exists but empty
@@ -692,7 +838,7 @@ sub restoreElementTags(element)
 			'
 		if hit = 0 then
 			'tag missing in new stereotype, insert the old tag
-			Repository.WriteOutput "Script", " Keep old Tagged value " & i & " for element : [" & element.Name & " - tag name: " & tnelist.Item(i) & " tag value: " & tvelist.Item(i) & "].",0
+			if debug then Repository.WriteOutput "Script", " Keep old Tagged value " & i & " for element : [" & element.Name & " - tag name: " & tnelist.Item(i) & " tag value: " & tvelist.Item(i) & "].",0 end if
 			set newTag = element.TaggedValues.AddNew(tnelist.Item(i),"Tag")
 			newTag.Value = tvelist.Item(i)
 			newTag.Update()
