@@ -6,15 +6,17 @@ option explicit
 ' purpose:		updates stereotypes into new 2024 iso standard Rules for Application Schema, changing stereotypes to a new profile without loosing old tagged values
 ' formål:		endre kjente stereotyper til ny iso19109:2024 standard UML profil
 ' author:		Kent Jonsrud
+' version:		2024-08-08	improved script output
 ' version:		2024-08-07	specialized class types like datatype, codelist and enumeration need some special care
 ' version:		2024-07-31	testing prerequisits, that the profile "ISO19109" exists before the package is updated, 
 ' version:		2024-02-20	testing against the new profile "ISO19109", 
 ' version:		2024-02-15	testing against the new profile "ISO19109 merged"
 ' version:		2024-02-09	Switches to current national profile SOSI-UML-profil 5.1::
 ' version:		2024-02-02	Changed switch over from GI_Class and enumeration to GI_Interface and GI_Enumeration
-' version:		2023-10-28	roles with role names handled
+' version:		2023-10-28	association ends with role names handled
 ' version:		2023-10-27	switch known stereotypes, from FeatureType to GI_Class etc.
 ' version:		2023-10-27	classes and attributes handled, codelists with codes become GI_Enumerations
+'				TBD: verify that specially association ends keep all their original tags, ?
 '				TBD: copy definititon text in Notes into tag definition, ?
 '				TBD: use of description <memo>, ?
 '				TBD: fix erronious æøå in Notes also at this stage?
@@ -143,7 +145,7 @@ end sub
 sub makeApplicationSchema(pkg)
 	dim elements as EA.Collection
 	dim i
-	Repository.WriteOutput "Script", " All Stereotypes will be updated for Package : [«" & pkg.element.Stereotype & "» " & pkg.Name & "].",0
+	Repository.WriteOutput "Script", "              All Stereotypes will be updated for Package : [«" & pkg.element.FQStereotype & "» " & pkg.Name & "].",0
 
 
 	if LCase(pkg.element.Stereotype) = "applicationschema" or LCase(pkg.element.Stereotype) = "abstractschema" then
@@ -215,8 +217,8 @@ sub makeClass(theElement)
 	Dim newCTag as EA.RoleTag
 	dim i, c
 
+	Repository.WriteOutput "Script", " ------------------ Stereotypes will be changed for Class : [«" & theElement.FQStereotype & "» " & theElement.Name & "].",0		
 	if debug then
-		Repository.WriteOutput "Script", " ------------------ Stereotypes will be changed for Class : [«" & theElement.Stereotype & "» " & theElement.Name & "].",0		
 		Repository.WriteOutput "Script", "Old Stereotype [" & theElement.Stereotype & "]" ,0
 		Repository.WriteOutput "Script", "FQ  Stereotype [" & theElement.FQStereotype & "]" ,0
 		Repository.WriteOutput "Script", "StereotypeList [" & theElement.GetStereotypeList() & "]" ,0
@@ -433,7 +435,7 @@ sub makeAttribute(attr)
 		attr.StereotypeEx = ""
 		attr.Update()
 		attr.TaggedValues.Refresh()
-		attr.StereotypeEx = "ISO19109::GI_Property"	'NB not in current profile ?
+		attr.StereotypeEx = "ISO19109::GI_Property"
 		attr.Update()
 		attr.TaggedValues.Refresh()
 	end if
@@ -441,13 +443,13 @@ sub makeAttribute(attr)
 		attr.StereotypeEx = ""
 		attr.Update()
 		attr.TaggedValues.Refresh()
-		attr.StereotypeEx = "ISO19109::GI_EnumerationLiteral"	'NB not in profile
+		attr.StereotypeEx = "ISO19109::GI_EnumerationLiteral"
 		attr.Update()
 		attr.TaggedValues.Refresh()
 	end if
 
 	if LCase(attr.Stereotype) = "enum" or LCase(attr.Stereotype) = "gi_enumerationliteral" or LCase(attr.Type) = "<undefined>" or LCase(attr.Type) = "" then
-		Repository.WriteOutput "Script", " Stereotype TBD - NOT changed for Code : [«" & attr.Stereotype & "» " & attr.Name & "].",0
+		Repository.WriteOutput "Script", " Stereotype changed for Code : [«" & attr.Stereotype & "» " & attr.Name & "].",0
 	else
 		Repository.WriteOutput "Script", " Stereotype changed for Attribute : [«" & attr.Stereotype & "» " & attr.Name & "].",0
 	end if
