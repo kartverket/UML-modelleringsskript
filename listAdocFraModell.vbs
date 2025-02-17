@@ -22,8 +22,9 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
-
-' Versjon: 0.40 Dato: 2024-25-24 Jostein Amlien: Lagt til opsjon for å skrive ut tomme tagger. Refaktorerr modulen taggedValues.
+'
+' Versjon: 0.41 Dato: 2025-02-17 Jostein Amlien: Lagt til mekanismer for å håndtere manglende tagger for SOSI-formatet.
+' Versjon: 0.40 Dato: 2024-05-24 Jostein Amlien: Lagt til opsjon for å skrive ut tomme tagger. Refaktorert modulen taggedValues.
 ' Versjon: 0.39 Dato: 2024-05-13 Jostein Amlien: Forbedra beskrivelse av realisering i SOSI-format. Refaktorering av modulen Realisert objekttyper.
 ' Versjon: 0.38 Dato: 2024-04-23 Jostein Amlien: Forbedra gjengivelse av OCL-kode for restriksjoner
 ' Versjon: 0.37 Dato: 2024-03-14 Jostein Amlien: Gjennomgang av globale parametre. Modul for forflata beskrivelse av realiserte objekttyper til egen fil.
@@ -125,8 +126,8 @@ Sub OnProjectBrowserScript
 			Session.Output "// Realiserte objekttyper i " + valgtPakke.element.name
 			Session.Output "// Start of UML-model"		
 
-''			call listSosiFormatRealisering( valgtPakke)
-
+			call listSosiFormatRealisering( valgtPakke)
+'
 			Session.Output "//"
 
 ''			Call listRealiserteObjekttyper( valgtPakke)  '' flat beskrivelse av alle realiserte objekttyper
@@ -2643,6 +2644,8 @@ end function
 ''	============================================================================
 
 dim visSosiFormatRealisering '' viser sosi-format i realiseringsvedlegget 
+dim avledSosiNavnFraEgenskap '' avleder SOSI-navn fra egenskapsnavn
+dim avledSosiTypeFraDatatype '' avleder SOSI-type fra basis egenskapstype
 
 ''  ----------------------------------------------------------------------------
 
@@ -2663,6 +2666,8 @@ end sub
 Sub listSosiFormatRealisering( pakke)
 
 	visSosiFormatRealisering = true	
+	avledSosiTypeFraDatatype = true
+''	avledSosiNavnFraEgenskap = true  '' BRYTER Realisering i SOSI-format 5.0
 
 	set utfil = tomTekstfil( "SOSIformatRealisering.adoc")
 	
@@ -2943,8 +2948,50 @@ end function
 
 ''  ----------------------------------------------------------------------------
 
+function kortAttributtBeskrivelse(att, egenskapsgruppe, datatype)
+
+	dim egNavn : egNavn = egenskapsgruppe & att.Name 
+	dim sNavn :	sNavn = sosiNavn(att, egenskapsgruppe)
+	
+	dim mult : mult = "[" & att.LowerBound & ".." & att.UpperBound & "]"
+	
+	dim dtyp, sosiDatatype
+	if isnull(datatype) then
+		dtyp = att.type
+		sosiDatatype = SOSItypeFraBasistype(dtyp)
+	else
+		dtyp = stereotypeNavn( datatype)
+		
+		if isDataType( dataType) then  
+			'' marker sammensatt datatype
+			sosiDatatype = "*"
+		elseif iscodelist( datatype) then 
+			'' hent SOSIdatatype fra kodelista
+			sosiDatatype = sosiDatatypeFraTagger(dataType)
+			
+			if sosiDatatype = "" then sosiDatatype = "T"
+		end if
+	end if
+
+	dim sType :	stype = sosiDatatypeFraTagger( att)
+	if sType = "" then stype = sosiDatatype
+	
+	if not visSosiFormatRealisering then
+	
+		kortAttributtBeskrivelse = array(egNavn, dtyp, mult)
+		
+	elseif sosiGeometritype( att) = "" then
+
+		kortAttributtBeskrivelse = array( egNavn, dtyp, mult, sNavn, sType) 
+	
+	end if
+
+end function
+
+''  ----------------------------------------------------------------------------
+
 function klassensEgneAttributter (element, byVal egenskapsgruppe)
-''	Inneholder rekursivt kall til elemntets sammensatte datatyper
+''	Inneholder rekursivt kall til elementets sammensatte datatyper
 
 	if egenskapsgruppe <> "" then egenskapsgruppe = egenskapsgruppe + "."
 
@@ -2952,46 +2999,24 @@ function klassensEgneAttributter (element, byVal egenskapsgruppe)
 	Dim att As EA.Attribute
 	
 	for each att in element.Attributes
-
-		dim egNavn : egNavn = egenskapsgruppe & att.Name 
-		dim mult : mult = "[" & att.LowerBound & ".." & att.UpperBound & "]"
-		dim datatype, dtyp
+		dim datatype
 		if att.ClassifierID <> 0 then
 			set datatype = Repository.GetElementByID(att.ClassifierID)
-			dtyp = stereotypeNavn( datatype)
 		else
 			datatype = null
-			dtyp = att.Type
 		end if
 		
 		dim attrib
-		if not visSosiFormatRealisering then
+		attrib = kortAttributtBeskrivelse(att, egenskapsgruppe, datatype)
 		
-			attrib = array(egNavn, dtyp, mult)
-			
-		elseif sosiGeometritype( att) = "" then
-			dim antallPrikker
-			if egenskapsgruppe <> "" then 
-				antallPrikker = 2 + Ubound(split(egenskapsgruppe, ".") )
-			else
-				antallPrikker = 2
-			end if
-
-			dim sNavn, sType
-			sNavn = sosiNavn(att, antallPrikker)
-			sType = sosiDatatype(att, datatype)
-			
-			attrib = array( egNavn, dtyp, mult, sNavn, sType) 
-		
-		end if
-
 		liste = merge(liste, array(attrib))
 
-		'' ta med underegenskapene dersom attrib er en sammsatt datatype
+		'' ta med underegenskapene dersom attrib er en sammensatt datatype
 		if isNull(attrib) then 
 		elseif isnull(datatype) then
 		elseif LCase(datatype.Stereotype) <> "datatype" then
 		else
+			dim egNavn : egNavn = attrib(0)			
 			liste = merge( liste, klassensEgneAttributter( datatype, egNavn) )
 		end if
 	next
@@ -3111,11 +3136,57 @@ end function
 
 ''  ----------------------------------------------------------------------------
 
-function sosiNavn( element, antallPrikker)
+function sosiNavn( element, egenskapsgruppe)
 
 	dim sNavn : sNavn = taggedValueFraElement(element, "SOSI_navn")
 	
-	if sNavn <> "" then sosiNavn = string( antallPrikker, ".") & sNavn
+	if sNavn = "" then 
+		if avledSosiNavnFraEgenskap then
+			sNavn = Ucase(element.Name)
+		else
+			EXIT function
+		end if 
+	end if
+	
+	dim antallPrikker : antallPrikker = 2
+	if egenskapsgruppe <> "" then
+		antallPrikker = antallPrikker + Ubound(split(egenskapsgruppe, ".") )
+	end if
+
+	sosiNavn = string( antallPrikker, ".") + sNavn
+end function
+
+''  ----------------------------------------------------------------------------
+
+function SOSItypeFraBasistype(basistype)
+	'' Avlede SOSI basistype ihht Tabell 8.1 i "Realisering i SOSI-format 5.0"
+	
+	dim sosiBasistype
+	if     basistype = "Integer" then 
+		sosiBasistype = "H"
+
+	elseif basistype = "Real" then 
+		sosiBasistype = "D"
+		
+	elseif basistype = "CharacterString" then 
+		sosiBasistype = "T"
+		
+	elseif basistype = "DateTime" then 
+		sosiBasistype = "DATOTID"
+		
+	elseif basistype = "Date" then 
+		sosiBasistype = "DATO"
+		
+	elseif basistype = "Boolean" then 
+		sosiBasistype = "BOOLSK"
+		
+	end if
+	
+	if sosiBasistype <> "" and avledSosiTypeFraDatatype then 
+		SOSItypeFraBasistype = sosiBasistype
+''	else
+''		SOSItypeFraBasistype = basistype
+	end if
 
 end function
 
@@ -3139,6 +3210,20 @@ function sosiDatatype( element, datatype)
 	end if
 	
 	sosiDatatype = sType
+end function
+
+''  ----------------------------------------------------------------------------
+
+function sosiDatatypeFraTagger( element)
+
+	dim sosiType, sosiLengde
+	sosiType   = taggedValueFraElement(element, "SOSI_datatype")
+	sosiLengde = taggedValueFraElement(element, "SOSI_lengde")
+
+	if sosiType <> "" then
+		sosiDatatypeFraTagger = sosiType & sosiLengde
+	end if
+
 end function
 
 ''  ----------------------------------------------------------------------------
