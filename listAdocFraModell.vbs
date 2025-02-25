@@ -1,4 +1,4 @@
-Option Explicit
+﻿Option Explicit
 
 ''  ----------------------------------------------------------------------------
 '
@@ -23,6 +23,7 @@ Option Explicit
 ' Original Date: 08.04.2021
 '
 '
+' Versjon: 0.42 Dato: 2025-02-25 Jostein Amlien: Bedre håndtering av: GM_Object, tomme kodedefinisjoner, realiserte objekttyper med Union
 ' Versjon: 0.41 Dato: 2025-02-17 Jostein Amlien: Lagt til mekanismer for å håndtere manglende tagger for SOSI-formatet.
 ' Versjon: 0.40 Dato: 2024-05-24 Jostein Amlien: Lagt til opsjon for å skrive ut tomme tagger. Refaktorert modulen taggedValues.
 ' Versjon: 0.39 Dato: 2024-05-13 Jostein Amlien: Forbedra beskrivelse av realisering i SOSI-format. Refaktorering av modulen Realisert objekttyper.
@@ -543,7 +544,7 @@ function modellkoder(element)
 		else
 			kode = array( att.Name, def )   
 		end if
-		
+
 		liste(i) = kode
 		i = i +1
 	next
@@ -1167,7 +1168,7 @@ function erSosiBasistype( attrType)
 	bTyp = "Date, Time, DateTime, Number, Decimal, Integer, Real, Vector" 
 	bTyp = bTyp + ", CharacterString, Boolean, URI, Any, Record, LanguageString"
 	bTyp = bTyp + ", GM_Point, GM_Curve, GM_Surface, GM_Solid"
-	bTyp = bTyp + ", GM_Primitive, GM_MultiSurface" 
+	bTyp = bTyp + ", GM_Primitive, GM_MultiSurface, GM_Object" 
 	bTyp = bTyp + ", Punkt, Sverm, Kurve, Flate" 
 
 	dim basisTyper : basisTyper = Split(bTyp, ", ")
@@ -2050,6 +2051,8 @@ function bildeAvAttributt( att, typ)
 		alternativTekst = alternativTekst & " som er forklart i teksten."
 		
 		bildeAvAttributt = bildeITekst( bildetekst, bilde, alternativTekst)	
+	else
+		bildeAvAttributt = ""
 	end if
 
 end function 
@@ -2220,18 +2223,18 @@ function trimUTF8(byval txt)
 	Dim inp
 	txt = Trim(txt)
 
-	call ErstattKodeMedTegn( txt, 230, "æ")
-	call ErstattKodeMedTegn( txt, 248, "ø")
-	call ErstattKodeMedTegn( txt, 229, "å")
-	call ErstattKodeMedTegn( txt, 198, "Æ")
-	call ErstattKodeMedTegn( txt, 216, "Ø")
-	call ErstattKodeMedTegn( txt, 197, "Å")
-	call ErstattKodeMedTegn( txt, 233, "é")
+	call ErstattKodeMedTegn( txt, 230, "æ") '' bokstav nr 27 ae
+	call ErstattKodeMedTegn( txt, 248, "ø")	'' bokstav nr 28 oe
+	call ErstattKodeMedTegn( txt, 229, "å")	'' bokstav nr 29 aa
+	call ErstattKodeMedTegn( txt, 198, "Æ")	'' bokstav nr 27 AE
+	call ErstattKodeMedTegn( txt, 216, "Ø")	'' bokstav nr 28 OE
+	call ErstattKodeMedTegn( txt, 197, "Å")	'' bokstav nr 29 AA
+	call ErstattKodeMedTegn( txt, 233, "é")	'' e med skarp aksent
 	
-	call ErstattKodeMedTegn( txt, 167, "§")
+	call ErstattKodeMedTegn( txt, 167, "§") '' paragraftegn 
 	
-	call ErstattBokstavkodeMedTegn( txt, "lt", "<")
-	call ErstattBokstavkodeMedTegn( txt, "gt", ">")
+	call ErstattBokstavkodeMedTegn( txt, "lt", "<")  '' mindre enn
+	call ErstattBokstavkodeMedTegn( txt, "gt", ">")  '' større enn
 	
 	trimUTF8 = txt
 end function
@@ -3012,12 +3015,17 @@ function klassensEgneAttributter (element, byVal egenskapsgruppe)
 		liste = merge(liste, array(attrib))
 
 		'' ta med underegenskapene dersom attrib er en sammensatt datatype
-		if isNull(attrib) then 
+		if isNull(attrib) then
 		elseif isnull(datatype) then
-		elseif LCase(datatype.Stereotype) <> "datatype" then
 		else
-			dim egNavn : egNavn = attrib(0)			
-			liste = merge( liste, klassensEgneAttributter( datatype, egNavn) )
+			dim styp : styp =  LCase(datatype.Stereotype)
+			if listeInneholderElement( array( "datatype", "union"), styp) then
+				dim attributter, egNavn 
+				egNavn = attrib(0)	
+				attributter = klassensEgneAttributter( datatype, egNavn)
+				
+				liste = merge( liste, attributter)
+			end if
 		end if
 	next
 	
