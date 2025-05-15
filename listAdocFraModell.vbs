@@ -23,6 +23,8 @@
 ' Original Date: 08.04.2021
 '
 '
+'
+' Versjon: 0.43 Dato: 2025-05-05 Kent Jonsrud: utkommentert at alle modeller by default skal lage realisering i SOSI-format (ca. linje 128)
 ' Versjon: 0.42 Dato: 2025-02-25 Jostein Amlien: Bedre håndtering av: GM_Object, tomme kodedefinisjoner, realiserte objekttyper med Union
 ' Versjon: 0.41 Dato: 2025-02-17 Jostein Amlien: Lagt til mekanismer for å håndtere manglende tagger for SOSI-formatet.
 ' Versjon: 0.40 Dato: 2024-05-24 Jostein Amlien: Lagt til opsjon for å skrive ut tomme tagger. Refaktorert modulen taggedValues.
@@ -123,19 +125,19 @@ Sub OnProjectBrowserScript
 
 			Session.Output "// End of UML-model"
 
-
+'' hopp over format-realisering
+if false then  
 			Session.Output "// Realiserte objekttyper i " + valgtPakke.element.name
 			Session.Output "// Start of UML-model"		
 
 			call listSosiFormatRealisering( valgtPakke)
-'
+
 			Session.Output "//"
 
 ''			Call listRealiserteObjekttyper( valgtPakke)  '' flat beskrivelse av alle realiserte objekttyper
 
 			Session.Output "// End of UML-model"
-
-
+end if 'false
 
 			Session.Output "// Dokumentasjon ferdig "
 		Case Else
