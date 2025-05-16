@@ -1,4 +1,4 @@
-﻿Option Explicit
+Option Explicit
 
 ''  ----------------------------------------------------------------------------
 '
@@ -24,6 +24,7 @@
 '
 '
 '
+' Versjon: 0.44 Dato: 2025-05-15 Kent Jonsrud / Jostein Amlien: Lagt inn krav om at tag asDictionary=true for å skrive ut tag codeList (rutina taggerSomTabell ca. linje 1558)
 ' Versjon: 0.43 Dato: 2025-05-05 Kent Jonsrud: utkommentert at alle modeller by default skal lage realisering i SOSI-format (ca. linje 128)
 ' Versjon: 0.42 Dato: 2025-02-25 Jostein Amlien: Bedre håndtering av: GM_Object, tomme kodedefinisjoner, realiserte objekttyper med Union
 ' Versjon: 0.41 Dato: 2025-02-17 Jostein Amlien: Lagt til mekanismer for å håndtere manglende tagger for SOSI-formatet.
@@ -1551,9 +1552,14 @@ function taggerSomTabell( element, visTommeTagger)
 	redim tagger(antallTagger )
 	dim tagNr : tagNr = 0
 	
+	dim ignorerKodeliste 
+	ignorerKodeliste = taggedValueFraElement(element, "asDictionary") <> "true"
+	ignorerKodeliste = ignorerKodeliste and not debugModell
+	
 	dim tag
 	for each tag in element.TaggedValues
-		if ignorerTag(tag.Name) then
+		if ignorerTag(tag.Name) then   '' NB kan fortsatt vises i diagrammer
+		elseif tag.Name = "codeList" and ignorerKodeliste then  
 		elseif tag.Value <> "" then 	
 			tagger(tagNr) = array(tag.Name, tag.Value) 
 			tagNr = tagNr + 1
