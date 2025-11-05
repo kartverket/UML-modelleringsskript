@@ -9,29 +9,3 @@ spec:
   type: "service"
   lifecycle: "production"
   owner: "standardisering"
----
-apiVersion: "backstage.io/v1alpha1"
-kind: "Group"
-metadata:
-  name: "security_champion_UML-modelleringsskript"
-  title: "Security Champion UML-modelleringsskript"
-spec:
-  type: "security_champion"
-  parent: "it_security_champions"
-  members:
-  - "toreJohnsen"
-  children:
-  - "resource:UML-modelleringsskript"
----
-apiVersion: "backstage.io/v1alpha1"
-kind: "Resource"
-metadata:
-  name: "UML-modelleringsskript"
-  links:
-  - url: "https://github.com/kartverket/UML-modelleringsskript"
-    title: "UML-modelleringsskript på GitHub"
-spec:
-  type: "repo"
-  owner: "security_champion_UML-modelleringsskript"
-  dependencyOf:
-  - "component:UML-modelleringsskript"
