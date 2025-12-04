@@ -972,6 +972,18 @@ function konnektor( connector)
 
 	dim konnNavn : konnNavn = stereotypeNavn(connector)
 ''	
+	if konnNavn = "" then exit function  
+
+	if connector.Type = "Association" then 
+		konnektor = array( "Navn på assosiasjon: ", konnNavn)
+	elseif connector.Type = "Aggregation" then 
+		konnektor = array( "Navn på aggregering: ", konnNavn)
+	elseif connector.Type = "Composition" then 
+		konnektor = array( "Navn på komposisjon: ", konnNavn)
+	end if
+
+exit function
+
 	if konnNavn <> "" then 
 		res = array( "Konnektor: ", konnNavn)
 		res = merge( res, array( "Konnektortype:", connector.Type )  )
