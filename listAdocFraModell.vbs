@@ -23,7 +23,7 @@ Option Explicit
 ' Original Date: 08.04.2021
 '
 '
-'
+' Versjon: 0.45 Dato: 2025-12-04 Jostein Amlien: Justering av utskrift for egenskaper og roller: Navn på relasjoner, og tagger.
 ' Versjon: 0.44 Dato: 2025-05-15 Kent Jonsrud / Jostein Amlien: Lagt inn krav om at tag asDictionary=true for å skrive ut tag codeList (rutina taggerSomTabell ca. linje 1558)
 ' Versjon: 0.43 Dato: 2025-05-05 Kent Jonsrud: utkommentert at alle modeller by default skal lage realisering i SOSI-format (ca. linje 128)
 ' Versjon: 0.42 Dato: 2025-02-25 Jostein Amlien: Bedre håndtering av: GM_Object, tomme kodedefinisjoner, realiserte objekttyper med Union
@@ -186,6 +186,7 @@ sub InitierGlobaleParametre
 	ignorerSosiformatTagger = true 	'' Utelat tagger for SOSI-format i rapporten
 
 ''	visTommeEgenskapsTagger = true
+''	visTommeRolleTagger = true
 	
 	genererDiagrammer = true  	'' regenererer alle diagrammer
 ''	genererDiagrammer = false  	'' anta at alle diagrammer er på plass
@@ -933,7 +934,7 @@ function rolleBeskrivelse( targetEnd, targetID, aggregeringsType)
 	dim navigerbarhet 	: navigerbarhet = targetEnd.Navigable
 	'Legg til info om klassen er navigerbar eller spesifisert ikke-navigerbar.
 	If navigerbarhet = "Navigable" Then 
-		textVar = textVar + kursiv(":") 
+		textVar = textVar + ":" 
 ''		textVar = textVar + kursiv(" (navigerbar):") 
 ''		textVar = "Navigerbar til:"
 	ElseIf navigerbarhet = "Non-Navigable" Then 
@@ -972,6 +973,18 @@ function konnektor( connector)
 
 	dim konnNavn : konnNavn = stereotypeNavn(connector)
 ''	
+	if konnNavn = "" then exit function  
+
+	if connector.Type = "Association" then 
+		konnektor = array( "Navn på assosiasjon: ", konnNavn)
+	elseif connector.Type = "Aggregation" then 
+		konnektor = array( "Navn på aggregering: ", konnNavn)
+	elseif connector.Type = "Composition" then 
+		konnektor = array( "Navn på komposisjon: ", konnNavn)
+	end if
+
+exit function
+
 	if konnNavn <> "" then 
 		res = array( "Konnektor: ", konnNavn)
 		res = merge( res, array( "Konnektortype:", connector.Type )  )
@@ -1555,18 +1568,24 @@ function taggerSomTabell( element, visTommeTagger)
 	dim ignorerKodeliste 
 	ignorerKodeliste = taggedValueFraElement(element, "asDictionary") <> "true"
 	ignorerKodeliste = ignorerKodeliste and not debugModell
+
+	dim advarsel
+	if visTommeTagger then advarsel = "TAGGEN ER TOM" 
 	
-	dim tag
+	dim tag, tagTekst
 	for each tag in element.TaggedValues
-		if ignorerTag(tag.Name) then   '' NB kan fortsatt vises i diagrammer
+
+		if ignorerTag(tag.Name) then  '' NB kan fortsatt vises i diagrammer
 		elseif tag.Name = "codeList" and ignorerKodeliste then  
-		elseif tag.Value <> "" then 	
-			tagger(tagNr) = array(tag.Name, tag.Value) 
-			tagNr = tagNr + 1
-		elseif visTommeTagger then
-			tagger(tagNr) = array(tag.Name, bold("TAGGEN ER TOM")) 
+		else
+			tagTekst = tagSomTekst( tag.Name, tag.Value, advarsel)
+		end if
+		
+		if isArray(tagTekst) then
+			tagger(tagNr) = tagTekst
 			tagNr = tagNr + 1		
 		end if
+	
 	next
 	
 	if tagNr = 0 then exit function
@@ -1588,14 +1607,16 @@ function rolleTagger( rol)
 	redim tagger(antallTagger )
 	dim tagNr : tagNr = 0
 
-	dim res, tag
+	dim advarsel : advarsel = ""
+	if visTommerolleTagger then advarsel = "TAGGEN ER TOM" 
+
+	dim tag, tagTekst
 	for each tag in rol.TaggedValues
-		if ignorerTag(tag.Tag) then
-		elseif tag.Value <> "" then 	
-			tagger(tagNr) = array(tag.Tag, tag.Value) 
-			tagNr = tagNr + 1
-		elseif visTommeRolleTagger then
-			tagger(tagNr) = array(tag.Tag, bold("TAGGEN ER TOM")) 
+	
+		tagTekst = tagSomTekst( tag.Tag, tag.Value, advarsel)
+		
+		if isArray(tagTekst) then
+			tagger(tagNr) = tagTekst
 			tagNr = tagNr + 1		
 		end if
 	next
@@ -1607,6 +1628,20 @@ function rolleTagger( rol)
 end function
 
 '
+''  ----------------------------------------------------------------------------
+
+function tagSomTekst( tagName, tagValue, advarsel)
+
+	if ignorerTag(tagName) then EXIT function 
+	
+	if tagValue <> "" then 	
+		tagSomTekst = array(tagName +":", tagValue) 
+	elseif advarsel <> "" then
+		tagSomTekst = array(tagName +":", bold(advarsel)) 
+	end if
+
+end function
+
 '----------------  Funksjoner for å lese tagged values End -------------------
 
 ''  ----------------------------------------------------------------------------
