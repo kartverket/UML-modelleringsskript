@@ -934,7 +934,7 @@ function rolleBeskrivelse( targetEnd, targetID, aggregeringsType)
 	dim navigerbarhet 	: navigerbarhet = targetEnd.Navigable
 	'Legg til info om klassen er navigerbar eller spesifisert ikke-navigerbar.
 	If navigerbarhet = "Navigable" Then 
-		textVar = textVar + kursiv(":") 
+		textVar = textVar + ":" 
 ''		textVar = textVar + kursiv(" (navigerbar):") 
 ''		textVar = "Navigerbar til:"
 	ElseIf navigerbarhet = "Non-Navigable" Then 
