@@ -1576,8 +1576,7 @@ function taggerSomTabell( element, visTommeTagger)
 	dim tag, tagTekst
 	for each tag in element.TaggedValues
 
-		if ignorerTag(tag.Name) then  '' NB kan fortsatt vises i diagrammer
-		elseif tag.Name = "codeList" and ignorerKodeliste then  
+		if tag.Name = "codeList" and ignorerKodeliste then  
 		else
 			tagTekst = tagSomTekst( tag.Name, tag.Value, advarsel)
 			
