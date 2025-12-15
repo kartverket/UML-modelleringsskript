@@ -22,7 +22,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
-'
+' Versjon: 0.45a Dato: 2025-12-15 Jostein Amlien: Feilretting, dobbel utskrift av egenskapstagger i visse tilfeller
 ' Versjon: 0.45 Dato: 2025-12-04 Jostein Amlien: Justering av utskrift for egenskaper og roller: Navn på relasjoner, og tagger.
 ' Versjon: 0.44 Dato: 2025-05-15 Kent Jonsrud / Jostein Amlien: Lagt inn krav om at tag asDictionary=true for å skrive ut tag codeList (rutina taggerSomTabell ca. linje 1558)
 ' Versjon: 0.43 Dato: 2025-05-05 Kent Jonsrud: utkommentert at alle modeller by default skal lage realisering i SOSI-format (ca. linje 128)
@@ -1559,8 +1559,9 @@ function taggerSomTabell( element, visTommeTagger)
 
 	dim antallTagger 
 	antallTagger = element.TaggedValues.Count
-	if antallTagger = 0 then 	EXIT function
-	
+
+	if antallTagger = 0 then EXIT function
+
 	dim tagger()
 	redim tagger(antallTagger )
 	dim tagNr : tagNr = 0
@@ -1579,13 +1580,13 @@ function taggerSomTabell( element, visTommeTagger)
 		elseif tag.Name = "codeList" and ignorerKodeliste then  
 		else
 			tagTekst = tagSomTekst( tag.Name, tag.Value, advarsel)
+			
+			if isArray(tagTekst) then
+				tagger(tagNr) = tagTekst
+				tagNr = tagNr + 1		
+			end if
 		end if
 		
-		if isArray(tagTekst) then
-			tagger(tagNr) = tagTekst
-			tagNr = tagNr + 1		
-		end if
-	
 	next
 	
 	if tagNr = 0 then exit function
@@ -1627,7 +1628,6 @@ function rolleTagger( rol)
 
 end function
 
-'
 ''  ----------------------------------------------------------------------------
 
 function tagSomTekst( tagName, tagValue, advarsel)
@@ -1901,6 +1901,36 @@ end function
 '
 '===============================================================================
 
+function append( byval liste, byval tillegg)
+
+	if isEmpty(tillegg) Then 
+		append = liste
+		exit function
+	end if
+	
+	dim res()
+	if isEmpty(liste) then
+		redim res(0)
+		res(0) = tillegg
+	elseif not isArray(liste) then
+		redim res(1)
+		res(0) = liste
+		res(1) = tillegg
+	else
+		redim res(UBound(liste) + 1)
+		dim i 
+		for i = 0 to UBound(liste) 
+			res(i) = liste(i)
+		next
+		
+		res(UBound(liste) + 1) = tillegg
+	end if
+
+	append = res
+	
+end function
+
+''  ----------------------------------------------------------------------------
 
 function merge( ByVal list, byVal tillegg)
 ''  Forlenger ei liste (array) med et tillegg, og returnere ei ny liste
