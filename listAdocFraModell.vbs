@@ -22,6 +22,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Versjon: 0.48 Dato: 2025-12-19 Jostein Amlien: Tagger: forenkla taggerSomTabell() --> listeAvTagger()
 ' Versjon: 0.47 Dato: 2025-12-19 Jostein Amlien: Flytta alternativ tabell-layout av tagger høyere opp i logikken
 ' Versjon: 0.46 Dato: 2025-12-19 Jostein Amlien: Flytta modulen for realiserte objekttyper ut i separat fil
 ' Versjon: 0.45a Dato: 2025-12-15 Jostein Amlien: Feilretting, dobbel utskrift av egenskapstagger i visse tilfeller
@@ -144,11 +145,13 @@ Dim valgtPakke As EA.Package
 dim filnavn  '' navn på fil med modellrapporten
 
 '' 	Styring av innhold
-dim debugModell 
+dim debugModell
 dim ignorerSosiformatTagger
+dim ignorerGMLFormatTagger
 
 dim	visTommeEgenskapsTagger, visTommeKonnektorTagger, visTommeRolleTagger
 dim	visTommeElementTagger, visTommePakkeTagger
+dim visCodelistForEgenskap
 
 dim genererDiagrammer : genererDiagrammer = true
 
@@ -768,7 +771,7 @@ function beskrivRolle(rolle)
 	dim rol, roltag, konn, konntag
 	
 	rol = rolleBeskrivelse( target, targetID, aggtype)
-	roltag = rolleTagger(target) 	
+	roltag = listeAvRolleTagger(target) 	
 	rol = merge( rol, roltag)
 	
 	konn = merge (konnektor(con), konnektorTagger(con) )
@@ -1486,7 +1489,7 @@ end function
 ''
 function pakkeTagger( pakke) 
 
-	pakkeTagger =  taggerSomTabell( pakke, visTommePakkeTagger) 
+	pakkeTagger =  listeAvTagger( pakke, visTommePakkeTagger) 
 
 end function
 
@@ -1494,7 +1497,7 @@ end function
 
 function elementTagger( element) '' element er en klasse eller ei kodeliste
 
-	elementTagger =  taggerSomTabell( element, visTommeElementTagger) 
+	elementTagger =  listeAvTagger( element, visTommeElementTagger) 
 
 end function
 
@@ -1502,7 +1505,7 @@ end function
 
 function konnektorTagger( con) 
 
-	konnektorTagger =  taggerSomTabell( con, visTommeKonnektorTagger) 
+	konnektorTagger =  listeAvTagger( con, visTommeKonnektorTagger) 
 
 end function
 
@@ -1510,16 +1513,11 @@ end function
 
 function egenskapsTagger( egenskap ) 
 
-
 	dim tagger
-	tagger = taggerSomTabell( egenskap, visTommeEgenskapsTagger) 
-
-'	if visCodelistForEgenskap then 
-'		tagger = append( tagger, codelistFraDatatype(egenskap) )
-'	end if
+	tagger = listeAvTagger( egenskap, visTommeEgenskapsTagger) 
 
 	egenskapsTagger = tagger
-	
+
 end function
 
 ''  ----------------------------------------------------------------------------
@@ -1536,81 +1534,48 @@ function taggerSomEnkeltrad( tagger)
 	next
 
 	if isArray(liste) then taggerSomEnkeltrad = array( "Tagged values:", liste)
-
+	
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function taggerSomTabell( element, visTommeTagger) 
+function listeAvTagger( element, visTommeTagger) 
 
-	dim antallTagger 
-	antallTagger = element.TaggedValues.Count
-
-	if antallTagger = 0 then EXIT function
-
-	dim tagger()
-	redim tagger(antallTagger )
-	dim tagNr : tagNr = 0
-	
 	dim ignorerKodeliste 
 	ignorerKodeliste = taggedValueFraElement(element, "asDictionary") <> "true"
 	ignorerKodeliste = ignorerKodeliste and not debugModell
 
 	dim advarsel
 	if visTommeTagger then advarsel = "TAGGEN ER TOM" 
-	
-	dim tag, tagTekst
+
+	dim liste, tag
 	for each tag in element.TaggedValues
 
 		if tag.Name = "codeList" and ignorerKodeliste then  
 		else
-			tagTekst = tagSomTekst( tag.Name, tag.Value, advarsel)
-			
-			if isArray(tagTekst) then
-				tagger(tagNr) = tagTekst
-				tagNr = tagNr + 1		
-			end if
+			liste = append( liste, tagSomTekst(tag.Name, tag.Value, advarsel) )
 		end if
-		
 	next
 	
-	if tagNr = 0 then exit function
-
-	redim preserve tagger(tagNr-1)
-	taggerSomTabell = tagger
-
+	listeAvTagger = liste
+	
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function rolleTagger( rol) 
-
-	dim antallTagger 
-	antallTagger = rol.TaggedValues.Count
-	if antallTagger = 0 then 	EXIT function
-	
-	dim tagger()
-	redim tagger(antallTagger )
-	dim tagNr : tagNr = 0
+function listeAvRolletagger( rol) 
 
 	dim advarsel : advarsel = ""
 	if visTommerolleTagger then advarsel = "TAGGEN ER TOM" 
 
-	dim tag, tagTekst
+	dim liste, tag
 	for each tag in rol.TaggedValues
 	
-		tagTekst = tagSomTekst( tag.Tag, tag.Value, advarsel)
+		liste = append(liste, tagSomTekst(tag.Tag, tag.Value, advarsel))
 		
-		if isArray(tagTekst) then
-			tagger(tagNr) = tagTekst
-			tagNr = tagNr + 1		
-		end if
 	next
-
-	redim preserve tagger(tagNr-1)
-
-	rolleTagger = tagger
-
+	
+	listeAvRolletagger = liste
 end function
 
 ''  ----------------------------------------------------------------------------
