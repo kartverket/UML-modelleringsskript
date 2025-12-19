@@ -22,6 +22,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Versjon: 0.47 Dato: 2025-12-19 Jostein Amlien: Flytta alternativ tabell-layout av tagger høyere opp i logikken
 ' Versjon: 0.46 Dato: 2025-12-19 Jostein Amlien: Flytta modulen for realiserte objekttyper ut i separat fil
 ' Versjon: 0.45a Dato: 2025-12-15 Jostein Amlien: Feilretting, dobbel utskrift av egenskapstagger i visse tilfeller
 ' Versjon: 0.45 Dato: 2025-12-04 Jostein Amlien: Justering av utskrift for egenskaper og roller: Navn på relasjoner, og tagger.
@@ -152,7 +153,7 @@ dim	visTommeElementTagger, visTommePakkeTagger
 dim genererDiagrammer : genererDiagrammer = true
 
 dim standardTabellFormat
-dim alleTaggerISammeTabellrad : alleTaggerISammeTabellrad = false
+dim alleTaggerISammeTabellrad 
 dim alternativBetegnelseForInitialverdi
 
 dim detaljnivaa, nedersteOverskiftsnivaa
@@ -597,7 +598,14 @@ function attributtbeskrivelse( att)
 	dim attributt
 	attributt = array ( navn, def, mult, init, visib, typ)
 	
-	attributtbeskrivelse = merge(attributt, egenskapsTagger( att))
+	dim tagger
+	tagger = egenskapsTagger( att)
+	
+	if alleTaggerISammeTabellrad then
+		attributtbeskrivelse = append(attributt, taggerSomEnkeltrad(tagger))
+	else
+		attributtbeskrivelse = merge(attributt, tagger)
+	end if
 
 end function
 
@@ -1502,40 +1510,32 @@ end function
 
 function egenskapsTagger( egenskap ) 
 
-	if alleTaggerISammeTabellrad then 
-		egenskapsTagger = taggerSomEnkeltrad( egenskap, visTommeEgenskapsTagger) 
-	else
-		egenskapsTagger = taggerSomTabell( egenskap, visTommeEgenskapsTagger) 
-	end if
+
+	dim tagger
+	tagger = taggerSomTabell( egenskap, visTommeEgenskapsTagger) 
+
+'	if visCodelistForEgenskap then 
+'		tagger = append( tagger, codelistFraDatatype(egenskap) )
+'	end if
+
+	egenskapsTagger = tagger
 	
 end function
 
 ''  ----------------------------------------------------------------------------
 
-function taggerSomEnkeltrad( element, visTommeTagger) 
+function taggerSomEnkeltrad( tagger) 
 
-	dim tagger : tagger = taggerSomTabell( element, visTommeTagger)
-	
 	if not isArray(tagger) then EXIT function
 
-	dim i, tag	
-	dim liste : liste = tagger
-''	dim liste(UBound(tagger))
-	for i = 0 to UBound(liste)
+	dim liste
+	dim i , tag
+	for i = 0 to UBound(tagger)
 		tag = tagger(i)
-		if isArray(tag) then 
-			liste(i) = join( tag, ": " )
-'		else
-'			liste(i) = tag
-		end if
+		if isArray(tag) then liste = append( liste,  join( tag, ": " ) )
 	next
 
-	if  isEmpty( liste) then EXIT function 
-	
-''	liste = array( "Profilparametre i tagged values:", liste )
-	liste = array( "Tagged values:", liste )
-	
-	taggerSomEnkeltrad = array(liste)
+	if isArray(liste) then taggerSomEnkeltrad = array( "Tagged values:", liste)
 
 end function
 
