@@ -22,6 +22,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Versjon: 0.46 Dato: 2025-12-19 Jostein Amlien: Flytta modulen for realiserte objekttyper ut i separat fil
 ' Versjon: 0.45a Dato: 2025-12-15 Jostein Amlien: Feilretting, dobbel utskrift av egenskapstagger i visse tilfeller
 ' Versjon: 0.45 Dato: 2025-12-04 Jostein Amlien: Justering av utskrift for egenskaper og roller: Navn på relasjoner, og tagger.
 ' Versjon: 0.44 Dato: 2025-05-15 Kent Jonsrud / Jostein Amlien: Lagt inn krav om at tag asDictionary=true for å skrive ut tag codeList (rutina taggerSomTabell ca. linje 1558)
