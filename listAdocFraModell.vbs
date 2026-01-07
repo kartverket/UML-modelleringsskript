@@ -1862,31 +1862,26 @@ function append( byval liste, byval tillegg)
 
 	if isEmpty(tillegg) Then 
 		append = liste
-		exit function
-	end if
-	
-	dim res()
-	if isEmpty(liste) then
-		redim res(0)
-		res(0) = tillegg
+
+	elseif isEmpty(liste) then
+		append = array(tillegg)
+		
 	elseif not isArray(liste) then
-		redim res(1)
-		res(0) = liste
-		res(1) = tillegg
+		append = array(liste, tillegg)
+		
 	else
+		dim res(), i
 		redim res(UBound(liste) + 1)
-		dim i 
+		
 		for i = 0 to UBound(liste) 
 			res(i) = liste(i)
 		next
-		
 		res(UBound(liste) + 1) = tillegg
-	end if
 
-	append = res
+		append = res
+	end if
 	
 end function
-
 ''  ----------------------------------------------------------------------------
 
 function merge( ByVal list, byVal tillegg)
