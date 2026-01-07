@@ -22,6 +22,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Versjon: 0.49 Dato: 2026-01-07 Jostein Amlien: Tagger:
 ' Versjon: 0.48 Dato: 2025-12-19 Jostein Amlien: Tagger: forenkla taggerSomTabell() --> listeAvTagger()
 ' Versjon: 0.47 Dato: 2025-12-19 Jostein Amlien: Flytta alternativ tabell-layout av tagger høyere opp i logikken
 ' Versjon: 0.46 Dato: 2025-12-19 Jostein Amlien: Flytta modulen for realiserte objekttyper ut i separat fil
@@ -156,7 +157,7 @@ dim visCodelistForEgenskap
 dim genererDiagrammer : genererDiagrammer = true
 
 dim standardTabellFormat
-dim alleTaggerISammeTabellrad 
+dim alleTaggerISammeTabellrad
 dim alternativBetegnelseForInitialverdi
 
 dim detaljnivaa, nedersteOverskiftsnivaa
@@ -176,6 +177,9 @@ sub InitierGlobaleParametre
 
 '	ignorerSosiformatTagger = false '' Ta med tagger for SOSI-format i rapporten
 	ignorerSosiformatTagger = true 	'' Utelat tagger for SOSI-format i rapporten
+
+'	ignorerGMLformatTagger = false '' Ta med tagger for GML-format i rapporten
+	ignorerGMLformatTagger = true 	'' Utelat tagger for GML-format i rapporten
 
 ''	visTommeEgenskapsTagger = true
 ''	visTommeRolleTagger = true
@@ -771,13 +775,11 @@ function beskrivRolle(rolle)
 	dim rol, roltag, konn, konntag
 	
 	rol = rolleBeskrivelse( target, targetID, aggtype)
-	roltag = listeAvRolleTagger(target) 	
+	
+	roltag = listeAvRolletagger(target) 	
 	rol = merge( rol, roltag)
 	
 	konn = merge (konnektor(con), konnektorTagger(con) )
-
-
-''	beskrivRolle = array( rol, roltag, konn, konntag)
 
 	beskrivRolle = merge( rol, konn)
 end function
@@ -863,7 +865,7 @@ function identifiserRolle( elemID, con, clientEllerSupplier)
 		exit function
 	end if
 	
-	if target.Role <> "" then   ''erstatter realiserbarRolle( target, aggType)
+	if target.Role <> "" then   
 		dim seqNo
 		seqNo = taggedValueFraRolle(target, "sequenceNumber")
 
@@ -873,20 +875,6 @@ function identifiserRolle( elemID, con, clientEllerSupplier)
 	end if
 
 end function
-
-''  ----------------------------------------------------------------------------
-
-
-''  UTGÅR  ########
-function realiserbarRolle( r, aggType)
-
-	dim res
-	res =  r.Role <> "" or r.RoleNote <> "" or r.Cardinality <> ""
-	res =  res or r.Navigable = "Navigable" or aggType <> "Assosiasjon" 
-
-	realiserbarRolle = res
-end function
-
 
 ''  ----------------------------------------------------------------------------
 
@@ -1620,19 +1608,38 @@ function ignorerTag( byval navn)
 	ignorer = navn = "persistence" or navn = "sosi_melding" '' skriv ut BARE i debug-modus
 	ignorer = ignorer AND not debugModell
 	ignorer = ignorer or navn = "sosi_bildeavmodellelement"  '' 	tas separat, hopper over
-		
-	ignorerTag = ignorer or ignorerSosiFormatTag(navn)
 
+	ignorer = ignorer or ignorerSosiFormatTag(navn) 
+	ignorer = ignorer or ignorerGMLFormatTag(navn)
+
+	ignorerTag = ignorer 
 end function
+
+''  ----------------------------------------------------------------------------
+
+function ignorerGMLFormatTag(tagnavn)
+
+	if ignorerGMLFormatTagger then
+		dim GMLTagger 
+		GMLTagger = array( "sequencenumber","inlineorbyreference") 
+		ignorerGMLFormatTag = listeInneholder( GMLTagger, tagnavn) 
+	else
+		ignorerGMLFormatTag = false
+	end if 
+	
+end function
+
 ''  ----------------------------------------------------------------------------
 
 function ignorerSosiFormatTag(tagnavn)
 
 	if ignorerSosiformatTagger then
-		dim sosiTagger 
-		sosiTagger = array( "sosi_navn","sosi_lengde", "sosi_datatype") 
-		ignorerSosiFormatTag = listeInneholder( sosiTagger, tagnavn) 
+		dim tagger1, tagger2, sosiTagger
+		tagger1 = array( "sosi_navn", "sosi_lengde", "sosi_datatype") 
+		tagger2 = array( "SOSI_navn", "SOSI_lengde", "SOSI_datatype") 
+		sosiTagger = merge( tagger1, tagger2)
 		
+		ignorerSosiFormatTag = listeInneholder( sosiTagger, tagnavn) 
 	else
 		ignorerSosiFormatTag = false
 	end if 
