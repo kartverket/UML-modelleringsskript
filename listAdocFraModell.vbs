@@ -3,8 +3,8 @@ Option Explicit
 ''  ----------------------------------------------------------------------------
 '
 '	Dette skriptet kjøres på et applikasjonskjema 
-'	Det vil generere to adoc-filer : modellRapport og SOSIformatRealisering
-'	Filene blir lagt på en katalog med samme navn som SOSI_kortnavn
+'	Det vil generert en adoc-fil : modellRapport
+'	Fila blir lagt på en katalog med samme navn som SOSI_kortnavn
 '
 '
 '
@@ -22,6 +22,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Versjon: 0.50 Dato: 2026-01-07 Jostein Amlien: Opprydding i styringsparametre
 ' Versjon: 0.49 Dato: 2026-01-07 Jostein Amlien: Tagger: Lagt til mulighet for å filtre bort GML-tagger.
 ' Versjon: 0.48 Dato: 2025-12-19 Jostein Amlien: Tagger: forenkla taggerSomTabell() --> listeAvTagger()
 ' Versjon: 0.47 Dato: 2025-12-19 Jostein Amlien: Flytta alternativ tabell-layout av tagger høyere opp i logikken
@@ -120,7 +121,7 @@ Sub OnProjectBrowserScript
 			
 			InitierGlobaleParametre		
 			GlobaleParametreForValgtPakke
-			
+
 			Session.Output "// Modellrapport "   + valgtPakke.element.name
 			Session.Output "// Start of UML-model"		
 
@@ -141,7 +142,7 @@ End Sub
 
 ''  --------	Globale styringsparametre	------------------------------------
 
-Dim valgtPakke As EA.Package
+
 
 dim filnavn  '' navn på fil med modellrapporten
 
@@ -152,16 +153,16 @@ dim ignorerGMLFormatTagger
 
 dim	visTommeEgenskapsTagger, visTommeKonnektorTagger, visTommeRolleTagger
 dim	visTommeElementTagger, visTommePakkeTagger
-dim visCodelistForEgenskap
 
-dim genererDiagrammer : genererDiagrammer = true
+dim genererDiagrammer
 
+'' 	Styring av format
 dim standardTabellFormat
 dim alleTaggerISammeTabellrad
 dim alternativBetegnelseForInitialverdi
 
-dim detaljnivaa, nedersteOverskiftsnivaa
-dim toppnivaa, oversteOverskiftsnivaa
+dim nedersteOverskiftsnivaa, oversteOverskiftsnivaa
+dim toppnivaa
 
 
 ''  ----------------------------------------------------------------------------
@@ -171,48 +172,31 @@ sub InitierGlobaleParametre
 		
 	filnavn = "modellRapport"
 
-	''	--	Definer hvor mye info som skal skrives ut i rapporten
-''	debugModell = true 	'' skriver ut noe innhold som kan avsløre modellfeil 
-''	debugModell = false  '' filterer bort noe innhold som ikke skal rapporteres
-
-'	ignorerSosiformatTagger = false '' Ta med tagger for SOSI-format i rapporten
 	ignorerSosiformatTagger = true 	'' Utelat tagger for SOSI-format i rapporten
-
-'	ignorerGMLformatTagger = false '' Ta med tagger for GML-format i rapporten
 	ignorerGMLformatTagger = true 	'' Utelat tagger for GML-format i rapporten
+	genererDiagrammer = true  		'' Alle diagrammer genereres på nytt
 
-''	visTommeEgenskapsTagger = true
-''	visTommeRolleTagger = true
-	
-	genererDiagrammer = true  	'' regenererer alle diagrammer
-''	genererDiagrammer = false  	'' anta at alle diagrammer er på plass
 	
 	''  ---------  	Utseende av tabeller	------------------------------------
 	
 	standardTabellFormat = "20,80"
 	
-	''	tabellhode for koder
-''	alternativBetegnelseForInitialverdi = "Kodeverdi:"   
-
-'	alleTaggerISammeTabellrad = true   '' alle taggene samla i en tabellrad
-	alleTaggerISammeTabellrad = false  '' en tabellrad for hver tag
-	
-	
 	''	-----	Styring av overskriftsnivåer   ---------------------------------
 	toppnivaa = 2   
-	detaljnivaa = 5	'' mest detaljerte overskriftsnivvå
 	nedersteOverskiftsnivaa = 5
 	oversteOverskiftsnivaa = 1
 	
-'		dim topplevel
-'''		topplevel = 1    '''  foreslått endring
-'		topplevel = 2
+	'' Egne tilpasninger av globale styringsparametere kan legges i egen fil:
+!INC egneTilpasninger
+
 end sub
 
 
 ''  --------------   Globale variable avleda fra valgt pakke   -----------------
 
+Dim valgtPakke As EA.Package
 DIM rootId
+
 DIM prefiksBokmerke
 
 dim utkatalog	'' full path til hovedkatalogen for det genererte dokumentet 
@@ -249,8 +233,6 @@ sub GlobaleParametreForValgtPakke
 	elseif pakkenavn <> "" then
 		utkatalog = utkatalog & pakkenavn & "\"
 		imgfolder = "Diagrammer\"	
-	else
-		imgfolder = "Diagrammer" & xmlns & "\"	
 	end if
 	
 	if not FSO.FolderExists(utkatalog) then FSO.CreateFolder utkatalog
@@ -1882,6 +1864,7 @@ function append( byval liste, byval tillegg)
 	end if
 	
 end function
+
 ''  ----------------------------------------------------------------------------
 
 function merge( ByVal list, byVal tillegg)
