@@ -22,7 +22,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
-' Versjon: 0.49 Dato: 2026-01-07 Jostein Amlien: Tagger:
+' Versjon: 0.49 Dato: 2026-01-07 Jostein Amlien: Tagger: Lagt til mulighet for å filtre bort GML-tagger.
 ' Versjon: 0.48 Dato: 2025-12-19 Jostein Amlien: Tagger: forenkla taggerSomTabell() --> listeAvTagger()
 ' Versjon: 0.47 Dato: 2025-12-19 Jostein Amlien: Flytta alternativ tabell-layout av tagger høyere opp i logikken
 ' Versjon: 0.46 Dato: 2025-12-19 Jostein Amlien: Flytta modulen for realiserte objekttyper ut i separat fil
