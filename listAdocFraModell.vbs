@@ -22,6 +22,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
+' Versjon: 0.52 Dato: 2026-01-15 Jostein Amlien: OCL-restriksjoner
 ' Versjon: 0.51 Dato: 2026-01-14 Jostein Amlien: Opprydding for roller og definisjoner
 ' Versjon: 0.50 Dato: 2026-01-07 Jostein Amlien: Opprydding i styringsparametre
 ' Versjon: 0.49 Dato: 2026-01-07 Jostein Amlien: Tagger: Lagt til mulighet for å filtre bort GML-tagger.
@@ -654,58 +655,111 @@ end sub
 
 function restrik( constr)
 
-	dim navn, beskrivelse, typ, oclKode
-	
-	if constr.Type = "OCL" then 
-		''	Restriksjonen består av en tekstlig beskrivelse, 
-		''	der hver linje innledes med --
-		''	og selve koden, som innledes med inv:
-		''  Rekkefølgen kan være vilkårlig
-		''	Beskrivelsen gjengis uten de innledende --
-		''	Det gjenstår å håndtere kommentarer som identifiseres med /*
-		
-		dim noter : noter = split(constr.Notes, "inv:")
-		
-		dim foranstiltBeskrivelse 	
-		foranstiltBeskrivelse = join( split( noter(0), "--"), vbcrlf )
-		
-		if UBound(noter) = 0 then 
-			beskrivelse = foranstiltBeskrivelse
-		elseif UBound(noter) > 0 then
-''			oclConstraint = Trimutf8("inv:" + noter(1))
+	dim navn, res
+	navn = append( res, array( bold("Navn:"), bold(trim(constr.Name)) )  )
+'	res = append( navn, array( "Type:", constr.Type)  )
 
-			dim restriksjonOgEvtBeskrivelse
-			restriksjonOgEvtBeskrivelse = split(noter(1), "--")
+	if constr.Notes = "" then 
+		if debugModell then 
+			dim advarsel
+			advarsel = "DEFINISJON MANGLER" 
+			advarsel = array( "ADVARSEL:", "DEFINISJON MANGLER")
 
-			dim restriksjon : restriksjon = restriksjonOgEvtBeskrivelse(0)
-			oclKode = bokstavlig( Trimutf8( "inv:"+restriksjon) )
-
-			if UBound(restriksjonOgEvtBeskrivelse) = 0 then
-				beskrivelse = foranstiltBeskrivelse		
-			elseif UBound(restriksjonOgEvtBeskrivelse) > 0 then 
-				beskrivelse = restriksjonOgEvtBeskrivelse
-				beskrivelse(0) = foranstiltBeskrivelse
-				beskrivelse = join( beskrivelse, vbcrlf)
-			end if
+			restrik = array( navn, advarsel)
 		end if
+		
+		'' Ingen restriksjon funnet, Ikke skriv ut.
+		
+		EXIT function
+		
+	end if
+
+	if constr.Type = "OCL" then 
+		res = OCL_restrik( constr)	
+		
 	else
-		beskrivelse = constr.Notes
+		res = array( navn, array( "Definisjon:", definisjon(constr))  )	
+		
+	end if 
+	
+	restrik = res
+exit function
+
+	res = append( res, array( "Status:", constr.Status)  )
+	res = append( res, array( "Vekt:", constr.Weight)  )
+	
+	restrik = res
+end function
+
+''  ----------------------------------------------------------------------------
+
+function OCL_restrik( constr)
+	''	OCL-restriksjonen består av en tekstlig beskrivelse, 
+	''	der hver linje innledes med --
+	''	og selve koden, som innledes med inv:
+	''  Rekkefølgen av beskrivelse og kode kan være vilkårlig
+	
+	''	Beskrivelsen gjengis uten de innledende --
+	
+	''	TBD: Håndtere beskrivelser som identifiseres med /*     */
+
+	dim res
+	res = append( res, array( bold("Navn:"), bold(trim(constr.Name)) )  )
+'	res = append( res, array( "Type:", constr.Type)  )
+
+	dim noter, beskrivelse
+	noter = split( constr.Notes, "inv:", 2)
+	
+	if UBound(noter) >= 0 then 
+		'' Alt foran 'inv' betraktes som en foranstilt kommentar
+		'' Den foranstilte kommentaren innledes med --
+		dim note0
+		note0 = split( noter(0), "--", 2)
+		
+		'' Overse note0(0), som er det som står foran -- 
+		if UBound(note0) = 1 then 
+			beskrivelse = note0(1)
+
+			'' Fjern alle '--' i starten av hver linje
+			beskrivelse = Replace( beskrivelse, vbCrLf&"--", vbCrLf)
+		end if
 	end if
 	
-	navn = array( bold("Navn:"), bold( trim( constr.Name)) ) 
-	typ = array( "Type:", constr.Type)
-	beskrivelse = array("Beskrivelse:", uformatertNotefelt(beskrivelse) ) 
+	if UBound(noter) = 1 then 
+		dim restriksjon, oclKode
+		restriksjon = split( "inv:" + noter(1), "--", 2)
+			
+		if UBound(restriksjon) >= 0 then oclKode = restriksjon(0)
+		
+		if UBound(restriksjon) = 1 then
+			dim note2 : note2 = restriksjon(1)
 
-	if not isEmpty(oclKode) then oclKode = array("OCL kode:", oclKode)
+			'' Fjern alle '--' i starten av hver linje
+			note2 = replace( note2, vbCrLf&"--", vbCrLf)
+			beskrivelse = beskrivelse & vbCrLf & note2
+		end if
+		
+		if oclKode <> "" then
+			oclKode = bokstavlig( Trimutf8( oclKode))
+		elseif debugModell then 
+			oclKode = bold("ADVARSEL: OCL-kode MANGLER")
+		end if
+		
+	end if
+	
+	beskrivelse = uformatertNotefelt( beskrivelse)
+	
+	'' Legg inn adoc_linjeskift
+	beskrivelse = Replace( beskrivelse, vbCrLf, " +"&vbCrLf)
 
-	restrik = array( navn, beskrivelse, typ, oclKode)
+	res = append( res, array( "Beskrivelse:", beskrivelse)  )
+	res = append( res, array( "OCL kode:", oclKode  )	)
 
-exit function
-	dim status : status = array( "Status:", constr.Status)
-	dim vekt : vekt= array( "Vekt:", constr.Weight)
-	restrik = array( navn, beskrivelse, typ, oclKode, status, vekt)
+	OCL_restrik = res
 
 end function
+
+
 
 
 '	-----------------	Operasjoner og Restriksjoner 	End	--------------------
@@ -780,10 +834,7 @@ function alleRoller( element)
 		dim rolleEnde   
 		for each rolleEnde in beggeEnder  
 			rolle = identifiserRolle( element.elementID, con, rolleEnde)
-			if isArray(rolle) then 
-				rollesamling = merge( rollesamling, array(rolle))
-''				rollesamling = append( rollesamling, rolle)
-			end if
+			rollesamling = append( rollesamling, rolle)
 		next   
 	next
 
@@ -1031,11 +1082,11 @@ function posMinimum(sekvens)
 
 	for j = 0 to UBound(sekvens)
 		seqNo = sekvens(j)
-		if not isNull(seqNo) and seqNo > 0 then    '' sjekk denne kandidaten
-			if isEmpty(min) or seqNo < min  then  '' beste kandidat så langt
-				min = seqNo
-				pos = j
-			end if
+		if isNull(seqNo) or seqNo = 0 then    
+			'' skip denne kandidaten
+		elseif isEmpty(min) or seqNo < min  then  '' beste kandidat så langt
+			min = seqNo
+			pos = j
 		end if
 	next
 
@@ -1257,7 +1308,7 @@ function genererInternPathListe(IDliste)
 	dim id, target
 	for each id in IDliste
 		set target = Repository.GetElementByID(id)
-		liste = merge(liste, pathTilInterntElement(target))
+		liste = append(liste, pathTilInterntElement(target))
 	next
 	genererInternPathListe = liste
 end function
@@ -1331,8 +1382,10 @@ end function
 
 function pathTilInterntElement( element)
 
-	dim tlink : tlink = targetLink(element)
-	pathTilInterntElement = pathTilInternPakke(element.PackageID) + "::" + tLink
+	dim path : path = pathTilInternPakke(element.PackageID)
+	if path <> "" then path + "::"
+	
+	pathTilInterntElement = path  + targetLink(element)
 
 end function
 
