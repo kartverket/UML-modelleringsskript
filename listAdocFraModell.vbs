@@ -656,7 +656,8 @@ end sub
 function restrik( constr)
 
 	dim navn, res
-	navn = append( res, array( bold("Navn:"), bold(trim(constr.Name)) )  )
+''	navn = append( res, array( bold("Navn:"), bold(trim(constr.Name)) )  )
+	navn = array( bold("Navn:"), bold(trim(constr.Name)) )
 '	res = append( navn, array( "Type:", constr.Type)  )
 
 	if constr.Notes = "" then 
@@ -721,7 +722,7 @@ function OCL_restrik( constr)
 			beskrivelse = note0(1)
 
 			'' Fjern alle '--' i starten av hver linje
-			beskrivelse = Replace( beskrivelse, vbCrLf&"--", vbCrLf)
+			beskrivelse = Replace( beskrivelse, vbCrLf&"--", linjeskift())
 		end if
 	end if
 	
@@ -735,8 +736,8 @@ function OCL_restrik( constr)
 			dim note2 : note2 = restriksjon(1)
 
 			'' Fjern alle '--' i starten av hver linje
-			note2 = replace( note2, vbCrLf&"--", vbCrLf)
-			beskrivelse = beskrivelse & vbCrLf & note2
+			note2 = replace( note2, vbCrLf&"--", linjeskift())
+			beskrivelse = beskrivelse & linjeskift() & note2
 		end if
 		
 		if oclKode <> "" then
@@ -749,9 +750,8 @@ function OCL_restrik( constr)
 	
 	beskrivelse = uformatertNotefelt( beskrivelse)
 	
-	'' Legg inn adoc_linjeskift
-	beskrivelse = Replace( beskrivelse, vbCrLf, " +"&vbCrLf)
-
+	beskrivelse = Replace( beskrivelse, vbCrLf, linjeskift())
+	
 	res = append( res, array( "Beskrivelse:", beskrivelse)  )
 	res = append( res, array( "OCL kode:", oclKode  )	)
 
@@ -1383,7 +1383,7 @@ end function
 function pathTilInterntElement( element)
 
 	dim path : path = pathTilInternPakke(element.PackageID)
-	if path <> "" then path + "::"
+	if path <> "" then path = path + "::"
 	
 	pathTilInterntElement = path  + targetLink(element)
 
@@ -2040,6 +2040,7 @@ sub SettInnDiagram(diag)
 	dim altBildeTekst
 	if diag.Notes <> "" then
 		altBildeTekst = uformatertNotefelt(diag.Notes)  
+		altBildeTekst = Replace( altBildeTekst, vbCrLf, " ")
 	else
 		dim altTekst(2)
 		altTekst(0) = "Diagram med navn " 
@@ -2353,11 +2354,12 @@ end function
 ''  ----------------------------------------------------------------------------
 
 function bildeITekst( byVal bildetekst, byval bilde, byval alternativtekst)
+''  Denne funksjonen er ikke i bruk i vanlige modeller, og er derfor ikke testa
 
 	dim bildelink 
 	bildelink = adocBildelink(bilde, alternativtekst, "width=100")
 
-	bildeITekst = array( linjeskift(), bildetekst, bildelink)
+	bildeITekst = array( avsnittSkille(), bildetekst, bildelink)
 end function 
 
 ''  ----------------------------------------------------------------------------
@@ -2437,7 +2439,7 @@ end function
 
 function linjeskift( )
 
-	linjeskift = " +"
+	linjeskift = " +" & vbCrLf
 	
 end function
 
@@ -2558,7 +2560,7 @@ function tabellCelle( byval innhold)
 		innhold = bokstavligInnhold
 	end if
 	
-	if isArray( innhold) then innhold = join( innhold, vbCrLf)
+	if isArray( innhold) then innhold = join( innhold, linjeskift())
 	
 	'' Dersom tabellcella skal inneholde tegnet '|', må dette tegnet eskaperes 
 	innhold = Replace( innhold, "|", "\|")
