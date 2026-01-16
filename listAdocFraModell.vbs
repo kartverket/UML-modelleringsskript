@@ -737,7 +737,11 @@ function OCL_restrik( constr)
 
 			'' Fjern alle '--' i starten av hver linje
 			note2 = replace( note2, vbCrLf&"--", linjeskift())
-			beskrivelse = beskrivelse & linjeskift() & note2
+			if beskrivelse <> "" then
+				beskrivelse = beskrivelse & linjeskift() & note2
+			else
+				beskrivelse = note2
+			end if
 		end if
 		
 		if oclKode <> "" then
