@@ -22,8 +22,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
-' Versjon: 0.52 Dato: 2026-01-15 Jostein Amlien: OCL-restriksjoner
-' Versjon: 0.51 Dato: 2026-01-14 Jostein Amlien: Opprydding for roller og definisjoner
+' Versjon: 0.51 Dato: 2026-01-08 Jostein Amlien: Forenkla koden for definisjoner og restriksjoner
 ' Versjon: 0.50 Dato: 2026-01-07 Jostein Amlien: Opprydding i styringsparametre
 ' Versjon: 0.49 Dato: 2026-01-07 Jostein Amlien: Tagger: Lagt til mulighet for å filtre bort GML-tagger.
 ' Versjon: 0.48 Dato: 2025-12-19 Jostein Amlien: Tagger: forenkla taggerSomTabell() --> listeAvTagger()
@@ -132,7 +131,7 @@ Sub OnProjectBrowserScript
 			utfil.close
 
 			Session.Output "// End of UML-model"
-			Session.Output "// Modellrapport er skrevet til: " & utkatalog  & filnavn + ".adoc"
+			Session.Output "// Modellrapport ferdig "
 		Case Else
 			' Error message
 			Session.Prompt "This script does not support items of this type.", promptOK
@@ -655,92 +654,36 @@ end sub
 
 function restrik( constr)
 
-	dim navn, res
-''	navn = append( res, array( bold("Navn:"), bold(trim(constr.Name)) )  )
-	navn = array( bold("Navn:"), bold(trim(constr.Name)) )
-'	res = append( navn, array( "Type:", constr.Type)  )
-
-	if constr.Notes = "" then 
-		if debugModell then 
-			dim advarsel
-			advarsel = "DEFINISJON MANGLER" 
-			advarsel = array( "ADVARSEL:", "DEFINISJON MANGLER")
-
-			restrik = array( navn, advarsel)
-		end if
-		
-		'' Ingen restriksjon funnet, Ikke skriv ut.
-		
-		EXIT function
-		
-	end if
-
-	if constr.Type = "OCL" then 
-		res = OCL_restrik( constr)	
-		
-	else
-		res = array( navn, array( "Definisjon:", definisjon(constr))  )	
-		
-	end if 
-	
-	restrik = res
-exit function
-
-	res = append( res, array( "Status:", constr.Status)  )
-	res = append( res, array( "Vekt:", constr.Weight)  )
-	
-	restrik = res
-end function
-
-''  ----------------------------------------------------------------------------
-
-function OCL_restrik( constr)
-	''	OCL-restriksjonen består av en tekstlig beskrivelse, 
-	''	der hver linje innledes med --
-	''	og selve koden, som innledes med inv:
-	''  Rekkefølgen av beskrivelse og kode kan være vilkårlig
-	
-	''	Beskrivelsen gjengis uten de innledende --
-	
-	''	TBD: Håndtere beskrivelser som identifiseres med /*     */
-
 	dim res
 	res = append( res, array( bold("Navn:"), bold(trim(constr.Name)) )  )
 '	res = append( res, array( "Type:", constr.Type)  )
-
-	dim noter, beskrivelse
-	noter = split( constr.Notes, "inv:", 2)
 	
-	if UBound(noter) >= 0 then 
-		'' Alt foran 'inv' betraktes som en foranstilt kommentar
-		'' Den foranstilte kommentaren innledes med --
-		dim note0
-		note0 = split( noter(0), "--", 2)
+	if constr.Type = "OCL" then 
+		dim beskrivelse, oclKode
+		''	Restriksjonen består av en tekstlig beskrivelse, 
+		''	der hver linje innledes med --
+		''	og selve koden, som innledes med inv:
+		''  Rekkefølgen kan være vilkårlig
+		''	Beskrivelsen gjengis uten de innledende --
 		
-		'' Overse note0(0), som er det som står foran -- 
-		if UBound(note0) = 1 then 
-			beskrivelse = note0(1)
-
-			'' Fjern alle '--' i starten av hver linje
-			beskrivelse = Replace( beskrivelse, vbCrLf&"--", linjeskift())
-		end if
-	end if
-	
-	if UBound(noter) = 1 then 
-		dim restriksjon, oclKode
-		restriksjon = split( "inv:" + noter(1), "--", 2)
+		''	TBD: Det gjenstår å håndtere kommentarer som identifiseres med /*
+		
+		dim noter : noter = split(constr.Notes, "inv:", 2)
 			
-		if UBound(restriksjon) >= 0 then oclKode = restriksjon(0)
-		
-		if UBound(restriksjon) = 1 then
-			dim note2 : note2 = restriksjon(1)
+		beskrivelse = noter(0)
+		beskrivelse = Replace( beskrivelse, vbCrLf&"--", " +"&vbCrLf)
+		beskrivelse = Replace( beskrivelse, "--", "")
 
-			'' Fjern alle '--' i starten av hver linje
-			note2 = replace( note2, vbCrLf&"--", linjeskift())
-			if beskrivelse <> "" then
-				beskrivelse = beskrivelse & linjeskift() & note2
-			else
-				beskrivelse = note2
+		if UBound(noter) = 1 then 
+			dim beskrivelse2, restriksjon
+			restriksjon = noter(1)
+			restriksjon = split( restriksjon, "--", 2)
+			
+			oclKode = "inv:" + restriksjon(0)
+			
+			if UBound(restriksjon) = 1 then
+				beskrivelse2 = replace( restriksjon(1), vbCrLf&"--", " +"&vbCrLf)
+				beskrivelse = beskrivelse & vbCrLf & beskrivelse2
 			end if
 		end if
 		
@@ -750,20 +693,125 @@ function OCL_restrik( constr)
 			oclKode = bold("ADVARSEL: OCL-kode MANGLER")
 		end if
 		
-	end if
-	
-	beskrivelse = uformatertNotefelt( beskrivelse)
-	
-	beskrivelse = Replace( beskrivelse, vbCrLf, linjeskift())
-	
-	res = append( res, array( "Beskrivelse:", beskrivelse)  )
-	res = append( res, array( "OCL kode:", oclKode  )	)
+		res = append( res, array( "Beskrivelse:", beskrivelse)  )
+		res = append( res, array( "OCL kode:", oclKode  )	)
+	else
 
-	OCL_restrik = res
+		res = append( res, array( "Definisjon:", definisjon(constr))  )
+	end if
+
+	restrik = res
+	
+exit function
+	res = append( res, array( "Status:", constr.Status)  )
+	res = append( res, array( "Vekt:", constr.Weight)  )
+	
+	restrik = res
 
 end function
 
+''  ----------------------------------------------------------------------------
 
+function X__restrik( constr)
+
+	dim res
+	res = append( res, array( bold("Navn:"), bold(trim(constr.Name)) )  )
+'	res = append( res, array( "Type:", constr.Type)  )
+	
+	if constr.Type = "OCL" then 
+		dim beskrivelse1, beskrivelse2, restriksjon, oclKode
+		''	Restriksjonen består av en tekstlig beskrivelse, 
+		''	der hver linje innledes med --
+		''	og selve koden, som innledes med inv:
+		''  Rekkefølgen kan være vilkårlig
+		''	Beskrivelsen gjengis uten de innledende --
+		
+		''	Det gjenstår å håndtere kommentarer som identifiseres med /*
+		
+		dim noter : noter = split(constr.Notes, "inv:", 2)
+		
+'		beskrivelse = split( noter(0), "--")
+'		beskrivelse = join( beskrivelse, vbCrLf)
+'
+''		beskrivelse = Replace( noter(0), "--", vbCrLf)
+''		
+		beskrivelse = noter(0)
+		beskrivelse = Replace( beskrivelse, vbCrLf&"--", vbCrLf)
+		beskrivelse = Replace( beskrivelse, "--", "")
+
+
+		if UBound(noter) = 1 then 
+			restriksjon = noter(1)
+			restriksjon = split( restriksjon, "--", 2)
+			
+			oclKode = "inv:" + restriksjon(0)
+			
+			if UBound(restriksjon) = 1 then
+				beskrivelse2 = replace( restriksjon(1), vbCrLf&"--", vbCrLf)
+				beskrivelse = beskrivelse & vbCrLf & beskrivelse2
+			end if
+		end if
+
+'					dim foranstiltBeskrivelse 	
+'					foranstiltBeskrivelse = join( split( noter(0), "--"), vbCrLf)
+		
+'		if UBound(noter) = 0 then 
+'			beskrivelse = foranstiltBeskrivelse
+'		elseif UBound(noter) > 0 then
+
+''			oclConstraint = Trimutf8("inv:" + noter(1))
+		if UBound(noter) > 0 then
+			dim restriksjonOgEvtBeskrivelse
+			restriksjonOgEvtBeskrivelse = split(noter(1), "--", 2)
+
+''			dim restriksjon : restriksjon = restriksjonOgEvtBeskrivelse(0)
+''			oclKode = bokstavlig( Trimutf8( "inv:"+restriksjon) )
+			oclKode = "inv:" + restriksjonOgEvtBeskrivelse(0)
+
+			if UBound(restriksjonOgEvtBeskrivelse) > 0 then 
+				beskrivelse = restriksjonOgEvtBeskrivelse
+				beskrivelse(0) = foranstiltBeskrivelse
+
+			end if
+			beskrivelse = join( beskrivelse, vbcrlf)	
+
+			
+					if UBound(restriksjonOgEvtBeskrivelse) = 0 then
+						beskrivelse = foranstiltBeskrivelse		
+					elseif UBound(restriksjonOgEvtBeskrivelse) > 0 then 
+						beskrivelse = restriksjonOgEvtBeskrivelse
+						beskrivelse(0) = foranstiltBeskrivelse
+						beskrivelse = join( beskrivelse, vbcrlf)
+					end if
+		end if
+		
+		if oclKode <> "" then
+			oclKode = bokstavlig( Trimutf8( oclKode))
+		elseif debugModell then 
+			oclKode = "ADVARSEL: OCL-kode MANGLER"
+		end if
+			
+	end if
+	
+	
+	
+		
+	if constr.Type = "OCL" then 
+		res = append( res, array( "Beskrivelse:", beskrivelse)  )
+		res = append( res, array( "OCL kode:", oclKode  )	)
+	else
+		res = append( res, array( "Definisjon:", definisjon(constr))  )
+	end if
+
+	X__restrik = res
+	
+exit function
+	res = append( res, array( "Status:", constr.Status)  )
+	res = append( res, array( "Vekt:", constr.Weight)  )
+	
+	X__restrik = res
+
+end function
 
 
 '	-----------------	Operasjoner og Restriksjoner 	End	--------------------
@@ -838,7 +886,10 @@ function alleRoller( element)
 		dim rolleEnde   
 		for each rolleEnde in beggeEnder  
 			rolle = identifiserRolle( element.elementID, con, rolleEnde)
-			rollesamling = append( rollesamling, rolle)
+			if isArray(rolle) then 
+				rollesamling = merge( rollesamling, array(rolle))
+''				rollesamling = append( rollesamling, rolle)
+			end if
 		next   
 	next
 
@@ -848,17 +899,15 @@ end function
 ''  ----------------------------------------------------------------------------
 
 function sorterteRoller( element)
-	dim i
 	dim rolle   		'' array
 	dim rollesamling  	'' array av rolle-arryer
-
+	
 	rollesamling = alleRoller( element)
 
 	if isEmpty(rollesamling) then 	EXIT function
 
 	dim sekvens()			'' array av sekvensnummre
 	redim sekvens(UBound(rollesamling))
-
 	for i = 0 to UBound(rollesamling)
 		sekvens(i) = rollesamling(i)(0)
 	next
@@ -868,8 +917,10 @@ function sorterteRoller( element)
 
 	dim res
 	res = rolleSamling
-	for i = 0 to UBound(indeks) 
-		res(i) = rollesamling(indeks(i))
+	dim i, j
+''	for each i in indeks
+	for j = 0 to UBound(indeks) 
+		res(j) = rollesamling(indeks(j))
 	next
 
 	sorterteRoller = res
@@ -1086,11 +1137,11 @@ function posMinimum(sekvens)
 
 	for j = 0 to UBound(sekvens)
 		seqNo = sekvens(j)
-		if isNull(seqNo) or seqNo = 0 then    
-			'' skip denne kandidaten
-		elseif isEmpty(min) or seqNo < min  then  '' beste kandidat så langt
-			min = seqNo
-			pos = j
+		if not isNull(seqNo) and seqNo > 0 then    '' sjekk denne kandidaten
+			if isEmpty(min) or seqNo < min  then  '' beste kandidat så langt
+				min = seqNo
+				pos = j
+			end if
 		end if
 	next
 
@@ -1312,7 +1363,7 @@ function genererInternPathListe(IDliste)
 	dim id, target
 	for each id in IDliste
 		set target = Repository.GetElementByID(id)
-		liste = append(liste, pathTilInterntElement(target))
+		liste = merge(liste, pathTilInterntElement(target))
 	next
 	genererInternPathListe = liste
 end function
@@ -1386,10 +1437,8 @@ end function
 
 function pathTilInterntElement( element)
 
-	dim path : path = pathTilInternPakke(element.PackageID)
-	if path <> "" then path = path + "::"
-	
-	pathTilInterntElement = path  + targetLink(element)
+	dim tlink : tlink = targetLink(element)
+	pathTilInterntElement = pathTilInternPakke(element.PackageID) + "::" + tLink
 
 end function
 
@@ -1801,7 +1850,7 @@ function tabellRad( byval rad)
 	for i = 0 to UBound(rad) 
 		res(i) = tabellCelle( rad(i) )
 	next
-	res(UBound(rad) +1) = " "  '' ihht adoc-konvensjon: blank linje
+	res(UBound(rad) +1) = " "  '' ihht adoc-konvesjon: blank linje
 	
 	tabellRad = res
 	
@@ -2044,7 +2093,7 @@ sub SettInnDiagram(diag)
 	dim altBildeTekst
 	if diag.Notes <> "" then
 		altBildeTekst = uformatertNotefelt(diag.Notes)  
-		altBildeTekst = Replace( altBildeTekst, vbCrLf, " ")
+		if isArray(altBildeTekst) then altBildeTekst = join( altBildeTekst)
 	else
 		dim altTekst(2)
 		altTekst(0) = "Diagram med navn " 
@@ -2338,6 +2387,29 @@ function bokstavligTekst( tekst)
 	
 end function	
 
+''  ----------------------------------------------------------------------------
+
+			function erBokstavlig( tekst)
+				'' returnerer true dersom tekst er iht. funksjonen bokstavlig	
+				if isArray(tekst) then
+					erBokstavlig = (tekst(0) = "[literal]" and UBound(tekst) = 2)
+				end if
+			end function
+
+''  ----------------------------------------------------------------------------
+
+			function bokstavligCelle( byval bokstavligTekst, celleSeparator)
+			''	Bokstavlig tekst konverteres til bokstavlig tabellcelle
+			''
+				dim res : res = bokstavligTekst
+				
+				res(0) = "l" + celleSeparator
+				res(1) = Replace( res(1), celleSeparator, "\"+celleSeparator)
+			''	call ErstattTegn( res(1), celleSeparator, "\"+celleSeparator)
+
+				bokstavligCelle = res
+			end function
+
 
 ''  ----------------------------------------------------------------------------
 '
@@ -2348,7 +2420,7 @@ end function
 function bildeFrittstaaende( byVal bildetekst, bilde, alternativtekst)
 
 	dim bildelink 
-	bildelink = adocBildelink(bilde, alternativtekst, "" )
+	bildelink = adocBildelink(bilde, alternativtekst, "" )blabla
 
 	bildetekst = adocBildeTekst(bildetekst)
 
@@ -2357,13 +2429,12 @@ end function
 
 ''  ----------------------------------------------------------------------------
 
-function bildeITekst( byVal bildetekst, byval bilde, byval alternativtekst)
-''  Denne funksjonen er ikke i bruk i vanlige modeller, og er derfor ikke testa
+function bildeITekst( bildetekst, bilde,  alternativtekst)
 
 	dim bildelink 
 	bildelink = adocBildelink(bilde, alternativtekst, "width=100")
 
-	bildeITekst = array( avsnittSkille(), bildetekst, bildelink)
+	bildeITekst = array( " +", bildetekst, bildelink)
 end function 
 
 ''  ----------------------------------------------------------------------------
@@ -2441,9 +2512,17 @@ end function
 
 ''  ----------------------------------------------------------------------------
 
+function tomLinje( )
+
+	tomLinje = " +"
+	
+end function
+
+''  ----------------------------------------------------------------------------
+
 function linjeskift( )
 
-	linjeskift = " +" & vbCrLf
+	linjeskift = " +"
 	
 end function
 
@@ -2564,13 +2643,74 @@ function tabellCelle( byval innhold)
 		innhold = bokstavligInnhold
 	end if
 	
-	if isArray( innhold) then innhold = join( innhold, linjeskift())
+	if isArray( innhold) then innhold = join( innhold, vbCrLf)
 	
 	'' Dersom tabellcella skal inneholde tegnet '|', må dette tegnet eskaperes 
 	innhold = Replace( innhold, "|", "\|")
 	
 	tabellCelle = sep & innhold & " "
+	
+exit function
+
+''	dim sep : sep = "|"
+	
+	if erBokstavlig( innhold) then
+''		innhold = Replace( bokstavligInnhold, "|", "\|")
+'''		tabellCelle = bokstavligCelle( bokstavligInnhold, "|")	
+'''''''		EXIT function
+
+		tabellCelle = bokstavligCelle( innhold, "|")
 		
+	elseif not isArray( innhold) then
+	
+		tabellCelle = "|" & Replace( innhold, "|", "\|") & " "
+
+	else
+
+''		dim res, i
+		res = "|"
+		
+		dim i
+		for i = 0 to Ubound(innhold)
+			res = append( res, Replace( innhold(i), "|", "\|") )
+		next
+
+		tabellCelle = res
+	end if
+	
+end function
+
+''  ----------------------------------------------------------------------------
+
+function X__tabellCelle( byval innhold)
+
+	dim sep : sep = "|"
+	
+	if erBokstavlig( innhold) then
+
+		X__tabellCelle = bokstavligCelle( innhold, "|")
+		
+	elseif not isArray( innhold) then
+	
+		X__tabellCelle = "|" & Replace( innhold, "|", "\|") & " "
+
+	else
+'		dim res()
+'		redim res(Ubound(innhold)+1)
+'		res(0) =  sep
+		dim res, i
+		res = "|"
+		
+		for i = 0 to Ubound(innhold)
+			res = append( res, Replace( innhold(i), "|", "\|") )
+'			if not isEmpty(innhold(i)) then 
+'				res(i+1) = innhold(i) + linjeskift()
+'			end if
+		next
+'		redim preserve res(i)
+		X__tabellCelle = res
+	end if
+	
 end function
 
 ''  ----------------------------------------------------------------------------

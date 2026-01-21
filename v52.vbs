@@ -22,8 +22,7 @@ Option Explicit
 ' Purpose: Generate documentation in AsciiDoc syntax
 ' Original Date: 08.04.2021
 '
-' Versjon: 0.52 Dato: 2026-01-15 Jostein Amlien: OCL-restriksjoner
-' Versjon: 0.51 Dato: 2026-01-14 Jostein Amlien: Opprydding for roller og definisjoner
+' Versjon: 0.51 Dato: 2026-01-08 Jostein Amlien: Forenkla koden for definisjoner og restriksjoner
 ' Versjon: 0.50 Dato: 2026-01-07 Jostein Amlien: Opprydding i styringsparametre
 ' Versjon: 0.49 Dato: 2026-01-07 Jostein Amlien: Tagger: Lagt til mulighet for å filtre bort GML-tagger.
 ' Versjon: 0.48 Dato: 2025-12-19 Jostein Amlien: Tagger: forenkla taggerSomTabell() --> listeAvTagger()
@@ -132,7 +131,7 @@ Sub OnProjectBrowserScript
 			utfil.close
 
 			Session.Output "// End of UML-model"
-			Session.Output "// Modellrapport er skrevet til: " & utkatalog  & filnavn + ".adoc"
+			Session.Output "// Modellrapport ferdig "
 		Case Else
 			' Error message
 			Session.Prompt "This script does not support items of this type.", promptOK
@@ -655,47 +654,32 @@ end sub
 
 function restrik( constr)
 
-	dim navn, res
-''	navn = append( res, array( bold("Navn:"), bold(trim(constr.Name)) )  )
-	navn = array( bold("Navn:"), bold(trim(constr.Name)) )
-'	res = append( navn, array( "Type:", constr.Type)  )
+	dim res
+	res = append( res, array( bold("Navn:"), bold(trim(constr.Name)) )  )
+'	res = append( res, array( "Type:", constr.Type)  )
 
 	if constr.Notes = "" then 
 		if debugModell then 
 			dim advarsel
 			advarsel = "DEFINISJON MANGLER" 
 			advarsel = array( "ADVARSEL:", "DEFINISJON MANGLER")
-
-			restrik = array( navn, advarsel)
+			restrik = append( res,  advarsel  ) 
 		end if
 		
 		'' Ingen restriksjon funnet, Ikke skriv ut.
-		
 		EXIT function
-		
 	end if
 
-	if constr.Type = "OCL" then 
-		res = OCL_restrik( constr)	
-		
-	else
-		res = array( navn, array( "Definisjon:", definisjon(constr))  )	
+	if constr.Type <> "OCL" then 
+
+		restrik = append( res, array( "Definisjon:", definisjon(constr))  )	
+		EXIT function
 		
 	end if 
 	
-	restrik = res
-exit function
-
-	res = append( res, array( "Status:", constr.Status)  )
-	res = append( res, array( "Vekt:", constr.Weight)  )
+	''  Restriksjonen er en OCL
 	
-	restrik = res
-end function
-
-''  ----------------------------------------------------------------------------
-
-function OCL_restrik( constr)
-	''	OCL-restriksjonen består av en tekstlig beskrivelse, 
+	''	Restriksjonen består av en tekstlig beskrivelse, 
 	''	der hver linje innledes med --
 	''	og selve koden, som innledes med inv:
 	''  Rekkefølgen av beskrivelse og kode kan være vilkårlig
@@ -704,9 +688,6 @@ function OCL_restrik( constr)
 	
 	''	TBD: Håndtere beskrivelser som identifiseres med /*     */
 
-	dim res
-	res = append( res, array( bold("Navn:"), bold(trim(constr.Name)) )  )
-'	res = append( res, array( "Type:", constr.Type)  )
 
 	dim noter, beskrivelse
 	noter = split( constr.Notes, "inv:", 2)
@@ -722,7 +703,7 @@ function OCL_restrik( constr)
 			beskrivelse = note0(1)
 
 			'' Fjern alle '--' i starten av hver linje
-			beskrivelse = Replace( beskrivelse, vbCrLf&"--", linjeskift())
+			beskrivelse = Replace( beskrivelse, vbCrLf&"--", vbCrLf)
 		end if
 	end if
 	
@@ -736,12 +717,8 @@ function OCL_restrik( constr)
 			dim note2 : note2 = restriksjon(1)
 
 			'' Fjern alle '--' i starten av hver linje
-			note2 = replace( note2, vbCrLf&"--", linjeskift())
-			if beskrivelse <> "" then
-				beskrivelse = beskrivelse & linjeskift() & note2
-			else
-				beskrivelse = note2
-			end if
+			note2 = replace( note2, vbCrLf&"--", vbCrLf)
+			beskrivelse = beskrivelse & vbCrLf & note2
 		end if
 		
 		if oclKode <> "" then
@@ -752,18 +729,22 @@ function OCL_restrik( constr)
 		
 	end if
 	
-	beskrivelse = uformatertNotefelt( beskrivelse)
-	
-	beskrivelse = Replace( beskrivelse, vbCrLf, linjeskift())
-	
+	'' Legg inn adoc_linjeskift
+	beskrivelse = Replace( beskrivelse, vbCrLf, " +"&vbCrLf)
+
 	res = append( res, array( "Beskrivelse:", beskrivelse)  )
 	res = append( res, array( "OCL kode:", oclKode  )	)
 
-	OCL_restrik = res
+	restrik = res
+
+exit function
+
+	res = append( res, array( "Status:", constr.Status)  )
+	res = append( res, array( "Vekt:", constr.Weight)  )
+	
+	restrik = res
 
 end function
-
-
 
 
 '	-----------------	Operasjoner og Restriksjoner 	End	--------------------
@@ -838,7 +819,10 @@ function alleRoller( element)
 		dim rolleEnde   
 		for each rolleEnde in beggeEnder  
 			rolle = identifiserRolle( element.elementID, con, rolleEnde)
-			rollesamling = append( rollesamling, rolle)
+			if isArray(rolle) then 
+				rollesamling = merge( rollesamling, array(rolle))
+''				rollesamling = append( rollesamling, rolle)
+			end if
 		next   
 	next
 
@@ -848,17 +832,16 @@ end function
 ''  ----------------------------------------------------------------------------
 
 function sorterteRoller( element)
-	dim i
 	dim rolle   		'' array
 	dim rollesamling  	'' array av rolle-arryer
-
+	
 	rollesamling = alleRoller( element)
 
 	if isEmpty(rollesamling) then 	EXIT function
 
 	dim sekvens()			'' array av sekvensnummre
 	redim sekvens(UBound(rollesamling))
-
+	dim i
 	for i = 0 to UBound(rollesamling)
 		sekvens(i) = rollesamling(i)(0)
 	next
@@ -868,8 +851,9 @@ function sorterteRoller( element)
 
 	dim res
 	res = rolleSamling
-	for i = 0 to UBound(indeks) 
-		res(i) = rollesamling(indeks(i))
+	dim j
+	for j = 0 to UBound(indeks) 
+		res(j) = rollesamling(indeks(j))
 	next
 
 	sorterteRoller = res
@@ -1086,11 +1070,11 @@ function posMinimum(sekvens)
 
 	for j = 0 to UBound(sekvens)
 		seqNo = sekvens(j)
-		if isNull(seqNo) or seqNo = 0 then    
-			'' skip denne kandidaten
-		elseif isEmpty(min) or seqNo < min  then  '' beste kandidat så langt
-			min = seqNo
-			pos = j
+		if not isNull(seqNo) and seqNo > 0 then    '' sjekk denne kandidaten
+			if isEmpty(min) or seqNo < min  then  '' beste kandidat så langt
+				min = seqNo
+				pos = j
+			end if
 		end if
 	next
 
@@ -1312,7 +1296,7 @@ function genererInternPathListe(IDliste)
 	dim id, target
 	for each id in IDliste
 		set target = Repository.GetElementByID(id)
-		liste = append(liste, pathTilInterntElement(target))
+		liste = merge(liste, pathTilInterntElement(target))
 	next
 	genererInternPathListe = liste
 end function
@@ -1386,10 +1370,8 @@ end function
 
 function pathTilInterntElement( element)
 
-	dim path : path = pathTilInternPakke(element.PackageID)
-	if path <> "" then path = path + "::"
-	
-	pathTilInterntElement = path  + targetLink(element)
+	dim tlink : tlink = targetLink(element)
+	pathTilInterntElement = pathTilInternPakke(element.PackageID) + "::" + tLink
 
 end function
 
@@ -2044,7 +2026,6 @@ sub SettInnDiagram(diag)
 	dim altBildeTekst
 	if diag.Notes <> "" then
 		altBildeTekst = uformatertNotefelt(diag.Notes)  
-		altBildeTekst = Replace( altBildeTekst, vbCrLf, " ")
 	else
 		dim altTekst(2)
 		altTekst(0) = "Diagram med navn " 
@@ -2358,12 +2339,11 @@ end function
 ''  ----------------------------------------------------------------------------
 
 function bildeITekst( byVal bildetekst, byval bilde, byval alternativtekst)
-''  Denne funksjonen er ikke i bruk i vanlige modeller, og er derfor ikke testa
 
 	dim bildelink 
 	bildelink = adocBildelink(bilde, alternativtekst, "width=100")
 
-	bildeITekst = array( avsnittSkille(), bildetekst, bildelink)
+	bildeITekst = array( linjeskift(), bildetekst, bildelink)
 end function 
 
 ''  ----------------------------------------------------------------------------
@@ -2443,7 +2423,7 @@ end function
 
 function linjeskift( )
 
-	linjeskift = " +" & vbCrLf
+	linjeskift = " +"
 	
 end function
 
@@ -2564,7 +2544,7 @@ function tabellCelle( byval innhold)
 		innhold = bokstavligInnhold
 	end if
 	
-	if isArray( innhold) then innhold = join( innhold, linjeskift())
+	if isArray( innhold) then innhold = join( innhold, vbCrLf)
 	
 	'' Dersom tabellcella skal inneholde tegnet '|', må dette tegnet eskaperes 
 	innhold = Replace( innhold, "|", "\|")
